@@ -35,3 +35,16 @@ bench_compose() {
 psql_admin() {
   bench exec -i bench-postgres-1 psql -U bench -d bench -v ON_ERROR_STOP=1 -X -q "$@"
 }
+
+# Runs k6 with metrics pushed to Prometheus. Latency goes as native histograms,
+# so Grafana can compute exact percentiles across endpoints. Every metric is
+# tagged with the stack and phase started by bin/up.
+k6_run() {
+  local stack=unknown phase=unknown
+  if [ -f "$HARNESS_DIR/.run-info" ]; then . "$HARNESS_DIR/.run-info"; stack="$STACK"; phase="$PHASE"; fi
+  K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
+  K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM=true \
+  K6_PROMETHEUS_RW_PUSH_INTERVAL=5s \
+  BASE_URL="$BASE_URL" \
+    k6 run -o experimental-prometheus-rw --tag stack="$stack" --tag phase="$phase" "$@"
+}

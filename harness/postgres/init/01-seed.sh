@@ -5,6 +5,7 @@
 set -eu
 
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<'SQL'
+CREATE EXTENSION pg_stat_statements;  -- read by the Prometheus exporter
 CREATE DATABASE app_template;
 SQL
 

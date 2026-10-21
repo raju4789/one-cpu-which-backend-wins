@@ -56,7 +56,7 @@ services:
       - --housekeeping_interval=5s
       - --docker_only=true
       - --store_container_labels=false
-      - --disable_metrics=advtcp,cpu_topology,cpuset,disk,diskIO,hugetlb,memory_numa,percpu,process,referenced_memory,resctrl,sched,tcp,udp
+      - --disable_metrics=advtcp,cpu_topology,cpuset,disk,hugetlb,memory_numa,percpu,process,referenced_memory,resctrl,sched,tcp,udp
     privileged: true
     devices:
       - /dev/kmsg
@@ -70,12 +70,21 @@ services:
 
   postgres-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1
+    command: ["--collector.stat_statements", "--collector.locks"]
     environment:
       DATA_SOURCE_NAME: postgresql://bench:bench@postgres:5432/bench?sslmode=disable
     ports:
       - "9187:9187"
     depends_on:
       - postgres
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.4.2
+    command: ["--nginx.scrape-uri=http://nginx:8082/stub_status"]
+    ports:
+      - "9113:9113"
+    depends_on:
+      - nginx
 
 volumes:
   pgdata:

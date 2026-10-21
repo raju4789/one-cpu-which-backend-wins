@@ -15,6 +15,7 @@ services:
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=90d
       - --web.enable-remote-write-receiver   # k6 pushes its metrics here
+      - --enable-feature=native-histograms   # exact p50/p90/p95/p99 across all endpoints
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus

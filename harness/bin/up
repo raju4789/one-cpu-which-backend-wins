@@ -34,6 +34,8 @@ done
 
 "$HARNESS_DIR/bin/reset-db"
 
+printf 'STACK=%s\nPHASE=%s\n' "$stack" "$phase" > "$HARNESS_DIR/.run-info"
+
 log "Starting $stack (phase: $phase, FEED_CACHE=$FEED_CACHE, nginx: $NGINX_MODE)"
 bench_compose "$stack" up -d --build
 

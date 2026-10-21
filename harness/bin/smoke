@@ -3,7 +3,4 @@
 # Proves the full path: k6 -> Nginx -> app -> Grafana. Not a benchmark.
 source "$(dirname "$0")/common.sh"
 
-K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
-K6_PROMETHEUS_RW_TREND_STATS="p(50),p(95),p(99),avg,max" \
-BASE_URL="$BASE_URL" \
-  k6 run -o experimental-prometheus-rw "$HARNESS_DIR/smoke.js"
+k6_run "$HARNESS_DIR/smoke.js"

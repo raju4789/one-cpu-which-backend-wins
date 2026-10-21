@@ -5,11 +5,12 @@ The shared test environment. Every stack runs on exactly this setup.
 ```
 Mac (host)
 ├── k6                      load generator, outside both VMs
+├── node_exporter           the Mac's own CPU, to prove k6 wasn't short of it
 ├── bench VM   1 vCPU, 2 GB   the "$12 box"
 │   ├── Nginx               port 8080 on the Mac
 │   ├── app                 the stack under test
 │   ├── Postgres            seeded once, reset before every run
-│   └── cAdvisor, Postgres exporter
+│   └── cAdvisor, Postgres exporter, Nginx exporter
 └── monitor VM 2 vCPU, 2 GB
     ├── Prometheus          port 9090, receives k6 metrics
     └── Grafana             port 3000
@@ -18,7 +19,8 @@ Mac (host)
 ## Setup
 
 ```sh
-brew install colima docker docker-compose k6
+brew install colima docker docker-compose k6 node_exporter
+brew services start node_exporter
 harness/bin/vm-up
 ```
 
@@ -59,6 +61,21 @@ harness/bin/down
 | `bin/env-report` | Environment as JSON, saved with every result |
 | `bin/smoke` | Short load test through the full path, with metrics in Grafana |
 | `bin/pin-images` | Pin every image to its current digest. Run once when freezing the harness |
+
+## Grafana
+
+Everything is on one dashboard at http://localhost:3000. Filter by stack and phase at the top.
+
+| Section | What it shows |
+| --- | --- |
+| Summary | RPS, p95, p99, error rate, VUs, server CPU, red when past the pass criteria |
+| Load (k6) | p50, p90, p95, p99, RPS and errors per endpoint, status codes, VUs |
+| Server | CPU, memory, network and disk writes per container, against the 1 core and 2 GB |
+| Nginx | Requests handled, active and idle connections |
+| Postgres | Transactions, connections, cache hit ratio, rows, locks, deadlocks, size, top queries |
+| Load generator | The Mac's CPU, to show k6 had headroom |
+
+Percentiles come from k6 native histograms, so p95 and p99 are exact across all endpoints, not averaged. The dashboard is generated: edit `monitoring/grafana/build_dashboard.py`, then run it.
 
 ## How a stack plugs in
 
