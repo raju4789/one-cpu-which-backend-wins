@@ -10,9 +10,41 @@ These rules keep the comparison fair. A result only counts if it follows all of 
 4. **API:** every stack passes the same contract tests before it is load tested.
 5. **Load:** same k6 script, ramp, think time and pass criteria.
 6. **Queries:** same work per request. One query for the feed, no N+1.
-7. **Logging:** production style, info level, the same for all stacks.
+7. **Logging:** Nginx writes the one access log. Apps log warnings and errors only, no per-request lines. Rails logs every request by default and Spring doesn't, so "info level everywhere" would not be equal work.
 8. **Nginx:** one shared config with keepalive to the app.
 9. **Repeatability:** a warm-up run before measuring, and every test run three times.
+
+## Environment
+
+The goal is to measure the stack, not the laptop. Anything outside the app that could change a result is either fixed or measured.
+
+### Same machine state
+
+1. **Native images only.** Every image runs as arm64. No amd64 images under emulation, which would slow one stack for reasons that have nothing to do with it.
+2. **Production mode.** `NODE_ENV=production`, `RAILS_ENV=production`, Spring with a prod profile and no devtools.
+3. **Pinned versions.** Each runtime uses its current stable LTS, and every image is pinned by digest. Postgres and Nginx images are identical for all stacks.
+4. **Database on the VM's own disk.** Postgres data never lives on a folder shared from the Mac, since shared folders are much slower.
+5. **Fresh start per run.** New seed, then `VACUUM ANALYZE`, then a warm-up of the same length for every stack.
+6. **Monitoring inside the VM is the same for every stack.** cAdvisor and the Postgres exporter cost a little CPU, so they run with the same settings and scrape interval every time.
+
+### Same laptop state
+
+1. **Plugged in**, Low Power Mode off.
+2. **Quiet machine.** Browser, IDE, Docker Desktop, Spotlight indexing and backups are closed or paused during runs.
+3. **Cool-down.** At least 5 minutes idle between runs, so thermal throttling from one run doesn't carry into the next.
+4. **k6 must not be the bottleneck.** If k6 uses more than 70% of the host's CPU, the run is invalid.
+
+### Noise control
+
+macOS can't pin a VM to specific cores, so the VM may land on fast or efficiency cores. We can't remove that noise, so we spread it evenly and detect it.
+
+1. **Interleaved order.** Runs go Node, Spring, Rails, Node, Spring, Rails, and so on, never three Node runs in a row. Any drift during a session hits every stack equally.
+2. **Calibration check.** Before each run, a fixed CPU benchmark runs inside the VM. If it's more than 5% off the session baseline, the run is discarded.
+3. **Three runs, report the median**, and show the spread.
+
+### Recorded with every result
+
+Laptop model, macOS version, Colima version, image digests, calibration score and the time of the run. Anyone can then see exactly what produced a number.
 
 ## Pass criteria
 
