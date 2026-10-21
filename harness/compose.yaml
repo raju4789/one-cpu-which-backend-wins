@@ -1,0 +1,82 @@
+# The "$12 box": everything here runs inside the bench VM (1 vCPU, 2 GB).
+# Used together with a stack's compose file, which adds build/image for "app":
+#   bin/up <stack> <phase>
+#
+# No per-container CPU or memory limits: the VM itself is the limit, and the
+# app, Postgres and Nginx compete for it, like on a real single server.
+
+name: bench
+
+services:
+  postgres:
+    image: postgres:18.0-alpine
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    environment:
+      POSTGRES_USER: bench
+      POSTGRES_PASSWORD: bench
+      POSTGRES_DB: bench
+    volumes:
+      - pgdata:/var/lib/postgresql   # named volume: lives on the VM's own disk
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./postgres/seed.sql:/seed/seed.sql:ro
+      - ../contract/schema.sql:/contract/schema.sql:ro
+    ports:
+      - "127.0.0.1:5432:5432"        # for psql from the Mac while debugging
+    shm_size: 256m
+
+  app:
+    # image/build comes from stacks/<stack>/compose.yaml
+    environment:
+      PORT: "8080"
+      DATABASE_URL: postgres://bench:bench@postgres:5432/app
+      FEED_CACHE: ${FEED_CACHE:-off}   # "app" in the app-cache phase, otherwise "off"
+    expose:
+      - "8080"
+    depends_on:
+      - postgres
+
+  nginx:
+    image: nginx:1.28.0-alpine
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/modes/${NGINX_MODE:-proxy}:/etc/nginx/mode:ro
+      - nginx-logs:/var/log/nginx      # a real file, not the image's stdout symlink
+    ulimits:
+      nofile: { soft: 65535, hard: 65535 }
+    ports:
+      - "8080:80"
+    depends_on:
+      - app
+
+  # Monitoring agents. They cost a little CPU, the same for every stack.
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    command:
+      - --housekeeping_interval=5s
+      - --docker_only=true
+      - --store_container_labels=false
+      - --disable_metrics=advtcp,cpu_topology,cpuset,disk,diskIO,hugetlb,memory_numa,percpu,process,referenced_memory,resctrl,sched,tcp,udp
+    privileged: true
+    devices:
+      - /dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "8081:8080"
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1
+    environment:
+      DATA_SOURCE_NAME: postgresql://bench:bench@postgres:5432/bench?sslmode=disable
+    ports:
+      - "9187:9187"
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:
+  nginx-logs:

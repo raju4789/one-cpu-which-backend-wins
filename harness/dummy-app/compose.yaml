@@ -1,0 +1,8 @@
+# Harness validation only. Same shape every real stack's compose file follows:
+# it only adds image/build for the "app" service. STACK_DIR is set by bin/up.
+services:
+  app:
+    image: node:22.16.0-alpine
+    command: ["node", "/app/server.js"]
+    volumes:
+      - ${STACK_DIR}/server.js:/app/server.js:ro

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Starts both VMs and the monitoring stack.
+source "$(dirname "$0")/common.sh"
+
+log "Starting bench VM: 1 vCPU, 2 GB (the \$12 box)"
+colima start --profile "$BENCH_PROFILE" --cpu 1 --memory 2 --disk 30 \
+  --vm-type vz --arch aarch64 --mount-type virtiofs
+
+log "Starting monitor VM: 2 vCPU, 2 GB"
+colima start --profile "$MONITOR_PROFILE" --cpu 2 --memory 2 --disk 20 \
+  --vm-type vz --arch aarch64 --mount-type virtiofs
+
+log "Starting Prometheus and Grafana"
+monitor compose -f "$HARNESS_DIR/monitoring/compose.yaml" up -d
+
+log "Grafana: http://localhost:3000   Prometheus: http://localhost:9090"

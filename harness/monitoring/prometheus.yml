@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+# k6 metrics arrive by remote write, so they need no scrape job.
+scrape_configs:
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["host.lima.internal:8081"]
+
+  - job_name: postgres
+    static_configs:
+      - targets: ["host.lima.internal:9187"]

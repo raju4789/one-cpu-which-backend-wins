@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Verifies the harness is what the rules say it is. Run after bin/up.
+source "$(dirname "$0")/common.sh"
+
+failures=0
+pass() { printf '  PASS  %s\n' "$*"; }
+bad()  { printf '  FAIL  %s\n' "$*"; failures=$((failures + 1)); }
+
+echo "Bench VM"
+ncpu="$(bench info --format '{{.NCPU}}')"
+mem="$(bench info --format '{{.MemTotal}}')"
+arch="$(bench info --format '{{.Architecture}}')"
+[ "$ncpu" = "1" ] && pass "1 vCPU" || bad "expected 1 vCPU, got $ncpu"
+if [ "$mem" -gt 1500000000 ] && [ "$mem" -lt 2200000000 ]; then pass "memory $((mem / 1048576)) MiB"
+else bad "expected about 2 GB, got $((mem / 1048576)) MiB"; fi
+[ "$arch" = "aarch64" ] && pass "native arm64 VM" || bad "VM architecture is $arch"
+
+echo "Images (no emulation)"
+for c in $(bench ps --format '{{.Names}}'); do
+  img_arch="$(bench image inspect -f '{{.Architecture}}' "$(bench inspect -f '{{.Image}}' "$c")")"
+  [ "$img_arch" = "arm64" ] && pass "$c is arm64" || bad "$c is $img_arch"
+done
+
+echo "Database"
+row="$(bench exec -i bench-postgres-1 psql -U bench -d app -X -tA -F ' ' -c "
+  SELECT (SELECT count(*) FROM users),
+         (SELECT count(*) FROM posts),
+         (SELECT count(*) FROM likes),
+         (SELECT count(*) FROM posts p
+           WHERE p.like_count <> (SELECT count(*) FROM likes l WHERE l.post_id = p.id))")"
+set -- $row
+[ "$1" = "50000" ]   && pass "50,000 users"     || bad "users: $1"
+[ "$2" = "500000" ]  && pass "500,000 posts"    || bad "posts: $2"
+[ "$3" = "2000000" ] && pass "2,000,000 likes"  || bad "likes: $3"
+[ "$4" = "0" ]       && pass "like_count matches likes" || bad "$4 posts with a wrong like_count"
+
+echo "App through Nginx"
+code="$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/health")"
+[ "$code" = "200" ] && pass "GET /health 200" || bad "GET /health returned $code"
+curl -s -o /dev/null "$BASE_URL/feed"
+cache="$(curl -s -D - -o /dev/null "$BASE_URL/feed" | tr -d '\r' | awk -F': ' 'tolower($1)=="x-cache-status" {print $2}')"
+mode="$(bench inspect -f '{{range .Mounts}}{{if eq .Destination "/etc/nginx/mode"}}{{.Source}}{{end}}{{end}}' bench-nginx-1)"
+case "$mode" in
+  */cache) [ "$cache" = "HIT" ] && pass "Nginx cache mode, second /feed is a HIT" || bad "cache mode but X-Cache-Status is '$cache'" ;;
+  *)       [ -z "$cache" ] && pass "Nginx proxy mode, no caching" || bad "proxy mode but X-Cache-Status is '$cache'" ;;
+esac
+
+echo "Monitoring"
+targets="$(curl -s localhost:9090/api/v1/targets | jq -r '.data.activeTargets[] | "\(.labels.job) \(.health)"' 2>/dev/null || true)"
+[ -n "$targets" ] || bad "Prometheus not reachable on localhost:9090"
+echo "$targets" | while read -r job health; do
+  [ -z "$job" ] && continue
+  [ "$health" = "up" ] && echo "  PASS  Prometheus scrapes $job" || echo "  FAIL  Prometheus target $job is $health"
+done
+echo "$targets" | grep -qv ' up$' && failures=$((failures + 1))
+
+echo "Load generator"
+command -v k6 >/dev/null && pass "k6 $(k6 version | awk '{print $2}')" || bad "k6 not installed (brew install k6)"
+
+echo
+[ "$failures" -eq 0 ] && echo "All checks passed." || { echo "$failures check(s) failed."; exit 1; }
