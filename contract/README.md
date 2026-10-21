@@ -20,3 +20,20 @@ What every stack must implement, exactly.
 2. **`like_count` on the post.** Updated on each like, so the feed never counts likes at read time.
 3. **No auth.** `X-User-Id` identifies the caller. Auth would add cost that differs per stack and is not what we're measuring.
 4. **Likes are idempotent.** A repeat like returns `204` and does not change the count.
+5. **Atomic like counts.** `like_count` is incremented in SQL, never read, changed and saved back in app code. Otherwise a stack could look faster by losing likes under load.
+6. **Caching may be stale by 1 second.** Only in the cache phases. Without caching, the feed is always fresh.
+7. **Timestamps.** ISO 8601 in UTC. Precision may differ per stack (milliseconds in Rails, microseconds in Java).
+
+## Seed data
+
+Every stack runs against the same data, produced by the harness seed script.
+
+| Table | Rows | Rules |
+| --- | --- | --- |
+| `users` | 50,000 | IDs 1 to 50,000, so k6 can pick any of them for `X-User-Id` |
+| `posts` | 500,000 | Authors spread across all users. `created_at` spread evenly from 2026-01-01 to 2026-07-01 UTC |
+| `likes` | 2,000,000 | Unique (post, user) pairs |
+
+1. **Deterministic.** The same script produces the same rows every time, so no stack gets an easier dataset.
+2. **Consistent counts.** Each post's `like_count` equals its number of rows in `likes`.
+3. **Fresh database per run.** Every test run starts from a fresh seed, so earlier runs' writes don't grow the tables.

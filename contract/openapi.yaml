@@ -29,6 +29,9 @@ paths:
       description: |
         Global feed. Ordered by created_at DESC, then id DESC. Always 20 posts, no pagination.
         Must be served by a single query (no N+1).
+
+        Freshness: in the no-cache phase the feed is always fresh. In the cache phases
+        (app cache or Nginx cache) it may be up to 1 second stale, never more.
       responses:
         "200":
           description: The feed
@@ -71,6 +74,12 @@ paths:
       description: |
         Idempotent. Liking a post twice returns 204 both times and like_count increases only once.
         The like row and the like_count update happen in one transaction.
+
+        The count update must be atomic in the database:
+          UPDATE posts SET like_count = like_count + 1 WHERE id = ?
+        Reading the count, adding 1 in app code and saving it back is not allowed: it loses
+        likes under concurrent load. The contract tests check the count is exact after
+        concurrent likes.
       parameters:
         - $ref: "#/components/parameters/UserId"
         - name: id
@@ -106,7 +115,10 @@ components:
         id: { type: integer, format: int64 }
         body: { type: string }
         like_count: { type: integer }
-        created_at: { type: string, format: date-time }
+        created_at:
+          type: string
+          format: date-time
+          description: ISO 8601 in UTC. Any fractional-second precision is accepted.
         author: { $ref: "#/components/schemas/Author" }
     Error:
       type: object
