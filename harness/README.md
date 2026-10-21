@@ -22,6 +22,13 @@ brew install colima docker docker-compose k6
 harness/bin/vm-up
 ```
 
+Once the harness passes `bin/check`, freeze the images so every stack runs on byte-identical ones:
+
+```sh
+harness/bin/pin-images
+git commit -am "Pin harness images by digest"
+```
+
 The first `bin/up` on a new VM seeds Postgres (50,000 users, 500,000 posts, 2,000,000 likes). That takes a few minutes, once. After that, every run starts from a fresh copy in seconds.
 
 ## Run a stack
@@ -51,6 +58,7 @@ harness/bin/down
 | `bin/calibrate` | Fixed CPU benchmark in the VM. `BASELINE=<s>` fails if more than 5% off |
 | `bin/env-report` | Environment as JSON, saved with every result |
 | `bin/smoke` | Short load test through the full path, with metrics in Grafana |
+| `bin/pin-images` | Pin every image to its current digest. Run once when freezing the harness |
 
 ## How a stack plugs in
 

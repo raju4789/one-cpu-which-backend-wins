@@ -6,7 +6,7 @@
 source "$(dirname "$0")/common.sh"
 
 one_run() {
-  bench run --rm alpine:3.20 sh -c '
+  bench run --rm "$CALIBRATE_IMAGE" sh -c '
     a=$(cut -d" " -f1 /proc/uptime)
     dd if=/dev/zero bs=1M count=2048 2>/dev/null | sha256sum >/dev/null
     b=$(cut -d" " -f1 /proc/uptime)
