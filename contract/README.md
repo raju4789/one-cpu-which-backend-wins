@@ -13,6 +13,7 @@ What every stack must implement, exactly.
 2. Reads the database from `DATABASE_URL`.
 3. Serves `GET /health` once it can take traffic.
 4. Uses the schema as is. No extra indexes, no extra columns.
+5. Caches `GET /feed` in memory for 1 second when `FEED_CACHE=app`, and never caches when `FEED_CACHE=off`.
 
 ## Design decisions
 
@@ -21,7 +22,7 @@ What every stack must implement, exactly.
 3. **No auth.** `X-User-Id` identifies the caller. Auth would add cost that differs per stack and is not what we're measuring.
 4. **Likes are idempotent.** A repeat like returns `204` and does not change the count.
 5. **Atomic like counts.** `like_count` is incremented in SQL, never read, changed and saved back in app code. Otherwise a stack could look faster by losing likes under load.
-6. **Caching may be stale by 1 second.** Only in the cache phases. Without caching, the feed is always fresh.
+6. **Cached feed may be up to 2 seconds stale.** Both caches use a 1-second TTL, but Nginx counts expiry in whole seconds, so an entry can live up to 2 seconds (measured: 1.2 to 1.9 s). Without caching, the feed is always fresh.
 7. **Timestamps.** ISO 8601 in UTC. Precision may differ per stack (milliseconds in Rails, microseconds in Java).
 
 ## Seed data
