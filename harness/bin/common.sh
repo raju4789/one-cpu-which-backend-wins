@@ -43,7 +43,7 @@ k6_run() {
   local stack=unknown phase=unknown
   if [ -f "$HARNESS_DIR/.run-info" ]; then . "$HARNESS_DIR/.run-info"; stack="$STACK"; phase="$PHASE"; fi
   K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write \
-  K6_PROMETHEUS_RW_TREND_AS_NATIVE_HISTOGRAM=true \
+  K6_FEATURES=native-histograms \
   K6_PROMETHEUS_RW_PUSH_INTERVAL=5s \
   BASE_URL="$BASE_URL" \
     k6 run -o experimental-prometheus-rw --tag stack="$stack" --tag phase="$phase" "$@"
