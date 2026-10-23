@@ -48,7 +48,12 @@ case "$mode" in
 esac
 
 echo "Monitoring"
-targets="$(curl -s localhost:9090/api/v1/targets | jq -r '.data.activeTargets[] | "\(.labels.job) \(.health)"' 2>/dev/null || true)"
+# Exporters that just started may not have been scraped yet: allow 3 scrape intervals.
+for _ in 1 2 3 4; do
+  targets="$(curl -s localhost:9090/api/v1/targets | jq -r '.data.activeTargets[] | "\(.labels.job) \(.health)"' 2>/dev/null || true)"
+  [ -n "$targets" ] && ! echo "$targets" | grep -qv ' up$' && break
+  sleep 5
+done
 [ -n "$targets" ] || bad "Prometheus not reachable on localhost:9090"
 echo "$targets" | while read -r job health; do
   [ -z "$job" ] && continue
