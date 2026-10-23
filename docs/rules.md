@@ -24,7 +24,7 @@ The goal is to measure the stack, not the laptop. Anything outside the app that 
 2. **Production mode.** `NODE_ENV=production`, `RAILS_ENV=production`, Spring with a prod profile and no devtools.
 3. **Pinned versions.** Each runtime uses its current stable LTS, and every image is pinned by digest. Postgres and Nginx images are identical for all stacks.
 4. **Database on the VM's own disk.** Postgres data never lives on a folder shared from the Mac, since shared folders are much slower.
-5. **Fresh start per run.** New seed, then `VACUUM ANALYZE`, then a warm-up of the same length for every stack.
+5. **Fresh start per run.** A fresh copy of the seeded database (already `VACUUM ANALYZE`d), then a warm-up of the same length for every stack.
 6. **Monitoring inside the VM is the same for every stack.** cAdvisor and the Postgres exporter cost a little CPU, so they run with the same settings and scrape interval every time.
 
 ### Same laptop state
@@ -32,7 +32,7 @@ The goal is to measure the stack, not the laptop. Anything outside the app that 
 1. **Plugged in**, Low Power Mode off.
 2. **Quiet machine.** Browser, IDE, Docker Desktop, Spotlight indexing and backups are closed or paused during runs.
 3. **Cool-down.** At least 5 minutes idle between runs, so thermal throttling from one run doesn't carry into the next.
-4. **k6 must not be the bottleneck.** If k6 uses more than 70% of the host's CPU, the run is invalid.
+4. **k6 must not be the bottleneck.** The Mac's CPU is recorded in Grafana for every run. Above 70%, k6 may be slowing the bench VM down, and the run is flagged.
 
 ### Noise control
 

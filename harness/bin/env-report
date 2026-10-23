@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Prints the environment as JSON, saved next to every result.
+source "$(dirname "$0")/common.sh"
+
+images="$(for c in $(bench ps --format '{{.Names}}'); do
+  img="$(bench inspect -f '{{.Config.Image}}' "$c")"
+  digest="$(bench image inspect -f '{{if .RepoDigests}}{{index .RepoDigests 0}}{{else}}local build{{end}}' "$img")"
+  printf '{"container":"%s","image":"%s","digest":"%s"},' "$c" "$img" "$digest"
+done)"
+
+cat <<JSON
+{
+  "time": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "laptop": "$(sysctl -n hw.model 2>/dev/null || echo unknown)",
+  "chip": "$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo unknown)",
+  "macos": "$(sw_vers -productVersion 2>/dev/null || echo unknown)",
+  "colima": "$(colima version 2>/dev/null | head -1 | awk '{print $3}')",
+  "docker_in_vm": "$(bench info --format '{{.ServerVersion}}')",
+  "k6": "$(k6 version 2>/dev/null | awk '{print $2}')",
+  "vm_cpus": $(bench info --format '{{.NCPU}}'),
+  "vm_memory_bytes": $(bench info --format '{{.MemTotal}}'),
+  "images": [${images%,}]
+}
+JSON

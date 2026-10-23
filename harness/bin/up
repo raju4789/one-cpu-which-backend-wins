@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Starts a stack in a test phase on a freshly reset database.
+#   bin/up <stack> <phase>
+#   stack: dummy-app, node, spring, rails   (stacks/<stack> or harness/<stack>)
+#   phase: none  - no cache
+#          app   - app caches /feed for 1 second
+#          nginx - Nginx caches /feed for 1 second
+source "$(dirname "$0")/common.sh"
+
+[ $# -eq 2 ] || fail "usage: bin/up <stack> <none|app|nginx>"
+stack="$1"; phase="$2"
+
+case "$phase" in
+  none)  FEED_CACHE=off; NGINX_MODE=proxy ;;
+  app)   FEED_CACHE=app; NGINX_MODE=proxy ;;
+  nginx) FEED_CACHE=off; NGINX_MODE=cache ;;
+  *) fail "phase must be none, app or nginx" ;;
+esac
+export FEED_CACHE NGINX_MODE
+
+log "Stopping anything already running"
+bench compose -p bench down --remove-orphans >/dev/null 2>&1 || true
+
+log "Starting Postgres"
+bench_compose "$stack" up -d postgres
+
+log "Waiting for the seed (the first run on a new VM takes a few minutes)"
+for _ in $(seq 1 900); do
+  ready="$(psql_admin -tAc "SELECT 1 FROM pg_database WHERE datname = 'app_template' AND datistemplate" 2>/dev/null || true)"
+  [ "$ready" = "1" ] && break
+  sleep 1
+done
+[ "$ready" = "1" ] || fail "seed did not finish in 15 minutes; check: docker --context $BENCH_CTX logs bench-postgres-1"
+
+"$HARNESS_DIR/bin/reset-db"
+
+printf 'STACK=%s\nPHASE=%s\n' "$stack" "$phase" > "$HARNESS_DIR/.run-info"
+
+log "Starting $stack (phase: $phase, FEED_CACHE=$FEED_CACHE, nginx: $NGINX_MODE)"
+bench_compose "$stack" up -d --build
+
+log "Waiting for $BASE_URL/health"
+for _ in $(seq 1 180); do
+  if curl -fsS -o /dev/null "$BASE_URL/health" 2>/dev/null; then
+    log "Ready: $stack, phase $phase"
+    exit 0
+  fi
+  sleep 1
+done
+fail "$stack did not become healthy in 3 minutes; check: docker --context $BENCH_CTX compose -p bench logs app"

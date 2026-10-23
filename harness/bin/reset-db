@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Replaces "app" with a fresh copy of the seeded template. Takes seconds.
+# The app must not be running (bin/up handles the order).
+source "$(dirname "$0")/common.sh"
+
+log "Resetting database from app_template"
+psql_admin -c "DROP DATABASE IF EXISTS app WITH (FORCE);" \
+           -c "CREATE DATABASE app TEMPLATE app_template;"
+bench exec -i bench-postgres-1 psql -U bench -d app -X -q -c "SELECT pg_stat_statements_reset();" >/dev/null

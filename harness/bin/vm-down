@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Stops everything. Data volumes (seed, Prometheus history) are kept.
+source "$(dirname "$0")/common.sh"
+
+bench compose -p bench down --remove-orphans || true
+monitor compose -f "$HARNESS_DIR/monitoring/compose.yaml" down || true
+colima stop --profile "$BENCH_PROFILE" || true
+colima stop --profile "$MONITOR_PROFILE" || true

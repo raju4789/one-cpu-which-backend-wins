@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Pins every image to the exact digest its tag points at today, in place.
+# Run once when freezing the harness, then commit the result. From then on,
+# every stack runs against byte-identical Postgres, Nginx and monitoring
+# images, even if a tag is later moved upstream.
+# Safe to rerun: an existing digest is replaced with the current one.
+source "$(dirname "$0")/common.sh"
+
+files="$HARNESS_DIR/compose.yaml $HARNESS_DIR/monitoring/compose.yaml $HARNESS_DIR/dummy-app/compose.yaml $HARNESS_DIR/bin/common.sh"
+
+refs="$(grep -hoE '(image: |CALIBRATE_IMAGE=)[^ "#]+' $files | sed -E 's/^(image: |CALIBRATE_IMAGE=)//' | sort -u)"
+[ -n "$refs" ] || fail "no images found"
+
+for ref in $refs; do
+  tag="${ref%@sha256:*}"
+  log "Resolving $tag"
+  bench pull -q "$tag" >/dev/null
+  digest="$(bench image inspect -f '{{range .RepoDigests}}{{println .}}{{end}}' "$tag" | head -1 | sed 's/.*@//')"
+  case "$digest" in sha256:*) ;; *) fail "could not resolve a digest for $tag" ;; esac
+  OLD="$ref" NEW="$tag@$digest" perl -pi -e 's/(?<=[\s=])\Q$ENV{OLD}\E(?=[\s"#]|$)/$ENV{NEW}/g' $files
+  echo "    $tag@$digest"
+done
+
+log "Done. Review with 'git diff' and commit."

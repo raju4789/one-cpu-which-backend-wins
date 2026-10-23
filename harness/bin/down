@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Stops the running stack. The seeded template is kept for the next run.
+source "$(dirname "$0")/common.sh"
+bench compose -p bench down --remove-orphans

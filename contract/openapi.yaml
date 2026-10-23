@@ -31,7 +31,9 @@ paths:
         Must be served by a single query (no N+1).
 
         Freshness: in the no-cache phase the feed is always fresh. In the cache phases
-        (app cache or Nginx cache) it may be up to 1 second stale, never more.
+        (app cache or Nginx cache) the cache TTL is 1 second and the feed may be up to
+        2 seconds stale. Nginx tracks cache expiry in whole seconds, so a 1-second entry
+        can live for up to 2 seconds.
       responses:
         "200":
           description: The feed

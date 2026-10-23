@@ -1,11 +1,13 @@
 # Contract
 
-What every stack must implement, exactly.
+What every stack must implement, exactly. If you're building or reviewing a stack, this is the spec. How a stack plugs into the test environment is in [`harness/README.md`](../harness/README.md#how-a-stack-plugs-in).
 
 | File | What it defines |
 | --- | --- |
 | `schema.sql` | Tables and indexes. Shared by all stacks, never changed per stack. |
-| `openapi.yaml` | Endpoints, request and response shapes, status codes. |
+| `openapi.yaml` | Endpoints, request and response shapes, status codes. The source of truth when this page and the spec disagree. |
+
+Contract tests that check every rule automatically are coming with the load test. Until then, a stack is checked against `openapi.yaml` by hand.
 
 ## Rules every stack follows
 
@@ -13,6 +15,7 @@ What every stack must implement, exactly.
 2. Reads the database from `DATABASE_URL`.
 3. Serves `GET /health` once it can take traffic.
 4. Uses the schema as is. No extra indexes, no extra columns.
+5. Caches `GET /feed` in memory for 1 second when `FEED_CACHE=app`, and never caches when `FEED_CACHE=off`.
 
 ## Design decisions
 
@@ -21,12 +24,12 @@ What every stack must implement, exactly.
 3. **No auth.** `X-User-Id` identifies the caller. Auth would add cost that differs per stack and is not what we're measuring.
 4. **Likes are idempotent.** A repeat like returns `204` and does not change the count.
 5. **Atomic like counts.** `like_count` is incremented in SQL, never read, changed and saved back in app code. Otherwise a stack could look faster by losing likes under load.
-6. **Caching may be stale by 1 second.** Only in the cache phases. Without caching, the feed is always fresh.
+6. **Cached feed may be up to 2 seconds stale.** Both caches use a 1-second TTL, but Nginx counts expiry in whole seconds, so an entry can live up to 2 seconds (measured: 1.2 to 1.9 s). Without caching, the feed is always fresh.
 7. **Timestamps.** ISO 8601 in UTC. Precision may differ per stack (milliseconds in Rails, microseconds in Java).
 
 ## Seed data
 
-Every stack runs against the same data, produced by the harness seed script.
+Every stack runs against the same data, produced by [`harness/postgres/seed.sql`](../harness/postgres/seed.sql).
 
 | Table | Rows | Rules |
 | --- | --- | --- |

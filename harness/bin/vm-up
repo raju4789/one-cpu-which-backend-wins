@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Starts both VMs and the monitoring stack.
+source "$(dirname "$0")/common.sh"
+
+docker compose version >/dev/null 2>&1 || fail "docker compose not found. See 'One-time setup' in harness/README.md"
+
+log "Starting bench VM: 1 vCPU, 2 GB (the \$12 box)"
+colima start --profile "$BENCH_PROFILE" --cpu 1 --memory 2 --disk 30 \
+  --vm-type vz --arch aarch64 --mount-type virtiofs
+
+# Docker 29 defaults to the containerd image store, and cAdvisor can't see
+# containers in it, so per-container CPU and memory go missing. Switch the
+# bench VM to the classic overlay2 store (the default for years before 29).
+cfg="${COLIMA_HOME:-$HOME/.colima}/$BENCH_PROFILE/colima.yaml"
+if ! grep -q 'containerd-snapshotter: false' "$cfg"; then
+  grep -q '^docker: {}' "$cfg" || fail "custom 'docker:' section in $cfg; add 'features: {containerd-snapshotter: false}' to it by hand"
+  log "Switching the bench VM's Docker to the overlay2 image store (needed by cAdvisor)"
+  colima stop --profile "$BENCH_PROFILE"
+  perl -0pi -e 's/^docker: \{\}/docker:\n  features:\n    containerd-snapshotter: false/m' "$cfg"
+  colima start --profile "$BENCH_PROFILE"
+fi
+
+log "Starting monitor VM: 2 vCPU, 2 GB"
+colima start --profile "$MONITOR_PROFILE" --cpu 2 --memory 2 --disk 20 \
+  --vm-type vz --arch aarch64 --mount-type virtiofs
+
+log "Starting Prometheus and Grafana"
+monitor compose -f "$HARNESS_DIR/monitoring/compose.yaml" up -d
+
+log "Grafana: http://localhost:3000   Prometheus: http://localhost:9090"

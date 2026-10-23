@@ -1,0 +1,37 @@
+# Runs in the separate "monitor" VM, so it never uses the bench VM's CPU.
+#
+# Host networking on purpose: inside a Colima VM, host.lima.internal points at
+# the Mac, where the bench VM's ports (8081 cAdvisor, 9187 Postgres exporter)
+# are forwarded. Colima also forwards 9090 and 3000 back to the Mac.
+
+name: monitor
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0@sha256:63805ebb8d2b3920190daf1cb14a60871b16fd38bed42b857a3182bc621f4996
+    network_mode: host
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=90d
+      - --web.enable-remote-write-receiver   # k6 pushes its metrics here
+      - --enable-feature=native-histograms   # exact p50/p90/p95/p99 across all endpoints
+      - --query.lookback-delta=15s           # k6 sends no end-of-test marker; without this a finished run looks alive for 5 min
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+
+  grafana:
+    image: grafana/grafana:12.0.2@sha256:b5b59bfc7561634c2d7b136c4543d702ebcc94a3da477f21ff26f89ffd4214fa
+    network_mode: host
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/bench.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+volumes:
+  prometheus-data:

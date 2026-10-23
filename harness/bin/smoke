@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# 30-second smoke load (10 VUs) through Nginx, with metrics sent to Prometheus.
+# Proves the full path: k6 -> Nginx -> app -> Grafana. Not a benchmark.
+source "$(dirname "$0")/common.sh"
+
+k6_run "$HARNESS_DIR/smoke.js"
