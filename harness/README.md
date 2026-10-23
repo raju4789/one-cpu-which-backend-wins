@@ -1,6 +1,6 @@
 # Harness
 
-The shared test environment. Every stack runs on exactly this setup.
+The shared test environment. Every stack runs on exactly this setup, and nothing in it changes between stacks.
 
 ```
 Mac (host)
@@ -16,31 +16,43 @@ Mac (host)
     └── Grafana             port 3000
 ```
 
-## Setup
+## Requirements
+
+- Apple Silicon Mac. The VMs use Apple's virtualization and native arm64 images, so Intel Macs and Linux aren't supported as is.
+- Homebrew
+- 16 GB of RAM recommended. The two VMs take 4 GB.
+- Docker Desktop closed. It runs its own VM and competes for CPU.
+
+## One-time setup
 
 ```sh
 brew install colima docker docker-compose k6 node_exporter
 brew services start node_exporter
-harness/bin/vm-up
+docker compose version
 ```
 
-Once the harness passes `bin/check`, freeze the images so every stack runs on byte-identical ones:
+If `docker compose version` fails, Docker can't find the Compose plugin. Add this to `~/.docker/config.json`:
+
+```json
+{ "cliPluginsExtraDirs": ["/opt/homebrew/lib/docker/cli-plugins"] }
+```
+
+## Quick start
 
 ```sh
-harness/bin/pin-images
-git commit -am "Pin harness images by digest"
+harness/bin/vm-up                # start both VMs and monitoring
+harness/bin/up dummy-app none    # fresh database, then the dummy app
+harness/bin/check                # every line should say PASS
+harness/bin/smoke                # 30 s of light load
 ```
 
-The first `bin/up` on a new VM seeds Postgres (50,000 users, 500,000 posts, 2,000,000 likes). That takes a few minutes, once. After that, every run starts from a fresh copy in seconds.
+Open http://localhost:3000 while `smoke` runs. The first `up` on a new VM seeds Postgres (50,000 users, 500,000 posts, 2,000,000 likes), which takes a few minutes, once. After that, every run starts from a fresh copy in seconds.
 
-## Run a stack
+When you're done: `harness/bin/down` stops the stack, `harness/bin/vm-down` stops the VMs. Data is kept. To remove everything: `colima delete --profile bench` and `colima delete --profile monitor`.
 
-```sh
-harness/bin/up <stack> <phase>    # e.g. harness/bin/up dummy-app none
-harness/bin/check                 # verifies VM shape, data, Nginx mode, monitoring
-harness/bin/smoke                 # 30-second smoke load, watch it in Grafana
-harness/bin/down
-```
+## Test phases
+
+`bin/up <stack> <phase>` starts a stack in one of three phases. Each phase changes exactly one thing.
 
 | Phase | App cache | Nginx cache |
 | --- | --- | --- |
@@ -60,7 +72,36 @@ harness/bin/down
 | `bin/calibrate` | Fixed CPU benchmark in the VM. `BASELINE=<s>` fails if more than 5% off |
 | `bin/env-report` | Environment as JSON, saved with every result |
 | `bin/smoke` | Short load test through the full path, with metrics in Grafana |
-| `bin/pin-images` | Pin every image to its current digest. Run once when freezing the harness |
+| `bin/pin-images` | Pin every image to its current digest (maintainers only, see below) |
+
+## What's where
+
+Everything below is **locked**: changing it for one stack invalidates the comparison. To add or tune a stack, you only touch `stacks/<name>/`.
+
+| Path | What it is |
+| --- | --- |
+| `compose.yaml` | The bench VM's services: Postgres, Nginx, the app slot, monitoring agents |
+| `postgres/postgresql.conf` | Postgres settings, sized for the 1 vCPU, 2 GB box |
+| `postgres/seed.sql`, `postgres/init/` | Deterministic seed data, built once into a template database |
+| `nginx/nginx.conf` | Nginx settings, with keep-alive to the app |
+| `nginx/modes/proxy`, `nginx/modes/cache` | How `/feed` is served: passed through, or cached for 1 second |
+| `monitoring/` | Prometheus, Grafana and the dashboard |
+| `smoke.js` | The smoke test, not the benchmark |
+| `dummy-app/` | A stand-in app for testing the harness itself |
+
+## How a stack plugs in
+
+A stack is a folder with a `compose.yaml` that only adds `image` or `build` for the `app` service. The harness supplies everything else. See [`dummy-app/`](dummy-app) for the smallest example. The app must follow [the contract](../contract/README.md) and gets these environment variables:
+
+| Variable | Value |
+| --- | --- |
+| `PORT` | `8080` |
+| `DATABASE_URL` | `postgres://bench:bench@postgres:5432/app` |
+| `FEED_CACHE` | `app` in the app-cache phase, otherwise `off` |
+
+## The dummy app
+
+`dummy-app/` serves the contract's endpoints from memory, with no database. It proves the harness works end to end without a real stack, and it's the first thing to run when a result looks odd: if the dummy app also misbehaves, the harness is at fault, not the stack. It is never benchmarked.
 
 ## Grafana
 
@@ -77,18 +118,31 @@ Everything is on one dashboard at http://localhost:3000. Filter by stack and pha
 
 Percentiles come from k6 native histograms, so p95 and p99 are exact across all endpoints, not averaged. The dashboard is generated: edit `monitoring/grafana/build_dashboard.py`, then run it.
 
-## How a stack plugs in
+Monitoring isn't free: with the app idle, the agents and Postgres answering the exporter use about 5% of the core. It's the same for every stack.
 
-A stack is a folder with a `compose.yaml` that only adds `image` or `build` for the `app` service. The harness supplies everything else. See [`dummy-app/`](dummy-app) for the smallest example.
+## Pinned images
 
-The app gets these environment variables:
+Every image is pinned by digest, so every stack runs on byte-identical Postgres, Nginx and monitoring. Don't run `bin/pin-images` to replicate results. Repinning changes the images, and every stack would then have to be rerun.
 
-| Variable | Value |
+## Ports on the Mac
+
+| Port | Service |
 | --- | --- |
-| `PORT` | `8080` |
-| `DATABASE_URL` | `postgres://bench:bench@postgres:5432/app` |
-| `FEED_CACHE` | `app` in the app-cache phase, otherwise `off` |
+| 8080 | Nginx, the entry point for all traffic |
+| 3000 | Grafana |
+| 9090 | Prometheus |
+| 5432 | Postgres, localhost only, for debugging with `psql` |
+| 8081, 9113, 9187 | cAdvisor, Nginx exporter, Postgres exporter |
+| 9100 | node_exporter |
 
-## The dummy app
+If one of these is already taken on your Mac, `vm-up` or `up` will fail. Stop whatever uses it first.
 
-`dummy-app/` serves the contract's endpoints from memory, with no database. It exists only to prove the harness works end to end before a real stack exists. It is never benchmarked.
+## Troubleshooting
+
+| Symptom | Cause and fix |
+| --- | --- |
+| `check` says a Prometheus target is down | Usually just started. `check` waits 20 s; if it still fails, check that port in the table above |
+| Per-container panels are empty | The bench VM uses Docker's containerd image store, which cAdvisor can't read. `vm-up` switches it to overlay2; rerun `bin/vm-up` |
+| `check` fails on the `mac` target | node_exporter isn't running: `brew services start node_exporter` |
+| `up` hangs at "Waiting for the seed" | First run seeds 2.5 million rows. Give it up to 15 minutes; check `docker --context colima-bench logs bench-postgres-1` |
+| A cached `/feed` is up to 2 s old | Expected. Nginx counts cache expiry in whole seconds. See the [contract](../contract/README.md#design-decisions) |

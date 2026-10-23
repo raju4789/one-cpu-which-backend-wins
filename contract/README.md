@@ -1,11 +1,13 @@
 # Contract
 
-What every stack must implement, exactly.
+What every stack must implement, exactly. If you're building or reviewing a stack, this is the spec. How a stack plugs into the test environment is in [`harness/README.md`](../harness/README.md#how-a-stack-plugs-in).
 
 | File | What it defines |
 | --- | --- |
 | `schema.sql` | Tables and indexes. Shared by all stacks, never changed per stack. |
-| `openapi.yaml` | Endpoints, request and response shapes, status codes. |
+| `openapi.yaml` | Endpoints, request and response shapes, status codes. The source of truth when this page and the spec disagree. |
+
+Contract tests that check every rule automatically are coming with the load test. Until then, a stack is checked against `openapi.yaml` by hand.
 
 ## Rules every stack follows
 
@@ -27,7 +29,7 @@ What every stack must implement, exactly.
 
 ## Seed data
 
-Every stack runs against the same data, produced by the harness seed script.
+Every stack runs against the same data, produced by [`harness/postgres/seed.sql`](../harness/postgres/seed.sql).
 
 | Table | Rows | Rules |
 | --- | --- | --- |

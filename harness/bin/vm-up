@@ -2,6 +2,8 @@
 # Starts both VMs and the monitoring stack.
 source "$(dirname "$0")/common.sh"
 
+docker compose version >/dev/null 2>&1 || fail "docker compose not found. See 'One-time setup' in harness/README.md"
+
 log "Starting bench VM: 1 vCPU, 2 GB (the \$12 box)"
 colima start --profile "$BENCH_PROFILE" --cpu 1 --memory 2 --disk 30 \
   --vm-type vz --arch aarch64 --mount-type virtiofs
