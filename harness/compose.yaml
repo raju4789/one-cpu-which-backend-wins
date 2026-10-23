@@ -9,7 +9,7 @@ name: bench
 
 services:
   postgres:
-    image: postgres:18.0-alpine
+    image: postgres:18.0-alpine@sha256:48c8ad3a7284b82be4482a52076d47d879fd6fb084a1cbfccbd551f9331b0e40
     command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     environment:
       POSTGRES_USER: bench
@@ -37,7 +37,7 @@ services:
       - postgres
 
   nginx:
-    image: nginx:1.28.0-alpine
+    image: nginx:1.28.0-alpine@sha256:30f1c0d78e0ad60901648be663a710bdadf19e4c10ac6782c235200619158284
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/modes/${NGINX_MODE:-proxy}:/etc/nginx/mode:ro
@@ -51,7 +51,7 @@ services:
 
   # Monitoring agents. They cost a little CPU, the same for every stack.
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: gcr.io/cadvisor/cadvisor:v0.49.1@sha256:3cde6faf0791ebf7b41d6f8ae7145466fed712ea6f252c935294d2608b1af388
     command:
       - --housekeeping_interval=5s
       - --docker_only=true
@@ -69,7 +69,7 @@ services:
       - "8081:8080"
 
   postgres-exporter:
-    image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1
+    image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1@sha256:38606faa38c54787525fb0ff2fd6b41b4cfb75d455c1df294927c5f611699b17
     command: ["--collector.stat_statements", "--collector.locks"]
     environment:
       DATA_SOURCE_NAME: postgresql://bench:bench@postgres:5432/bench?sslmode=disable
@@ -79,7 +79,7 @@ services:
       - postgres
 
   nginx-exporter:
-    image: nginx/nginx-prometheus-exporter:1.4.2
+    image: nginx/nginx-prometheus-exporter:1.4.2@sha256:6edfb73afd11f2d83ea4e8007f5068c3ffaa38078a6b0ad1339e5bd2f637aacd
     command: ["--nginx.scrape-uri=http://nginx:8082/stub_status"]
     ports:
       - "9113:9113"

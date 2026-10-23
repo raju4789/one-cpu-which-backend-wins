@@ -10,7 +10,7 @@ MONITOR_PROFILE=monitor    # Prometheus + Grafana, outside the test budget
 BENCH_CTX="colima-$BENCH_PROFILE"
 MONITOR_CTX="colima-$MONITOR_PROFILE"
 BASE_URL="${BASE_URL:-http://localhost:8080}"
-CALIBRATE_IMAGE=alpine:3.20     # pinned by bin/pin-images
+CALIBRATE_IMAGE=alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc     # pinned by bin/pin-images
 
 bench()   { docker --context "$BENCH_CTX" "$@"; }
 monitor() { docker --context "$MONITOR_CTX" "$@"; }
