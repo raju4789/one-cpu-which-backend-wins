@@ -14,7 +14,7 @@ This project measures it, with every config, script and raw result public.
 | --- | --- |
 | Contract: API and database schema | Done |
 | Harness: VMs, Postgres, Nginx, monitoring | Done, verified end to end with a dummy app |
-| Load test script and runner | In progress |
+| Load test, contract test and runner | Done, verified with the dummy app |
 | Node.js, Spring Boot, Rails | Not started |
 
 ## Results
@@ -64,9 +64,11 @@ harness/bin/smoke                # 30 s of light load, watch it at http://localh
 | --- | --- |
 | [`contract/`](contract) | The API and database schema every stack must implement |
 | [`harness/`](harness) | The test environment and the scripts that run it |
+| [`k6/`](k6) | The load test and the contract test |
+| [`results/`](results) | Raw output of every benchmark run |
 | [`docs/`](docs) | The fairness rules |
 
-Added as the project moves on: `k6/` for the load test and contract tests, `stacks/` with one folder per stack, and `results/` with the raw output of every run.
+Added as the project moves on: `stacks/`, with one folder per stack.
 
 ## Think a stack is tuned badly?
 

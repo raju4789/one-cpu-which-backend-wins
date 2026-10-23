@@ -72,7 +72,30 @@ When you're done: `harness/bin/down` stops the stack, `harness/bin/vm-down` stop
 | `bin/calibrate` | Fixed CPU benchmark in the VM. `BASELINE=<s>` fails if more than 5% off |
 | `bin/env-report` | Environment as JSON, saved with every result |
 | `bin/smoke` | Short load test through the full path, with metrics in Grafana |
+| `bin/run <stack> <phase>` | The full benchmark for one stack in one phase, results saved to `results/` |
 | `bin/pin-images` | Pin every image to its current digest (maintainers only, see below) |
+
+## Run the benchmark
+
+```sh
+harness/bin/run <stack> <phase>    # e.g. harness/bin/run node none
+```
+
+One command runs the whole protocol, about 30 minutes:
+
+1. Fresh database, stack started in the phase
+2. [Contract test](../k6/README.md#contract-test). The run stops if it fails
+3. Idle baseline: what the server uses with no load
+4. Calibration and environment report
+5. Warm-up: 20 sessions/s for 2 minutes, the same for every stack
+6. Coarse ramp: 1-minute steps, x1.5 each, until a step fails
+7. Fine ramp: +10% steps from the last passing rate
+8. Confirm: hold the best passing rate for 5 minutes. If it fails, try the next lower one
+9. Overload: 2 minutes at 1.5x, then 2 minutes back, to see whether it recovers
+
+A step passes while p95 < 300 ms, p99 < 1 s, errors < 1% and k6 dropped fewer than 1% of sessions. The result is the confirmed rate, saved with everything else in [`results/`](../results/README.md). Progress shows live in Grafana.
+
+If the runner reports that k6 ran out of virtual users while the server was still fast, the load generator is the limit, not the stack: rerun with `--max-vus` higher. `bin/run --help` lists the other options.
 
 ## What's where
 
@@ -86,7 +109,7 @@ Everything below is **locked**: changing it for one stack invalidates the compar
 | `nginx/nginx.conf` | Nginx settings, with keep-alive to the app |
 | `nginx/modes/proxy`, `nginx/modes/cache` | How `/feed` is served: passed through, or cached for 1 second |
 | `monitoring/` | Prometheus, Grafana and the dashboard |
-| `smoke.js` | The smoke test, not the benchmark |
+| `smoke.js` | The smoke test, not the benchmark (that's [`k6/load.js`](../k6/README.md)) |
 | `dummy-app/` | A stand-in app for testing the harness itself |
 
 ## How a stack plugs in
@@ -101,7 +124,7 @@ A stack is a folder with a `compose.yaml` that only adds `image` or `build` for 
 
 ## The dummy app
 
-`dummy-app/` serves the contract's endpoints from memory, with no database. It proves the harness works end to end without a real stack, and it's the first thing to run when a result looks odd: if the dummy app also misbehaves, the harness is at fault, not the stack. It is never benchmarked.
+`dummy-app/` implements the contract from memory, with no database, and passes the contract test. It proves the harness works end to end without a real stack, and it's the first thing to run when a result looks odd: if the dummy app also misbehaves, the harness is at fault, not the stack. It is never benchmarked.
 
 ## Grafana
 
