@@ -14,6 +14,8 @@ arch="$(bench info --format '{{.Architecture}}')"
 if [ "$mem" -gt 1500000000 ] && [ "$mem" -lt 2200000000 ]; then pass "memory $((mem / 1048576)) MiB"
 else bad "expected about 2 GB, got $((mem / 1048576)) MiB"; fi
 [ "$arch" = "aarch64" ] && pass "native arm64 VM" || bad "VM architecture is $arch"
+driver="$(bench info --format '{{.Driver}}')"
+[ "$driver" = "overlay2" ] && pass "overlay2 image store (cAdvisor sees containers)" || bad "storage driver is $driver; rerun bin/vm-up"
 
 echo "Images (no emulation)"
 for c in $(bench ps --format '{{.Names}}'); do
@@ -53,6 +55,8 @@ echo "$targets" | while read -r job health; do
   [ "$health" = "up" ] && echo "  PASS  Prometheus scrapes $job" || echo "  FAIL  Prometheus target $job is $health"
 done
 echo "$targets" | grep -qv ' up$' && failures=$((failures + 1))
+named="$(curl -s localhost:9090/api/v1/query --data-urlencode 'query=count(container_memory_working_set_bytes{name=~"bench-.*"})' | jq -r '.data.result[0].value[1] // 0')"
+[ "$named" -gt 0 ] 2>/dev/null && pass "cAdvisor reports $named containers by name" || bad "cAdvisor reports no named containers; per-container panels will be empty"
 
 echo "Load generator"
 command -v k6 >/dev/null && pass "k6 $(k6 version | awk '{print $2}')" || bad "k6 not installed (brew install k6)"

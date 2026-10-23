@@ -16,6 +16,7 @@ services:
       - --storage.tsdb.retention.time=90d
       - --web.enable-remote-write-receiver   # k6 pushes its metrics here
       - --enable-feature=native-histograms   # exact p50/p90/p95/p99 across all endpoints
+      - --query.lookback-delta=15s           # k6 sends no end-of-test marker; without this a finished run looks alive for 5 min
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
