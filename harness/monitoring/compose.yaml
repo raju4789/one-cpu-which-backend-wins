@@ -19,6 +19,7 @@ services:
       - --query.lookback-delta=15s           # k6 sends no end-of-test marker; without this a finished run looks alive for 5 min
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./targets:/etc/prometheus/targets:ro   # written by bin/vm-up
       - prometheus-data:/prometheus
 
   grafana:

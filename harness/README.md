@@ -7,7 +7,7 @@ Mac (host)
 ├── k6                      load generator, outside both VMs
 ├── node_exporter           the Mac's own CPU, to prove k6 wasn't short of it
 ├── bench VM   1 vCPU, 2 GB   the "$12 box"
-│   ├── Nginx               port 8080 on the Mac
+│   ├── Nginx               port 8080 on the VM's own IP
 │   ├── app                 the stack under test
 │   ├── Postgres            seeded once, reset before every run
 │   └── cAdvisor, Postgres exporter, Nginx exporter
@@ -147,24 +147,28 @@ Monitoring isn't free: with the app idle, the agents and Postgres answering the 
 
 Every image is pinned by digest, so every stack runs on byte-identical Postgres, Nginx and monitoring. Don't run `bin/pin-images` to replicate results. Repinning changes the images, and every stack would then have to be rerun.
 
-## Ports on the Mac
+## Network
 
-| Port | Service |
-| --- | --- |
-| 8080 | Nginx, the entry point for all traffic |
-| 3000 | Grafana |
-| 9090 | Prometheus |
-| 5432 | Postgres, localhost only, for debugging with `psql` |
-| 8081, 9113, 9187 | cAdvisor, Nginx exporter, Postgres exporter |
-| 9100 | node_exporter |
+Each VM gets its own IP address on the Mac (`colima --network-address`), shown by `bin/vm-up` and `colima list`. k6 sends load to the bench VM's IP, and Prometheus scrapes it there.
 
-If one of these is already taken on your Mac, `vm-up` or `up` will fail. Stop whatever uses it first.
+Nothing under test goes through Colima's port forwarding to `localhost`. That forwarding is a user-space proxy: it uses the bench VM's own CPU, adds latency, and in testing it collapsed after a few hundred connections, taking every forwarded port down with it. `bin/check` fails if the load would go through it.
+
+| Where | Port | Service |
+| --- | --- | --- |
+| bench VM | 8080 | Nginx, the entry point for all traffic |
+| bench VM | 8081, 9113, 9187 | cAdvisor, Nginx exporter, Postgres exporter |
+| bench VM | 5432 | Postgres, for debugging with `psql` |
+| monitor VM | 9090 | Prometheus |
+| Mac | 3000 | Grafana (forwarded, fine for a browser) |
+| Mac | 9100 | node_exporter |
 
 ## Troubleshooting
 
 | Symptom | Cause and fix |
 | --- | --- |
-| `check` says a Prometheus target is down | Usually just started. `check` waits 20 s; if it still fails, check that port in the table above |
+| `check` says a Prometheus target is down | Usually just started. `check` waits 20 s. If it still fails, rerun `bin/vm-up`: it rewrites the targets with the bench VM's current IP |
+| "a VM has no IP address" | The VM was created without `--network-address`. `bin/vm-up` restarts it with one |
+| Requests suddenly fail with "connection refused" on `localhost` | Load went through Colima's port forwarding, which gave out. Unset `BASE_URL`, run `bin/vm-down` and `bin/vm-up` |
 | Per-container panels are empty | The bench VM uses Docker's containerd image store, which cAdvisor can't read. `vm-up` switches it to overlay2; rerun `bin/vm-up` |
 | `check` fails on the `mac` target | node_exporter isn't running: `brew services start node_exporter` |
 | `up` hangs at "Waiting for the seed" | First run seeds 2.5 million rows. Give it up to 15 minutes; check `docker --context colima-bench logs bench-postgres-1` |

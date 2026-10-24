@@ -6,6 +6,8 @@ failures=0
 pass() { printf '  PASS  %s\n' "$*"; }
 bad()  { printf '  FAIL  %s\n' "$*"; failures=$((failures + 1)); }
 
+need_urls
+
 echo "Bench VM"
 ncpu="$(bench info --format '{{.NCPU}}')"
 mem="$(bench info --format '{{.MemTotal}}')"
@@ -36,6 +38,12 @@ set -- $row
 [ "$3" = "2000000" ] && pass "2,000,000 likes"  || bad "likes: $3"
 [ "$4" = "0" ]       && pass "like_count matches likes" || bad "$4 posts with a wrong like_count"
 
+echo "Traffic path"
+case "$BASE_URL" in
+  *localhost*|*127.0.0.1*) bad "load would go through Colima's port forwarding ($BASE_URL); unset BASE_URL and rerun bin/vm-up" ;;
+  *) pass "load goes straight to the bench VM at $BASE_URL" ;;
+esac
+
 echo "App through Nginx"
 code="$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL/health")"
 [ "$code" = "200" ] && pass "GET /health 200" || bad "GET /health returned $code"
@@ -50,17 +58,17 @@ esac
 echo "Monitoring"
 # Exporters that just started may not have been scraped yet: allow 3 scrape intervals.
 for _ in 1 2 3 4; do
-  targets="$(curl -s localhost:9090/api/v1/targets | jq -r '.data.activeTargets[] | "\(.labels.job) \(.health)"' 2>/dev/null || true)"
+  targets="$(curl -s "$PROM_URL"/api/v1/targets | jq -r '.data.activeTargets[] | "\(.labels.job) \(.health)"' 2>/dev/null || true)"
   [ -n "$targets" ] && ! echo "$targets" | grep -qv ' up$' && break
   sleep 5
 done
-[ -n "$targets" ] || bad "Prometheus not reachable on localhost:9090"
+[ -n "$targets" ] || bad "Prometheus not reachable on $PROM_URL"
 echo "$targets" | while read -r job health; do
   [ -z "$job" ] && continue
   [ "$health" = "up" ] && echo "  PASS  Prometheus scrapes $job" || echo "  FAIL  Prometheus target $job is $health"
 done
 echo "$targets" | grep -qv ' up$' && failures=$((failures + 1))
-named="$(curl -s localhost:9090/api/v1/query --data-urlencode 'query=count(container_memory_working_set_bytes{name=~"bench-.*"})' | jq -r '.data.result[0].value[1] // 0')"
+named="$(curl -s "$PROM_URL"/api/v1/query --data-urlencode 'query=count(container_memory_working_set_bytes{name=~"bench-.*"})' | jq -r '.data.result[0].value[1] // 0')"
 [ "$named" -gt 0 ] 2>/dev/null && pass "cAdvisor reports $named containers by name" || bad "cAdvisor reports no named containers; per-container panels will be empty"
 
 echo "Load generator"

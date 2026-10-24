@@ -18,6 +18,8 @@ case "$phase" in
 esac
 export FEED_CACHE NGINX_MODE
 
+need_urls
+
 log "Stopping anything already running"
 bench compose -p bench down --remove-orphans >/dev/null 2>&1 || true
 

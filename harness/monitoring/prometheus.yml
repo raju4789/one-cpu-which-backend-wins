@@ -3,18 +3,20 @@ global:
   evaluation_interval: 5s
 
 # k6 metrics arrive by remote write, so they need no scrape job.
+# The bench VM's exporters are scraped on its own IP, written to targets/ by
+# bin/vm-up. Not through Colima's port forwarding, which can't take the load.
 scrape_configs:
   - job_name: cadvisor
-    static_configs:
-      - targets: ["host.lima.internal:8081"]
+    file_sd_configs:
+      - files: ["/etc/prometheus/targets/cadvisor.json"]
 
   - job_name: postgres
-    static_configs:
-      - targets: ["host.lima.internal:9187"]
+    file_sd_configs:
+      - files: ["/etc/prometheus/targets/postgres.json"]
 
   - job_name: nginx
-    static_configs:
-      - targets: ["host.lima.internal:9113"]
+    file_sd_configs:
+      - files: ["/etc/prometheus/targets/nginx.json"]
 
   # node_exporter running natively on the Mac: shows whether k6 is short of CPU
   - job_name: mac

@@ -4,9 +4,20 @@ source "$(dirname "$0")/common.sh"
 
 docker compose version >/dev/null 2>&1 || fail "docker compose not found. See 'One-time setup' in harness/README.md"
 
+# Starts a VM with its own IP address. A VM created without one is restarted with it.
+start_vm() {
+  local profile="$1"; shift
+  colima start --profile "$profile" "$@" --vm-type vz --arch aarch64 --mount-type virtiofs --network-address
+  if [ -z "$(colima_ip "$profile")" ]; then
+    log "Restarting $profile to give it its own IP address"
+    colima stop --profile "$profile"
+    colima start --profile "$profile" "$@" --vm-type vz --arch aarch64 --mount-type virtiofs --network-address
+  fi
+  [ -n "$(colima_ip "$profile")" ] || fail "$profile has no IP address; check 'colima list'"
+}
+
 log "Starting bench VM: 1 vCPU, 2 GB (the \$12 box)"
-colima start --profile "$BENCH_PROFILE" --cpu 1 --memory 2 --disk 30 \
-  --vm-type vz --arch aarch64 --mount-type virtiofs
+start_vm "$BENCH_PROFILE" --cpu 1 --memory 2 --disk 30
 
 # Docker 29 defaults to the containerd image store, and cAdvisor can't see
 # containers in it, so per-container CPU and memory go missing. Switch the
@@ -21,10 +32,20 @@ if ! grep -q 'containerd-snapshotter: false' "$cfg"; then
 fi
 
 log "Starting monitor VM: 2 vCPU, 2 GB"
-colima start --profile "$MONITOR_PROFILE" --cpu 2 --memory 2 --disk 20 \
-  --vm-type vz --arch aarch64 --mount-type virtiofs
+start_vm "$MONITOR_PROFILE" --cpu 2 --memory 2 --disk 20
+
+bench_ip="$(colima_ip "$BENCH_PROFILE")"
+monitor_ip="$(colima_ip "$MONITOR_PROFILE")"
+
+# Prometheus finds the bench VM's exporters through these files (file_sd).
+targets="$HARNESS_DIR/monitoring/targets"
+mkdir -p "$targets"
+for t in cadvisor:8081 postgres:9187 nginx:9113; do
+  printf '[{"targets": ["%s:%s"]}]\n' "$bench_ip" "${t#*:}" > "$targets/${t%%:*}.json"
+done
 
 log "Starting Prometheus and Grafana"
 monitor compose -f "$HARNESS_DIR/monitoring/compose.yaml" up -d
 
-log "Grafana: http://localhost:3000   Prometheus: http://localhost:9090"
+log "Bench VM: $bench_ip   Load goes to http://$bench_ip:8080"
+log "Grafana: http://localhost:3000   Prometheus: http://$monitor_ip:9090"

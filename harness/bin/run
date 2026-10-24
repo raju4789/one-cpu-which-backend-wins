@@ -244,6 +244,16 @@ def fmt(r):
 
 # ---------------------------------------------------------------- protocol steps
 
+def harness_urls():
+    """BASE_URL and PROM_URL as common.sh resolves them: the VMs' own IPs."""
+    out = subprocess.run(
+        ["bash", "-c", 'source "$1/bin/common.sh"; printf "%s\\n%s\\n" "$BASE_URL" "$PROM_URL"', "_", HARNESS],
+        capture_output=True, text=True).stdout.splitlines()
+    base, prom = (out + ["", ""])[:2]
+    if not base or not prom:
+        fail("a VM has no IP address; run harness/bin/vm-up")
+    return base, prom
+
 class Ctx:
     pass
 
@@ -324,8 +334,7 @@ def main():
 
     ctx = Ctx()
     ctx.stack, ctx.phase = args.stack, args.phase
-    ctx.base_url = os.environ.get("BASE_URL", "http://localhost:8080")
-    ctx.prom_url = os.environ.get("PROM_URL", "http://localhost:9090")
+    ctx.base_url, ctx.prom_url = harness_urls()
     ctx.max_vus = args.max_vus
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     ctx.run_id = f"{args.stack}-{args.phase}-{stamp}"
