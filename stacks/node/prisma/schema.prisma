@@ -1,0 +1,49 @@
+// Maps the shared tables in contract/schema.sql. Never migrated from here:
+// the schema is identical for every stack and owned by the harness.
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  // One SQL query for a post and its author (LATERAL JOIN) instead of two.
+  // The contract asks for the feed in a single query.
+  previewFeatures = ["relationJoins"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          BigInt   @id @default(autoincrement())
+  username    String   @unique @db.VarChar(30)
+  displayName String   @map("display_name") @db.VarChar(50)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  posts       Post[]
+  likes       Like[]
+
+  @@map("users")
+}
+
+model Post {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt   @map("user_id")
+  body      String   @db.VarChar(280)
+  likeCount Int      @default(0) @map("like_count")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  author    User     @relation(fields: [userId], references: [id])
+  likes     Like[]
+
+  @@index([createdAt(sort: Desc), id(sort: Desc)], map: "posts_feed_idx")
+  @@map("posts")
+}
+
+model Like {
+  postId    BigInt   @map("post_id")
+  userId    BigInt   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@id([postId, userId])
+  @@map("likes")
+}

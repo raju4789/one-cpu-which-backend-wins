@@ -1,0 +1,36 @@
+{
+  "name": "one-cpu-node",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node.js stack for one-cpu-which-backend-wins: Fastify + Prisma",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "generate": "prisma generate",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
+    "@prometheus-io/client": "0.16.1",
+    "fast-json-stringify": "7.2.0",
+    "fastify": "5.12.7",
+    "pg": "8.23.1"
+  },
+  "optionalDependencies": {
+    "@opentelemetry/auto-instrumentations-node": "0.82.0",
+    "@opentelemetry/exporter-trace-otlp-http": "0.300.0",
+    "@opentelemetry/sdk-node": "0.300.0",
+    "@prisma/instrumentation": "7.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "prisma": "7.10.1",
+    "typescript": "5.9.3"
+  }
+}
