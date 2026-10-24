@@ -98,6 +98,13 @@ A step passes while p95 < 300 ms, p99 < 1 s, errors < 1% and k6 dropped fewer th
 
 If the runner reports that k6 ran out of virtual users while the server was still fast, the load generator is the limit, not the stack: rerun with `--max-vus` higher. `bin/run --help` lists the other options.
 
+The runner also stops a run it can't trust, and says why:
+
+- **k6 couldn't connect while the server was fast.** Failed connections count as errors, so without this check a network problem on the Mac would show up as the stack failing. A server that is truly overloaded fails on latency too, and that is still recorded as a normal fail.
+- **Prometheus didn't answer** after retrying for about 80 seconds.
+
+The partial results are saved, marked aborted. They are not a result: fix the cause and rerun.
+
 ## What's where
 
 Everything below is **locked**: changing it for one stack invalidates the comparison. To add or tune a stack, you only touch `stacks/<name>/`.

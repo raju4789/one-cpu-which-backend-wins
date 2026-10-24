@@ -30,6 +30,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -40,6 +41,7 @@ K6_DIR = os.path.join(REPO, "k6")
 P95_MAX, P99_MAX, ERROR_MAX, DROP_MAX = 0.300, 1.0, 0.01, 0.01
 STEP_SECONDS, SETTLE_SECONDS, OVERLOAD_SECONDS = 60, 10, 120
 EVAL_DELAY = 12  # seconds after a step ends: k6 pushes every 5 s, Prometheus scrapes every 5 s
+RUN_STARTED = time.time()
 
 
 def log(msg):
@@ -53,7 +55,23 @@ def fail(msg):
 
 # ---------------------------------------------------------------- Prometheus
 
+class RunInvalid(Exception):
+    """Something outside the stack broke, so the numbers can't be trusted."""
+
+
+class PromUnavailable(RunInvalid):
+    """Prometheus could not be reached, even after retries."""
+
+
+def lookback():
+    """Range for last_over_time over k6 counters: from shortly before this run started."""
+    return f"[{int(time.time() - RUN_STARTED) + 120}s]"
+
+
 class Prom:
+    TIMEOUT = 10
+    RETRY_DELAYS = (2, 5, 10, 20)  # with the timeouts, rides out about 80 s of trouble
+
     def __init__(self, url):
         self.url = url.rstrip("/")
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -62,8 +80,19 @@ class Prom:
         params = {"query": q}
         if t is not None:
             params["time"] = f"{t:.3f}"
-        with self.opener.open(f"{self.url}/api/v1/query?{urllib.parse.urlencode(params)}", timeout=30) as r:
-            body = json.load(r)
+        url = f"{self.url}/api/v1/query?{urllib.parse.urlencode(params)}"
+        for delay in self.RETRY_DELAYS + (None,):
+            try:
+                with self.opener.open(url, timeout=self.TIMEOUT) as r:
+                    body = json.load(r)
+                break
+            except urllib.error.HTTPError:
+                raise  # Prometheus answered: a bad query, retrying won't help
+            except OSError as e:  # connection refused or timed out
+                if delay is None:
+                    raise PromUnavailable(f"Prometheus at {self.url} did not answer: {e}") from e
+                log(f"  Prometheus did not answer ({e}), retrying in {delay} s")
+                time.sleep(delay)
         if body.get("status") != "success":
             raise RuntimeError(f"Prometheus query failed: {q}: {body}")
         return body["data"]["result"]
@@ -82,10 +111,10 @@ class Prom:
 def k6_step_metrics(prom, sel, seconds):
     """Load numbers for one tagged step, from the counters k6 pushed."""
     def total(metric, extra=""):
-        return prom.scalar(f"sum(last_over_time({metric}{{{sel}{extra}}}[3h]))") or 0.0
+        return prom.scalar(f"sum(last_over_time({metric}{{{sel}{extra}}}{lookback()}))") or 0.0
 
-    hist = f"sum(last_over_time(k6_http_req_duration_seconds{{{sel}}}[3h]))"
-    it_hist = f"sum(last_over_time(k6_iteration_duration_seconds{{{sel}}}[3h]))"
+    hist = f"sum(last_over_time(k6_http_req_duration_seconds{{{sel}}}{lookback()}))"
+    it_hist = f"sum(last_over_time(k6_iteration_duration_seconds{{{sel}}}{lookback()}))"
     reqs = total("k6_http_reqs_total")
     errors = total("k6_http_reqs_total", ',expected_response="false"')
     sessions = total("k6_iterations_total")
@@ -104,7 +133,7 @@ def k6_step_metrics(prom, sel, seconds):
 
 def counter_delta(prom, series, t0, t1):
     """Increase of a k6 counter between two moments (k6 counters start at 0)."""
-    q = f"sum(last_over_time({series}[3h]))"
+    q = f"sum(last_over_time({series}{lookback()}))"
     return (prom.scalar(q, t1) or 0.0) - (prom.scalar(q, t0) or 0.0)
 
 
@@ -136,6 +165,7 @@ class K6Run:
 
     def __init__(self, ctx, script, test, env, summary=None):
         self.start = None
+        self.dial_errors = []  # when k6 failed to open a TCP connection, from its log
         self.log_path = os.path.join(ctx.out, f"k6-{test}.log")
         full_env = os.environ.copy()
         full_env.update({
@@ -169,6 +199,10 @@ class K6Run:
                 m = re.search(r"RUN_START (\d+)", line)
                 if m and self.start is None:
                     self.start = int(m.group(1)) / 1000.0
+                if "Request Failed" in line and "dial" in line:
+                    t = re.search(r'time="([^"]+)"', line)
+                    if t:
+                        self.dial_errors.append(datetime.datetime.fromisoformat(t.group(1)).timestamp())
 
     def wait_start(self, timeout=120):
         deadline = time.time() + timeout
@@ -220,6 +254,20 @@ def summary_numbers(path, step, seconds):
     }
 
 
+def check_connections(run, r, t0, t1):
+    """k6 failing to connect while the server answers fast is the network on the Mac, not the stack.
+
+    A saturated server can also refuse connections, but then its latency fails the step too.
+    """
+    r["dial_errors"] = sum(1 for t in run.dial_errors if t0 - 1 <= t <= t1 + 1)
+    latency_ok = all(r[k] is None or r[k] < lim for k, lim in (("p95_s", P95_MAX), ("p99_s", P99_MAX)))
+    if r["dial_errors"] and latency_ok:
+        raise RunInvalid(
+            f"k6 could not open {r['dial_errors']} connections while the server answered in "
+            f"p95 {(r['p95_s'] or 0) * 1000:.0f} ms. That is the Mac or the VM network, not the stack. "
+            f"Details: {run.log_path}")
+
+
 def verdict(r, dropped_ratio=0.0):
     reasons = []
     if r["requests"] == 0:
@@ -267,13 +315,21 @@ def sh(ctx, *cmd, capture=False):
     return None
 
 
-def ramp(ctx, prom, rates, test):
+def ramp(ctx, prom, rates, test, steps):
+    """Runs the steps until one fails, appending each to steps as it is judged."""
     log(f"{test}: {len(rates)} steps of {STEP_SECONDS} s, rates {', '.join(map(str, rates))} sessions/s")
     run = K6Run(ctx, os.path.join(K6_DIR, "load.js"), test,
                 {"MODE": "ramp", "RATES": ",".join(map(str, rates))},
                 summary=os.path.join(ctx.out, f"k6-{test}-summary.json"))
     start = run.wait_start()
-    steps = []
+    try:
+        _ramp_steps(ctx, prom, rates, test, run, start, steps)
+    finally:
+        run.stop()
+    return steps
+
+
+def _ramp_steps(ctx, prom, rates, test, run, start, steps):
     for i, rate in enumerate(rates):
         t0, t1 = start + i * STEP_SECONDS + SETTLE_SECONDS, start + (i + 1) * STEP_SECONDS
         while time.time() < t1 + EVAL_DELAY and run.proc.poll() is None:
@@ -284,6 +340,8 @@ def ramp(ctx, prom, rates, test):
                                 t0, t1)
         dropped_ratio = dropped / (r["sessions"] + dropped) if (r["sessions"] + dropped) else 0.0
         r.update({"rate": rate, "dropped_sessions": int(dropped), "server": server_metrics(prom, t0, t1)})
+        steps.append(r)
+        check_connections(run, r, t0 - SETTLE_SECONDS, t1)
         r["fail_reasons"] = verdict(r, dropped_ratio)
         r["passed"] = not r["fail_reasons"]
         cpu = r["server"]["vm_cpu_avg"]
@@ -294,11 +352,8 @@ def ramp(ctx, prom, rates, test):
             log("  k6 ran out of virtual users while the server was still fast: "
                 "raise --max-vus, the limit is the load generator, not the stack")
             r["generator_limited"] = True
-        steps.append(r)
         if not r["passed"] or run.proc.poll() is not None:
             break
-    run.stop()
-    return steps
 
 
 def constant(ctx, test, rate, seconds, settle):
@@ -310,6 +365,7 @@ def constant(ctx, test, rate, seconds, settle):
     run.wait()
     start = run.start
     r = summary_numbers(summary, "steady", seconds - settle)
+    check_connections(run, r, start, start + seconds)
     return r, (start + settle, start + seconds)
 
 
@@ -351,6 +407,27 @@ def main():
     bin_dir = os.path.join(HARNESS, "bin")
     log(f"Run {ctx.run_id}, results in {os.path.relpath(ctx.out, REPO)}")
 
+    try:
+        confirmed = protocol(args, ctx, prom, result, bin_dir)
+    except (RunInvalid, KeyboardInterrupt) as e:
+        result["status"] = "aborted"
+        result["abort_reason"] = str(e) or type(e).__name__
+        save(ctx, result)
+        fail(f"run aborted: {result['abort_reason']}\n"
+             f"Partial results are in {os.path.relpath(ctx.out, REPO)}. They are not a valid result: rerun.")
+    result["status"] = "complete"
+    save(ctx, result)
+    if confirmed:
+        log(f"RESULT {args.stack} / {args.phase}: {confirmed['rps']:.0f} req/s sustained "
+            f"({confirmed['rate']} sessions/s, about {confirmed['concurrent_users'] or 0:.0f} concurrent users), "
+            f"p95 {confirmed['p95_s'] * 1000:.0f} ms, p99 {confirmed['p99_s'] * 1000:.0f} ms")
+    else:
+        log(f"RESULT {args.stack} / {args.phase}: no rate passed the 5-minute confirm")
+    log(f"Saved {os.path.relpath(ctx.out, REPO)}. Let the Mac cool down 5 minutes before the next run.")
+
+
+def protocol(args, ctx, prom, result, bin_dir):
+    """Steps 1 to 9. Fills in result as it goes and returns the confirmed step, if any."""
     # 1. Fresh start
     if not args.no_up:
         sh(ctx, os.path.join(bin_dir, "up"), args.stack, args.phase)
@@ -389,7 +466,8 @@ def main():
         if not rates or round(r) > rates[-1]:
             rates.append(round(r))
         r *= 1.5
-    coarse = ramp(ctx, prom, rates, "ramp-coarse")
+    result["ramp"] = {"coarse": [], "fine": []}
+    coarse = ramp(ctx, prom, rates, "ramp-coarse", result["ramp"]["coarse"])
     passing = [s for s in coarse if s["passed"]]
     if not passing:
         fail(f"the first step ({rates[0]} sessions/s) already failed; use a lower --start-rate")
@@ -404,11 +482,10 @@ def main():
         if fine_rates:
             log("Cool-down 30 s before the fine ramp")
             time.sleep(30)
-            fine = ramp(ctx, prom, fine_rates, "ramp-fine")
+            fine = ramp(ctx, prom, fine_rates, "ramp-fine", result["ramp"]["fine"])
             passing += [s for s in fine if s["passed"]]
     else:
         log(f"Every step passed up to --max-rate {args.max_rate}: the stack may handle more")
-    result["ramp"] = {"coarse": coarse, "fine": fine}
 
     # 8. Confirm
     candidates = sorted({s["rate"] for s in passing}, reverse=True)[:2]
@@ -440,29 +517,27 @@ def main():
         run.wait()
         over = summary_numbers(summary, "over", OVERLOAD_SECONDS - SETTLE_SECONDS)
         rec = summary_numbers(summary, "recover", OVERLOAD_SECONDS - SETTLE_SECONDS)
+        check_connections(run, rec, run.start + OVERLOAD_SECONDS, run.start + 2 * OVERLOAD_SECONDS)
         rec["recovered"] = not verdict(rec)
         result["overload"] = {"over": over, "recover": rec}
         log(f"  at 1.5x: {fmt(over)}")
         log(f"  back at 1x: {fmt(rec)} -> {'recovered' if rec['recovered'] else 'did NOT recover'}")
+    return confirmed
 
+
+def save(ctx, result):
     result["finished"] = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
     with open(os.path.join(ctx.out, "result.json"), "w") as f:
         json.dump(result, f, indent=2)
     write_summary(ctx, result)
-    if confirmed:
-        log(f"RESULT {args.stack} / {args.phase}: {confirmed['rps']:.0f} req/s sustained "
-            f"({confirmed['rate']} sessions/s, about {confirmed['concurrent_users'] or 0:.0f} concurrent users), "
-            f"p95 {confirmed['p95_s'] * 1000:.0f} ms, p99 {confirmed['p99_s'] * 1000:.0f} ms")
-    else:
-        log(f"RESULT {args.stack} / {args.phase}: no rate passed the 5-minute confirm")
-    log(f"Saved {os.path.relpath(ctx.out, REPO)}. Let the Mac cool down 5 minutes before the next run.")
-
 
 def write_summary(ctx, res):
     ms = lambda v: f"{v * 1000:.0f}" if v is not None else "-"
     pct = lambda v: f"{v * 100:.2f}%" if v is not None else "-"
     lines = [f"# {res['stack']} / {res['phase']}", "",
              f"Run `{res['run_id']}`, {res['started']} to {res['finished']}", ""]
+    if res.get("status") == "aborted":
+        lines += [f"**Aborted, not a valid result:** {res['abort_reason']}", ""]
     c = res.get("result")
     if c:
         lines += ["## Result", "",
@@ -486,7 +561,7 @@ def write_summary(ctx, res):
     lines += ["## Ramp", "", "| Step | Sessions/s | Req/s | p95 | p99 | Errors | Server CPU | Verdict |",
               "| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for kind in ("coarse", "fine"):
-        for i, s in enumerate(res["ramp"][kind]):
+        for i, s in enumerate(res.get("ramp", {}).get(kind, [])):
             cpu = s["server"]["vm_cpu_avg"]
             cpu_txt = f"{cpu * 100:.0f}%" if cpu is not None else "-"
             outcome = "pass" if s["passed"] else "fail: " + ", ".join(s["fail_reasons"])
