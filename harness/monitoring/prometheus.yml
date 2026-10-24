@@ -3,6 +3,9 @@ global:
   evaluation_interval: 5s
 
 # k6 metrics arrive by remote write, so they need no scrape job.
+# The VMs can't reach each other directly (macOS isolates them), so the bench
+# VM's exporters are scraped through Colima's port forwarding on the Mac.
+# That's fine for 3 scrapes every 5 s. The load itself never goes this way.
 scrape_configs:
   - job_name: cadvisor
     static_configs:

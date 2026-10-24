@@ -7,7 +7,7 @@ Mac (host)
 ├── k6                      load generator, outside both VMs
 ├── node_exporter           the Mac's own CPU, to prove k6 wasn't short of it
 ├── bench VM   1 vCPU, 2 GB   the "$12 box"
-│   ├── Nginx               port 8080 on the Mac
+│   ├── Nginx               port 8080 on the VM's own IP
 │   ├── app                 the stack under test
 │   ├── Postgres            seeded once, reset before every run
 │   └── cAdvisor, Postgres exporter, Nginx exporter
@@ -22,6 +22,7 @@ Mac (host)
 - Homebrew
 - 16 GB of RAM recommended. The two VMs take 4 GB.
 - Docker Desktop closed. It runs its own VM and competes for CPU.
+- Your terminal app allowed under System Settings > Privacy & Security > Local Network, so k6 can reach the VMs.
 
 ## One-time setup
 
@@ -72,7 +73,30 @@ When you're done: `harness/bin/down` stops the stack, `harness/bin/vm-down` stop
 | `bin/calibrate` | Fixed CPU benchmark in the VM. `BASELINE=<s>` fails if more than 5% off |
 | `bin/env-report` | Environment as JSON, saved with every result |
 | `bin/smoke` | Short load test through the full path, with metrics in Grafana |
+| `bin/run <stack> <phase>` | The full benchmark for one stack in one phase, results saved to `results/` |
 | `bin/pin-images` | Pin every image to its current digest (maintainers only, see below) |
+
+## Run the benchmark
+
+```sh
+harness/bin/run <stack> <phase>    # e.g. harness/bin/run node none
+```
+
+One command runs the whole protocol, about 30 minutes:
+
+1. Fresh database, stack started in the phase
+2. [Contract test](../k6/README.md#contract-test). The run stops if it fails
+3. Idle baseline: what the server uses with no load
+4. Calibration and environment report
+5. Warm-up: 20 sessions/s for 2 minutes, the same for every stack
+6. Coarse ramp: 1-minute steps, x1.5 each, until a step fails
+7. Fine ramp: +10% steps from the last passing rate
+8. Confirm: hold the best passing rate for 5 minutes. If it fails, try the next lower one
+9. Overload: 2 minutes at 1.5x, then 2 minutes back, to see whether it recovers
+
+A step passes while p95 < 300 ms, p99 < 1 s, errors < 1% and k6 dropped fewer than 1% of sessions. The result is the confirmed rate, saved with everything else in [`results/`](../results/README.md). Progress shows live in Grafana.
+
+If the runner reports that k6 ran out of virtual users while the server was still fast, the load generator is the limit, not the stack: rerun with `--max-vus` higher. `bin/run --help` lists the other options.
 
 ## What's where
 
@@ -86,7 +110,7 @@ Everything below is **locked**: changing it for one stack invalidates the compar
 | `nginx/nginx.conf` | Nginx settings, with keep-alive to the app |
 | `nginx/modes/proxy`, `nginx/modes/cache` | How `/feed` is served: passed through, or cached for 1 second |
 | `monitoring/` | Prometheus, Grafana and the dashboard |
-| `smoke.js` | The smoke test, not the benchmark |
+| `smoke.js` | The smoke test, not the benchmark (that's [`k6/load.js`](../k6/README.md)) |
 | `dummy-app/` | A stand-in app for testing the harness itself |
 
 ## How a stack plugs in
@@ -101,7 +125,7 @@ A stack is a folder with a `compose.yaml` that only adds `image` or `build` for 
 
 ## The dummy app
 
-`dummy-app/` serves the contract's endpoints from memory, with no database. It proves the harness works end to end without a real stack, and it's the first thing to run when a result looks odd: if the dummy app also misbehaves, the harness is at fault, not the stack. It is never benchmarked.
+`dummy-app/` implements the contract from memory, with no database, and passes the contract test. It proves the harness works end to end without a real stack, and it's the first thing to run when a result looks odd: if the dummy app also misbehaves, the harness is at fault, not the stack. It is never benchmarked.
 
 ## Grafana
 
@@ -124,24 +148,31 @@ Monitoring isn't free: with the app idle, the agents and Postgres answering the 
 
 Every image is pinned by digest, so every stack runs on byte-identical Postgres, Nginx and monitoring. Don't run `bin/pin-images` to replicate results. Repinning changes the images, and every stack would then have to be rerun.
 
-## Ports on the Mac
+## Network
 
-| Port | Service |
-| --- | --- |
-| 8080 | Nginx, the entry point for all traffic |
-| 3000 | Grafana |
-| 9090 | Prometheus |
-| 5432 | Postgres, localhost only, for debugging with `psql` |
-| 8081, 9113, 9187 | cAdvisor, Nginx exporter, Postgres exporter |
-| 9100 | node_exporter |
+Each VM gets its own IP address on the Mac (`colima --network-address`), shown by `bin/vm-up` and `colima list`. k6 sends load straight to the bench VM's IP.
 
-If one of these is already taken on your Mac, `vm-up` or `up` will fail. Stop whatever uses it first.
+The load never goes through Colima's port forwarding to `localhost`. That forwarding is a user-space proxy: it uses the bench VM's own CPU, adds latency, and in testing it collapsed after a few hundred connections, taking every forwarded port down with it. `bin/check` fails if the load would go through it.
+
+Prometheus does scrape the bench VM's exporters through that forwarding, because macOS doesn't let the two VMs reach each other directly. That's 3 small requests every 5 seconds, the same for every stack.
+
+| Where | Port | Service |
+| --- | --- | --- |
+| bench VM | 8080 | Nginx, the entry point for all traffic |
+| bench VM, forwarded to the Mac | 8081, 9113, 9187 | cAdvisor, Nginx exporter, Postgres exporter |
+| bench VM | 5432 | Postgres, for debugging with `psql` |
+| monitor VM | 9090 | Prometheus |
+| Mac | 3000 | Grafana (forwarded, fine for a browser) |
+| Mac | 9100 | node_exporter |
 
 ## Troubleshooting
 
 | Symptom | Cause and fix |
 | --- | --- |
-| `check` says a Prometheus target is down | Usually just started. `check` waits 20 s; if it still fails, check that port in the table above |
+| `check` says a Prometheus target is down | Usually just started. `check` waits 20 s. If it still fails, check `colima list` shows both VMs running |
+| k6 fails with "no route to host" while `curl` works | macOS blocks apps from the local network until you allow them, and Apple's own `curl` is exempt. System Settings > Privacy & Security > Local Network: turn on your terminal app (Terminal, iTerm, VS Code), then quit and reopen it. `bin/check` tests this |
+| "a VM has no IP address" | The VM was created without `--network-address`. `bin/vm-up` restarts it with one |
+| Requests suddenly fail with "connection refused" on `localhost` | Load went through Colima's port forwarding, which gave out. Unset `BASE_URL`, run `bin/vm-down` and `bin/vm-up` |
 | Per-container panels are empty | The bench VM uses Docker's containerd image store, which cAdvisor can't read. `vm-up` switches it to overlay2; rerun `bin/vm-up` |
 | `check` fails on the `mac` target | node_exporter isn't running: `brew services start node_exporter` |
 | `up` hangs at "Waiting for the seed" | First run seeds 2.5 million rows. Give it up to 15 minutes; check `docker --context colima-bench logs bench-postgres-1` |

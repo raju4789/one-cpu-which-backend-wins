@@ -8,7 +8,7 @@ These rules keep the comparison fair. A result only counts if it follows all of 
 2. **Load generator:** k6 runs on the host, outside the VM. Prometheus and Grafana run in a separate VM.
 3. **Database:** same Postgres version, config, schema, indexes and seed data.
 4. **API:** every stack passes the same contract tests before it is load tested.
-5. **Load:** same k6 script, ramp, think time and pass criteria.
+5. **Load:** same k6 script, ramp, think time and pass criteria. The load is an open model: k6 starts a fixed number of user sessions per second however slow the server gets, so overload shows as real latency instead of slowing the load down. Details in [k6/README.md](../k6/README.md).
 6. **Queries:** same work per request. One query for the feed, no N+1.
 7. **Logging:** Nginx writes the one access log. Apps log warnings and errors only, no per-request lines. Rails logs every request by default and Spring doesn't, so "info level everywhere" would not be equal work.
 8. **Nginx:** one shared config with keepalive to the app.
@@ -48,13 +48,15 @@ Laptop model, macOS version, Colima version, image digests, calibration score an
 
 ## Pass criteria
 
-A load step passes when, held for at least 5 minutes:
+A load level passes when, held for 5 minutes:
 
 - p95 latency < 300 ms
 - p99 latency < 1 s
 - error rate < 1%
 
-The headline result is the highest sustained requests per second that still passes.
+k6 must also drop fewer than 1% of sessions, otherwise the load generator, not the stack, was the limit.
+
+The headline result is the highest sustained requests per second that still passes. It is found with 1-minute ramp steps, then confirmed with a 5-minute hold, by [`harness/bin/run`](../harness/README.md#run-the-benchmark).
 
 ## Endpoints
 
