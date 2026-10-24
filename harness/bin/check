@@ -45,11 +45,20 @@ case "$BASE_URL" in
 esac
 # curl is an Apple binary and may reach the VMs while k6 and Python are blocked
 # by macOS's Local Network privacy setting, so test with the tools the runner uses.
-probe='import http from "k6/http"; import { check } from "k6";
-export const options = { iterations: 1, thresholds: { checks: ["rate==1"] } };
-export default function () { check(http.get(__ENV.U), { ok: (r) => r.status === 200 }); }'
-if echo "$probe" | k6 run --quiet -e U="$BASE_URL/health" - >/dev/null 2>&1; then pass "k6 can reach the bench VM"
-else bad "k6 can't reach $BASE_URL. Allow your terminal app under System Settings > Privacy & Security > Local Network, then restart it"; fi
+probe="$(mktemp -t k6probe.XXXXXX).js"
+cat > "$probe" <<'JS'
+import http from "k6/http";
+export default function () {
+  const r = http.get(__ENV.U);
+  if (r.status !== 200) throw new Error(`status ${r.status} ${r.error}`);
+}
+JS
+k6_out="$(k6 run --quiet --iterations 1 -e U="$BASE_URL/health" "$probe" 2>&1 || true)"
+rm -f "$probe" "${probe%.js}"
+if ! echo "$k6_out" | grep -q "status "; then pass "k6 can reach the bench VM"
+elif echo "$k6_out" | grep -q "no route to host"; then
+  bad "k6 can't reach $BASE_URL. Allow your terminal app under System Settings > Privacy & Security > Local Network, then restart it"
+else bad "k6 can't reach $BASE_URL: $(echo "$k6_out" | grep -o 'status [^"]*' | head -1)"; fi
 if python3 -c "import sys, urllib.request as u; u.build_opener(u.ProxyHandler({})).open(sys.argv[1], timeout=5)" "$PROM_URL/-/ready" 2>/dev/null; then pass "Python can reach Prometheus (used by bin/run)"
 else bad "Python can't reach $PROM_URL. Same fix: allow your terminal app under Local Network"; fi
 
