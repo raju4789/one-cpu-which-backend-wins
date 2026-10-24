@@ -38,7 +38,8 @@ bench_ip="$(colima_ip "$BENCH_PROFILE")"
 monitor_ip="$(colima_ip "$MONITOR_PROFILE")"
 
 log "Starting Prometheus and Grafana"
-monitor compose -f "$HARNESS_DIR/monitoring/compose.yaml" up -d
+# Recreated every time so config changes (prometheus.yml, dashboards) always apply.
+monitor compose -f "$HARNESS_DIR/monitoring/compose.yaml" up -d --force-recreate
 
 log "Bench VM: $bench_ip   Load goes to http://$bench_ip:8080"
 log "Grafana: http://localhost:3000   Prometheus: http://$monitor_ip:9090"

@@ -16,6 +16,7 @@ Contract tests that check every rule automatically are coming with the load test
 3. Serves `GET /health` once it can take traffic.
 4. Uses the schema as is. No extra indexes, no extra columns.
 5. Caches `GET /feed` in memory for 1 second when `FEED_CACHE=app`, and never caches when `FEED_CACHE=off`.
+6. Optionally exposes Prometheus metrics at `:9464/metrics`, using these shared names so Grafana can compare stacks: `app_http_request_duration_seconds` (histogram, labels `method`, `route`, `status`), `app_db_pool_connections` (gauge, label `state`: `in_use`, `idle`, `waiting`), `app_db_pool_max`, and `app_feed_cache_requests_total` (label `result`: `hit`, `miss`). Runtime metrics (event loop, JVM, Ruby VM) use the language's standard names.
 
 ## Design decisions
 

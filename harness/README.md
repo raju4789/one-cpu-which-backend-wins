@@ -138,6 +138,7 @@ Everything is on one dashboard at http://localhost:3000. Filter by stack and pha
 | Server | CPU, memory, network and disk writes per container, against the 1 core and 2 GB |
 | Nginx | Requests handled, active and idle connections |
 | Postgres | Transactions, connections, cache hit ratio, rows, locks, deadlocks, size, top queries |
+| App | Measured inside the stack: time per route, database pool, feed cache hits, runtime (event loop, heap, GC). Empty for stacks without metrics |
 | Load generator | The Mac's CPU, to show k6 had headroom |
 
 Percentiles come from k6 native histograms, so p95 and p99 are exact across all endpoints, not averaged. The dashboard is generated: edit `monitoring/grafana/build_dashboard.py`, then run it.
@@ -160,6 +161,7 @@ Prometheus does scrape the bench VM's exporters through that forwarding, because
 | --- | --- | --- |
 | bench VM | 8080 | Nginx, the entry point for all traffic |
 | bench VM, forwarded to the Mac | 8081, 9113, 9187 | cAdvisor, Nginx exporter, Postgres exporter |
+| bench VM, forwarded to the Mac | 9464 | The stack's own metrics, if it exposes them |
 | bench VM | 5432 | Postgres, for debugging with `psql` |
 | monitor VM | 9090 | Prometheus |
 | Mac | 3000 | Grafana (forwarded, fine for a browser) |

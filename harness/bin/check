@@ -77,15 +77,17 @@ echo "Monitoring"
 # Exporters that just started may not have been scraped yet: allow 3 scrape intervals.
 for _ in 1 2 3 4; do
   targets="$(curl -s "$PROM_URL"/api/v1/targets | jq -r '.data.activeTargets[] | "\(.labels.job) \(.health)"' 2>/dev/null || true)"
-  [ -n "$targets" ] && ! echo "$targets" | grep -qv ' up$' && break
+  [ -n "$targets" ] && ! echo "$targets" | grep -v '^app ' | grep -qv ' up$' && break
   sleep 5
 done
 [ -n "$targets" ] || bad "Prometheus not reachable on $PROM_URL"
 echo "$targets" | while read -r job health; do
   [ -z "$job" ] && continue
-  [ "$health" = "up" ] && echo "  PASS  Prometheus scrapes $job" || echo "  FAIL  Prometheus target $job is $health"
+  if [ "$health" = "up" ]; then echo "  PASS  Prometheus scrapes $job"
+  elif [ "$job" = "app" ]; then echo "  INFO  the stack exposes no metrics on :9464 (optional)"
+  else echo "  FAIL  Prometheus target $job is $health"; fi
 done
-echo "$targets" | grep -qv ' up$' && failures=$((failures + 1))
+echo "$targets" | grep -v '^app ' | grep -qv ' up$' && failures=$((failures + 1))
 named="$(curl -s "$PROM_URL"/api/v1/query --data-urlencode 'query=count(container_memory_working_set_bytes{name=~"bench-.*"})' | jq -r '.data.result[0].value[1] // 0')"
 [ "$named" -gt 0 ] 2>/dev/null && pass "cAdvisor reports $named containers by name" || bad "cAdvisor reports no named containers; per-container panels will be empty"
 

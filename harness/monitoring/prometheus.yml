@@ -19,6 +19,11 @@ scrape_configs:
     static_configs:
       - targets: ["host.lima.internal:9113"]
 
+  # The stack's own metrics on :9464 (optional, see contract/README.md)
+  - job_name: app
+    static_configs:
+      - targets: ["host.lima.internal:9464"]
+
   # node_exporter running natively on the Mac: shows whether k6 is short of CPU
   - job_name: mac
     static_configs:

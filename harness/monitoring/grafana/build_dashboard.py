@@ -179,6 +179,25 @@ top = {"id": next_id(), "type": "table", "title": "Top queries by total time (la
            fmt="table", instant=True)}
 add(top)
 
+# ---------------------------------------------------------------- app
+row("App: measured inside the stack (empty if the stack exposes no metrics)")
+add(ts("Time inside the app, p95 by route",
+       [(f"histogram_quantile(0.95, sum by (le, route) (rate(app_http_request_duration_seconds_bucket[{WIN}])))", "{{route}}")],
+       "s", 0, 12, desc="Compare with k6's p95: the difference is Nginx, the network and queueing before the app"),
+    ts("Database connection pool",
+       [("sum by (state) (app_db_pool_connections)", "{{state}}"), ("max(app_db_pool_max)", "pool max")],
+       "none", 12, 12, desc="Waiting above zero: requests queue for a connection, the pool is the limit"))
+add(ts("Feed cache hit ratio (app-cache phase)",
+       [(f'sum(rate(app_feed_cache_requests_total{{result="hit"}}[{WIN}])) / sum(rate(app_feed_cache_requests_total[{WIN}]))', "hit ratio")],
+       "percentunit", 0, 8, maxv=1),
+    ts("Node.js event loop lag",
+       [("max(nodejs_eventloop_lag_p99_seconds)", "p99"), ("max(nodejs_eventloop_lag_mean_seconds)", "mean")],
+       "s", 8, 8, desc="How late the event loop runs. On one CPU, rising lag means the process is saturated"),
+    ts("Node.js heap and GC",
+       [("max(nodejs_heap_size_used_bytes)", "heap used"),
+        (f"sum(rate(nodejs_gc_duration_seconds_sum[{WIN}]))", "GC seconds per second")],
+       "none", 16, 8, desc="Heap in bytes; GC as the share of each second spent collecting"))
+
 # ---------------------------------------------------------------- mac
 row("Load generator: the Mac running k6")
 add(ts("Mac CPU busy",
