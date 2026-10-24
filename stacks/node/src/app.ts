@@ -16,6 +16,7 @@ export function buildApp(posts: PostService): FastifyInstance {
     keepAliveTimeout: 75_000,
     trustProxy: true,
     return503OnClosing: true,
+    bodyLimit: config.bodyLimitBytes,
   });
 
   // Time spent inside the app, per route. Compared with k6's numbers this

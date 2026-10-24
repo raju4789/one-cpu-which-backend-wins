@@ -1,6 +1,6 @@
 import fastJson from "fast-json-stringify";
 import type { PrismaClient } from "../generated/prisma/client.js";
-import { foreignKeyError } from "../errors.js";
+import { fromDatabaseError } from "../errors.js";
 import { feedResponse } from "./schemas.js";
 
 const FEED_SIZE = 20;
@@ -61,7 +61,7 @@ export class PostService {
       });
       return toDto(row);
     } catch (err) {
-      throw foreignKeyError(err) ?? err;
+      throw fromDatabaseError(err) ?? err;
     }
   }
 
@@ -85,7 +85,7 @@ export class PostService {
         }
       });
     } catch (err) {
-      throw foreignKeyError(err) ?? err;
+      throw fromDatabaseError(err) ?? err;
     }
   }
 }

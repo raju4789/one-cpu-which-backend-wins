@@ -36,10 +36,14 @@ const error = {
   properties: { error: { type: "string" } },
 } as const;
 
+// Ids are bigint in Postgres; anything above 2^53 - 1 can't be represented
+// exactly in JavaScript, so it is rejected here as a 400 instead of failing later.
+const id = { type: "integer", minimum: 1, maximum: Number.MAX_SAFE_INTEGER } as const;
+
 const userHeader = {
   type: "object",
   required: ["x-user-id"],
-  properties: { "x-user-id": { type: "integer", minimum: 1 } },
+  properties: { "x-user-id": id },
 } as const;
 
 export const createPostSchema = {
@@ -57,7 +61,7 @@ export const likeSchema = {
   params: {
     type: "object",
     required: ["id"],
-    properties: { id: { type: "integer", minimum: 1 } },
+    properties: { id },
   },
   response: { 400: error, 404: error },
 } as const;

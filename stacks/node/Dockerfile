@@ -3,14 +3,19 @@
 
 # ---- build: install everything, generate the Prisma client, compile TypeScript
 FROM node:24.22.1-alpine AS build
+# Prisma's CLI detects the OpenSSL version to pick its engine binaries; Alpine doesn't ship it.
+RUN apk add --no-cache openssl
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY tsconfig.json prisma.config.ts ./
 COPY prisma ./prisma
 COPY src ./src
+COPY test ./test
 # prisma.config.ts reads DATABASE_URL; generate doesn't connect, any value works.
+# Unit tests run here, so an image that fails them is never built.
 RUN DATABASE_URL=postgres://build/none npm run build \
+ && npm test \
  && npm prune --omit=dev --no-audit --no-fund
 
 # ---- runtime: production dependencies and compiled code only

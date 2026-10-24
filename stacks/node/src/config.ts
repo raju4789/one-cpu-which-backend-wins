@@ -25,5 +25,11 @@ export const config = {
   dbPoolMax: int("DB_POOL_MAX", 10),
   // Benchmark rule: warnings and errors only, no per-request lines (Nginx keeps the access log).
   logLevel: process.env.LOG_LEVEL ?? "warn",
-  shutdownGraceMs: int("SHUTDOWN_GRACE_MS", 10_000),
+  // A query running longer than this is cancelled by Postgres instead of holding a connection.
+  dbStatementTimeoutMs: int("DB_STATEMENT_TIMEOUT_MS", 5_000),
+  startupRetries: int("STARTUP_RETRIES", 30),
+  // Below Docker's default 10 s stop timeout, so we exit cleanly before SIGKILL.
+  shutdownGraceMs: int("SHUTDOWN_GRACE_MS", 8_000),
+  bodyLimitBytes: 16 * 1024, // a post is at most 280 characters
+
 };

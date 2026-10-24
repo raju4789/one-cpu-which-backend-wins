@@ -10,13 +10,33 @@ export const pool = new pg.Pool({
   max: config.dbPoolMax,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
+  statement_timeout: config.dbStatementTimeoutMs,
   application_name: "one-cpu-node",
 });
 
+// An idle connection can fail (Postgres restarted, network blip). pg emits
+// that as an "error" event, which crashes the process if nobody listens.
+// The pool drops the broken connection and opens a new one when needed.
+let onPoolError: (err: Error) => void = (err) => console.error(err);
+pool.on("error", (err) => onPoolError(err));
+export function handlePoolErrors(handler: (err: Error) => void): void {
+  onPoolError = handler;
+}
+
 export const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
-export async function checkDatabase(): Promise<void> {
-  await prisma.$queryRaw`SELECT 1`;
+// Waits for Postgres at startup instead of crashing if it is a moment late.
+export async function waitForDatabase(retries: number, onRetry: (attempt: number, err: unknown) => void): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      return;
+    } catch (err) {
+      if (attempt >= retries) throw err;
+      onRetry(attempt, err);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  }
 }
 
 export async function closeDatabase(): Promise<void> {

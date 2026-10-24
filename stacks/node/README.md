@@ -32,6 +32,7 @@ src/
     ├── schemas.ts    JSON schemas: request validation and response serialization
     └── service.ts    the queries
 prisma/schema.prisma  maps the shared tables, never migrates them
+test/                 unit tests (node:test), no database needed
 ```
 
 ## How the contract rules are met
@@ -40,8 +41,8 @@ prisma/schema.prisma  maps the shared tables, never migrates them
 | --- | --- |
 | Feed in one query | `relationLoadStrategy: "join"`: Prisma loads each post's author with a `LATERAL JOIN` in the same SQL statement. Without it, Prisma runs a second query for the authors. Verified with `pg_stat_statements`: one statement per feed request |
 | Atomic, idempotent likes | One transaction: `INSERT ... ON CONFLICT DO NOTHING` on `likes` (Prisma's `createMany` with `skipDuplicates`), then `UPDATE posts SET like_count = like_count + 1` only if a row was inserted (Prisma's `increment`) |
-| Unknown user is 400, missing post is 404 | No extra lookup query: the insert's foreign key violation says which reference was missing |
-| Validation | Fastify JSON schemas, checked by Ajv before the handler runs |
+| Unknown user is 400, missing post is 404 | No extra lookup query: the insert's foreign key violation (Prisma error `P2003`) names the constraint, which says which reference was missing |
+| Validation | Fastify JSON schemas, checked by Ajv before the handler runs. Ids above 2^53 - 1 are rejected as 400, since JavaScript can't represent them exactly |
 | Errors as `{ "error": "..." }` | One error handler for everything |
 | `/health` means ready | The server only starts listening after a query to Postgres succeeds |
 | `FEED_CACHE=app` | The serialized feed is cached for 1 second. Concurrent requests during a reload share the same query (single flight), so expiry never causes a stampede |
@@ -51,9 +52,14 @@ prisma/schema.prisma  maps the shared tables, never migrates them
 - **One process.** One CPU means one event loop. Cluster mode or worker threads would add processes fighting over the same core.
 - **Responses serialized from schemas.** Fastify uses `fast-json-stringify` with the response schema, faster than `JSON.stringify` because the shape is known.
 - **Keep-alive longer than Nginx's.** Node keeps idle connections 75 s, longer than Nginx keeps its upstream connections, so Node never closes one Nginx is about to reuse.
-- **Graceful shutdown.** On `SIGTERM`, stop accepting connections, finish in-flight requests, close the pool, then exit.
+- **Graceful shutdown.** On `SIGTERM`, stop accepting connections, finish in-flight requests, close the pool, then exit. The grace period (8 s) is shorter than Docker's stop timeout (10 s), so the process exits on its own terms.
+- **Waits for the database at startup** (up to 30 tries, 1 s apart) instead of crashing if Postgres is a moment late.
+- **Survives a broken idle connection.** `pg` reports it as an `error` event, which would crash the process if unhandled. It's logged, and the pool replaces the connection.
+- **Fails loudly on bugs.** An unhandled rejection or exception is logged as `fatal` in the same JSON format, then the process exits instead of running in an unknown state.
+- **Limits.** Queries are cancelled after 5 s (`statement_timeout`), so a stuck query can't hold a connection. Request bodies are capped at 16 KB.
 - **Multi-stage image.** The build stage compiles TypeScript and generates the Prisma client. The runtime stage has only production dependencies and compiled code, runs as the unprivileged `node` user, with `NODE_ENV=production`.
 - **Exact versions** in `package.json` and a lockfile, so every build installs the same code.
+- **Tests in the build.** `npm test` runs unit tests for the feed cache, the error mapping and every HTTP status, with the database replaced by a fake. The image build runs them, so an image that fails them is never built. The full behaviour against Postgres is checked by the [contract test](../../k6/README.md#contract-test).
 
 ## Observability
 
@@ -82,6 +88,7 @@ The `app_*` names are shared with the other stacks, so Grafana can show them sid
 | `FEED_CACHE` | `off` | harness, per phase |
 | `METRICS_PORT` | 9464 | |
 | `DB_POOL_MAX` | 10 | tuning |
+| `DB_STATEMENT_TIMEOUT_MS` | 5000 | |
 | `LOG_LEVEL` | `warn` | |
 | `OTEL_ENABLED` | `false` | |
 
@@ -92,3 +99,9 @@ Every change from the defaults above is recorded here with its reason and the me
 | Date | Change | Why | Effect |
 | --- | --- | --- | --- |
 | | Baseline: pool of 10, default heap, one process | Starting point | First benchmark pending |
+
+Candidates to try once there's a baseline, each kept only if the numbers improve:
+
+1. **Pool size.** On one CPU, more connections than busy queries just adds switching. The App row's "waiting" line shows whether the pool is too small.
+2. **Likes in one statement.** The like is 4 round trips today (`BEGIN`, insert, update, `COMMIT`). A single SQL statement with a CTE does the same atomically in one. It means raw SQL instead of the ORM, so it's a trade-off worth measuring, not a default.
+3. **Heap size.** Node's default heap limit may be more or less than the 2 GB box can spare next to Postgres.
