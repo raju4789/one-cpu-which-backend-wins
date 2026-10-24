@@ -2,6 +2,8 @@
 
 These rules keep the comparison fair. A result only counts if it follows all of them.
 
+Every stack must also implement the same API contract: the same endpoints, the feed in one query, and likes counted exactly once even under heavy load. Correctness is part of fairness: a stack that cut those corners would look faster while giving wrong answers. The full list is in [contract/README.md](../contract/README.md), and the [contract test](../k6/README.md#contract-test) checks it before every run.
+
 ## Locked for every stack
 
 1. **Hardware:** one Colima VM with 1 vCPU and 2 GB RAM. Nginx, the app and Postgres all run inside it.
