@@ -37,13 +37,6 @@ start_vm "$MONITOR_PROFILE" --cpu 2 --memory 2 --disk 20
 bench_ip="$(colima_ip "$BENCH_PROFILE")"
 monitor_ip="$(colima_ip "$MONITOR_PROFILE")"
 
-# Prometheus finds the bench VM's exporters through these files (file_sd).
-targets="$HARNESS_DIR/monitoring/targets"
-mkdir -p "$targets"
-for t in cadvisor:8081 postgres:9187 nginx:9113; do
-  printf '[{"targets": ["%s:%s"]}]\n' "$bench_ip" "${t#*:}" > "$targets/${t%%:*}.json"
-done
-
 log "Starting Prometheus and Grafana"
 monitor compose -f "$HARNESS_DIR/monitoring/compose.yaml" up -d
 

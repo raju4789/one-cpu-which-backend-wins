@@ -150,14 +150,16 @@ Every image is pinned by digest, so every stack runs on byte-identical Postgres,
 
 ## Network
 
-Each VM gets its own IP address on the Mac (`colima --network-address`), shown by `bin/vm-up` and `colima list`. k6 sends load to the bench VM's IP, and Prometheus scrapes it there.
+Each VM gets its own IP address on the Mac (`colima --network-address`), shown by `bin/vm-up` and `colima list`. k6 sends load straight to the bench VM's IP.
 
-Nothing under test goes through Colima's port forwarding to `localhost`. That forwarding is a user-space proxy: it uses the bench VM's own CPU, adds latency, and in testing it collapsed after a few hundred connections, taking every forwarded port down with it. `bin/check` fails if the load would go through it.
+The load never goes through Colima's port forwarding to `localhost`. That forwarding is a user-space proxy: it uses the bench VM's own CPU, adds latency, and in testing it collapsed after a few hundred connections, taking every forwarded port down with it. `bin/check` fails if the load would go through it.
+
+Prometheus does scrape the bench VM's exporters through that forwarding, because macOS doesn't let the two VMs reach each other directly. That's 3 small requests every 5 seconds, the same for every stack.
 
 | Where | Port | Service |
 | --- | --- | --- |
 | bench VM | 8080 | Nginx, the entry point for all traffic |
-| bench VM | 8081, 9113, 9187 | cAdvisor, Nginx exporter, Postgres exporter |
+| bench VM, forwarded to the Mac | 8081, 9113, 9187 | cAdvisor, Nginx exporter, Postgres exporter |
 | bench VM | 5432 | Postgres, for debugging with `psql` |
 | monitor VM | 9090 | Prometheus |
 | Mac | 3000 | Grafana (forwarded, fine for a browser) |
@@ -167,7 +169,7 @@ Nothing under test goes through Colima's port forwarding to `localhost`. That fo
 
 | Symptom | Cause and fix |
 | --- | --- |
-| `check` says a Prometheus target is down | Usually just started. `check` waits 20 s. If it still fails, rerun `bin/vm-up`: it rewrites the targets with the bench VM's current IP |
+| `check` says a Prometheus target is down | Usually just started. `check` waits 20 s. If it still fails, check `colima list` shows both VMs running |
 | k6 fails with "no route to host" while `curl` works | macOS blocks apps from the local network until you allow them, and Apple's own `curl` is exempt. System Settings > Privacy & Security > Local Network: turn on your terminal app (Terminal, iTerm, VS Code), then quit and reopen it. `bin/check` tests this |
 | "a VM has no IP address" | The VM was created without `--network-address`. `bin/vm-up` restarts it with one |
 | Requests suddenly fail with "connection refused" on `localhost` | Load went through Colima's port forwarding, which gave out. Unset `BASE_URL`, run `bin/vm-down` and `bin/vm-up` |
