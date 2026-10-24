@@ -42,7 +42,7 @@ Headline metric: max sustained requests per second within those limits.
 
 Every stack gets the same hardware, database, API and load script.
 Each is written the way production teams write it and tuned to best practice.
-Laptop noise is controlled with a calibration check, interleaved runs and medians of three.
+Every run records a CPU calibration. The final comparison will interleave the stacks and report the median of three runs.
 Full rules: [docs/rules.md](docs/rules.md)
 
 ## Run it yourself

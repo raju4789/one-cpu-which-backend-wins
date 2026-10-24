@@ -22,7 +22,7 @@ Mac (host)
 - Homebrew
 - 16 GB of RAM recommended. The two VMs take 4 GB.
 - Docker Desktop closed. It runs its own VM and competes for CPU.
-- Your terminal app allowed under System Settings > Privacy & Security > Local Network, so k6 can reach the VMs.
+- The app you run commands from (Terminal, iTerm, or an editor like VS Code or Cursor) allowed under System Settings > Privacy & Security > Local Network, so k6 can reach the VMs.
 
 ## One-time setup
 
@@ -170,7 +170,7 @@ Prometheus does scrape the bench VM's exporters through that forwarding, because
 | Symptom | Cause and fix |
 | --- | --- |
 | `check` says a Prometheus target is down | Usually just started. `check` waits 20 s. If it still fails, check `colima list` shows both VMs running |
-| k6 fails with "no route to host" while `curl` works | macOS blocks apps from the local network until you allow them, and Apple's own `curl` is exempt. System Settings > Privacy & Security > Local Network: turn on your terminal app (Terminal, iTerm, VS Code), then quit and reopen it. `bin/check` tests this |
+| k6 fails with "no route to host" while `curl` works | macOS blocks apps from the local network until you allow them, and Apple's own `curl` is exempt. System Settings > Privacy & Security > Local Network: turn on the app you run commands from (Terminal, iTerm, VS Code, Cursor), then quit it completely and reopen it. `bin/check` tests this |
 | "a VM has no IP address" | The VM was created without `--network-address`. `bin/vm-up` restarts it with one |
 | Requests suddenly fail with "connection refused" on `localhost` | Load went through Colima's port forwarding, which gave out. Unset `BASE_URL`, run `bin/vm-down` and `bin/vm-up` |
 | Per-container panels are empty | The bench VM uses Docker's containerd image store, which cAdvisor can't read. `vm-up` switches it to overlay2; rerun `bin/vm-up` |
