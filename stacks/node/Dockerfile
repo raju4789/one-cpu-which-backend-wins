@@ -16,7 +16,10 @@ COPY test ./test
 # Unit tests run here, so an image that fails them is never built.
 RUN DATABASE_URL=postgres://build/none npm run build \
  && npm test \
- && npm prune --omit=dev --no-audit --no-fund
+ && npm prune --omit=dev --no-audit --no-fund \
+ && chmod -R a+rX package.json dist node_modules
+# chmod: COPY keeps the source files' permissions. Files that are private on
+# the host (mode 600) would be unreadable to the "node" user at runtime.
 
 # ---- runtime: production dependencies and compiled code only
 FROM node:24.22.1-alpine
