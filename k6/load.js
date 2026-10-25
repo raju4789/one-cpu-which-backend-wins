@@ -14,6 +14,7 @@
 // Modes (run by harness/bin/run, which sets these variables):
 //   MODE=constant RATE=<sessions/s> DURATION=<s>   steady load, measured after SETTLE_SECONDS
 //   MODE=ramp     RATES=<r1,r2,...>                 one STEP_SECONDS step per rate
+//   RAMP_SECONDS=<s>  constant, ramp and overload: build up from 0 to the first rate first (tagged settle)
 //   MODE=overload RATE=<sessions/s>                 2 min at 1.5x RATE, then 2 min back at RATE
 //
 // Every request is tagged with "step": the step index in a ramp, "steady",
@@ -46,7 +47,7 @@ const PHASE_SECONDS = Number(__ENV.OVERLOAD_SECONDS || 120); // overload: length
 // constant and overload: build up from 0 to RATE over this long first, so the
 // test starts on a warm server instead of a cold-start queue. Tagged "settle".
 const RAMP = Number(__ENV.RAMP_SECONDS || 0);
-const rampStage = () => (RAMP > 0 ? [{ target: RATE, duration: `${RAMP}s` }] : []);
+const rampStage = (target = RATE) => (RAMP > 0 ? [{ target, duration: `${RAMP}s` }] : []);
 
 // maxVUs equals the pool: if it runs dry, k6 logs "Insufficient VUs" and
 // bin/run stops the run as limited by the load generator.
@@ -57,7 +58,8 @@ function scenario() {
     const stages = [];
     for (const r of RATES) stages.push({ target: r, duration: "5s" }, { target: r, duration: `${STEP - 5}s` });
     const vus = preAllocate(Math.max(...RATES));
-    return { executor: "ramping-arrival-rate", startRate: RATES[0], timeUnit: "1s",
+    stages.unshift(...rampStage(RATES[0]));
+    return { executor: "ramping-arrival-rate", startRate: RAMP > 0 ? 0 : RATES[0], timeUnit: "1s",
       preAllocatedVUs: vus, maxVUs: vus, stages, gracefulStop: "5s" };
   }
   if (MODE === "overload") {
@@ -108,12 +110,12 @@ export const options = {
 };
 
 function stepFor(elapsed) {
+  if (elapsed < RAMP) return "settle";
+  elapsed -= RAMP;
   if (MODE === "ramp") {
     const i = Math.floor(elapsed / STEP);
     return elapsed - i * STEP < SETTLE ? "settle" : String(Math.min(i, RATES.length - 1));
   }
-  if (elapsed < RAMP) return "settle";
-  elapsed -= RAMP;
   if (MODE === "overload") {
     if (elapsed < SETTLE) return "settle";
     if (elapsed < PHASE_SECONDS) return "over";

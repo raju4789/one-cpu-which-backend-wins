@@ -22,6 +22,7 @@ fewer than 1% of sessions. Uses only the Python standard library.
 """
 import argparse
 import datetime
+import glob
 import json
 import os
 import re
@@ -46,6 +47,7 @@ COOLDOWN = 120
 # The confirm and overload tests build up from 0 over this long before measuring,
 # so a cold-start queue after the cool-down doesn't count against sustained load.
 RAMP_SECONDS = 45
+QUICK_STEPS = 7  # --quick: 1-minute steps, 8% apart, starting just below the known limit
 RUN_STARTED = time.time()
 
 
@@ -359,13 +361,17 @@ def sh(ctx, *cmd, capture=False):
     return None
 
 
-def ramp(ctx, prom, rates, test, steps):
-    """Runs the steps until one fails, appending each to steps as it is judged."""
-    log(f"{test}: {len(rates)} steps of {STEP_SECONDS} s, rates {', '.join(map(str, rates))} sessions/s")
+def ramp(ctx, prom, rates, test, steps, ramp_up=0):
+    """Runs the steps until one fails, appending each to steps as it is judged.
+
+    ramp_up: seconds building up from 0 to the first rate before step 1 (not measured).
+    """
+    log(f"{test}: {len(rates)} steps of {STEP_SECONDS} s, rates {', '.join(map(str, rates))} sessions/s"
+        + (f", after a {ramp_up} s ramp-up" if ramp_up else ""))
     run = K6Run(ctx, os.path.join(K6_DIR, "load.js"), test,
-                {"MODE": "ramp", "RATES": ",".join(map(str, rates))},
+                {"MODE": "ramp", "RATES": ",".join(map(str, rates)), "RAMP_SECONDS": ramp_up},
                 summary=os.path.join(ctx.out, f"k6-{test}-summary.json"))
-    start = run.wait_start()
+    start = run.wait_start() + ramp_up
     try:
         _ramp_steps(ctx, prom, rates, test, run, start, steps)
     finally:
@@ -424,6 +430,11 @@ def main():
     ap.add_argument("--skip-overload", action="store_true")
     ap.add_argument("--step-seconds", type=int, default=60, help=argparse.SUPPRESS)  # for testing the runner
     ap.add_argument("--overload-seconds", type=int, default=120, help=argparse.SUPPRESS)
+    ap.add_argument("--quick", action="store_true",
+                    help="tuning mode, about 10 minutes: a few 1-minute steps near the known limit, no confirm")
+    ap.add_argument("--quick-from", type=int,
+                    help="--quick: first rate in sessions/s (default: 80%% of the latest full result)")
+    ap.add_argument("--overload", action="store_true", help="--quick: also run the overload test")
     ap.add_argument("--no-up", action="store_true",
                     help="use whatever is already running: no bin/up, calibrate or env-report")
     args = ap.parse_args()
@@ -436,13 +447,16 @@ def main():
     ctx.max_vus = args.max_vus
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     ctx.run_id = f"{args.stack}-{args.phase}-{stamp}"
-    ctx.out = os.path.join(REPO, "results", args.stack, args.phase, stamp)
+    ctx.out = os.path.join(REPO, "results", args.stack, args.phase, stamp + ("-quick" if args.quick else ""))
     os.makedirs(ctx.out, exist_ok=True)
     version = subprocess.run(["k6", "version"], capture_output=True, text=True).stdout
     major = re.search(r"v(\d+)\.", version)
     ctx.legacy_native_histograms = bool(major) and int(major.group(1)) < 2
     prom = Prom(ctx.prom_url)
+    if args.quick and args.warmup_seconds == 120:
+        args.warmup_seconds = 60
     result = {"stack": args.stack, "phase": args.phase, "run_id": ctx.run_id,
+              "mode": "quick" if args.quick else "full",
               "started": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
               "k6": version.strip(), "criteria": {"p95_s": P95_MAX, "p99_s": P99_MAX,
                                                    "error_rate": ERROR_MAX, "dropped": DROP_MAX}}
@@ -463,7 +477,11 @@ def main():
              f"Partial results are in {os.path.relpath(ctx.out, REPO)}. They are not a valid result: rerun.")
     result["status"] = "complete"
     save(ctx, result)
-    if confirmed:
+    if args.quick:
+        log(f"QUICK RESULT {args.stack} / {args.phase}: highest passing 1-minute step "
+            f"{confirmed['rps']:.0f} req/s ({confirmed['rate']} sessions/s), p95 {confirmed['p95_s'] * 1000:.0f} ms, "
+            f"p99 {confirmed['p99_s'] * 1000:.0f} ms. For tuning only: not comparable with full results")
+    elif confirmed:
         log(f"RESULT {args.stack} / {args.phase}: {confirmed['rps']:.0f} req/s sustained "
             f"({confirmed['rate']} sessions/s, about {confirmed['concurrent_users'] or 0:.0f} concurrent users), "
             f"p95 {confirmed['p95_s'] * 1000:.0f} ms, p99 {confirmed['p99_s'] * 1000:.0f} ms")
@@ -505,6 +523,8 @@ def protocol(args, ctx, prom, result, bin_dir):
     warm, _ = constant(ctx, "warmup", args.warmup_rate, args.warmup_seconds, 10)
     result["warmup"] = warm
     log(f"  {fmt(warm)}")
+    if args.quick:
+        return quick(args, ctx, prom, result)
 
     # 6. Coarse ramp
     rates, r = [], float(args.start_rate)
@@ -555,24 +575,65 @@ def protocol(args, ctx, prom, result, bin_dir):
 
     # 9. Overload and recovery
     if confirmed and not args.skip_overload:
-        log(f"Cool-down {COOLDOWN} s, then overload: {RAMP_SECONDS} s ramp-up, 2 min at 1.5x, "
-            "2 min back at the confirmed rate")
-        time.sleep(COOLDOWN)
-        summary = os.path.join(ctx.out, "k6-overload-summary.json")
-        run = K6Run(ctx, os.path.join(K6_DIR, "load.js"), "overload",
-                    {"MODE": "overload", "RATE": confirmed["rate"], "RAMP_SECONDS": RAMP_SECONDS},
-                    summary=summary)
-        run.wait_start()
-        run.wait()
-        over = summary_numbers(summary, "over", OVERLOAD_SECONDS - SETTLE_SECONDS)
-        rec = summary_numbers(summary, "recover", OVERLOAD_SECONDS - SETTLE_SECONDS)
-        t_over = run.start + RAMP_SECONDS
-        check_run(ctx, run, rec, t_over + OVERLOAD_SECONDS, t_over + 2 * OVERLOAD_SECONDS)
-        rec["recovered"] = not verdict(rec)
-        result["overload"] = {"over": over, "recover": rec}
-        log(f"  at 1.5x: {fmt(over)}")
-        log(f"  back at 1x: {fmt(rec)} -> {'recovered' if rec['recovered'] else 'did NOT recover'}")
+        overload(ctx, result, confirmed["rate"])
     return confirmed
+
+
+def overload(ctx, result, rate):
+    """Ramp up to rate, 2 minutes at 1.5x it, then 2 minutes back at it: does the stack recover?"""
+    log(f"Cool-down {COOLDOWN} s, then overload: {RAMP_SECONDS} s ramp-up, 2 min at 1.5x, "
+        f"2 min back at {rate} sessions/s")
+    time.sleep(COOLDOWN)
+    summary = os.path.join(ctx.out, "k6-overload-summary.json")
+    run = K6Run(ctx, os.path.join(K6_DIR, "load.js"), "overload",
+                {"MODE": "overload", "RATE": rate, "RAMP_SECONDS": RAMP_SECONDS}, summary=summary)
+    run.wait_start()
+    run.wait()
+    over = summary_numbers(summary, "over", OVERLOAD_SECONDS - SETTLE_SECONDS)
+    rec = summary_numbers(summary, "recover", OVERLOAD_SECONDS - SETTLE_SECONDS)
+    t_over = run.start + RAMP_SECONDS
+    check_run(ctx, run, rec, t_over + OVERLOAD_SECONDS, t_over + 2 * OVERLOAD_SECONDS)
+    rec["recovered"] = not verdict(rec)
+    result["overload"] = {"over": over, "recover": rec}
+    log(f"  at 1.5x: {fmt(over)}")
+    log(f"  back at 1x: {fmt(rec)} -> {'recovered' if rec['recovered'] else 'did NOT recover'}")
+
+
+def quick_start_rate(stack, phase):
+    """80% of the rate the stack's latest complete full run confirmed, or None."""
+    runs = sorted(glob.glob(os.path.join(REPO, "results", stack, phase, "*", "result.json")))
+    for path in reversed(runs):
+        if path.split(os.sep)[-2].endswith("-quick"):
+            continue
+        try:
+            with open(path) as f:
+                r = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if r.get("status") == "complete" and r.get("result"):
+            return max(1, round(r["result"]["rate"] * 0.8))
+    return None
+
+
+def quick(args, ctx, prom, result):
+    """Tuning mode: a few 1-minute steps around the known limit. Returns the highest passing step."""
+    start = args.quick_from or quick_start_rate(args.stack, args.phase)
+    if not start:
+        fail(f"no complete full run of {args.stack}/{args.phase} to start from: run the full protocol "
+             "once, or pass --quick-from <sessions/s>")
+    rates = [round(start * 1.08 ** i) for i in range(QUICK_STEPS)]
+    result["ramp"] = {"coarse": [], "fine": []}
+    steps = ramp(ctx, prom, rates, "ramp-quick", result["ramp"]["coarse"], ramp_up=RAMP_SECONDS)
+    passing = [s for s in steps if s["passed"]]
+    if not passing:
+        fail(f"the first step ({rates[0]} sessions/s) already failed; rerun with a lower --quick-from")
+    best = passing[-1]
+    if len(passing) == len(rates):
+        log(f"Every step passed up to {rates[-1]} sessions/s: rerun with a higher --quick-from")
+    result["result"] = best
+    if args.overload:
+        overload(ctx, result, best["rate"])
+    return best
 
 
 def save(ctx, result):
@@ -584,7 +645,8 @@ def save(ctx, result):
 def write_summary(ctx, res):
     ms = lambda v: f"{v * 1000:.0f}" if v is not None else "-"
     pct = lambda v: f"{v * 100:.2f}%" if v is not None else "-"
-    lines = [f"# {res['stack']} / {res['phase']}", "",
+    title = f"# {res['stack']} / {res['phase']}" + (" (quick run, for tuning only)" if res.get("mode") == "quick" else "")
+    lines = [title, "",
              f"Run `{res['run_id']}`, {res['started']} to {res['finished']}", ""]
     if res.get("status") == "aborted":
         lines += [f"**Aborted, not a valid result:** {res['abort_reason']}", ""]

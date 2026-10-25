@@ -84,6 +84,8 @@ harness/bin/run <stack> <phase>    # e.g. harness/bin/run node none
 
 Once after every reboot, raise the [Mac firewall's connection limit](#network) first, or a fast stack will hit it.
 
+**Quick mode, for tuning.** `harness/bin/run <stack> <phase> --quick` takes about 11 minutes instead of 37: the same checks, then a 45-second build-up to just below the stack's last full result and up to seven 1-minute steps. Add `--overload` for the overload test. A quick result is only comparable with other quick results. See the [tuning plan](../docs/tuning-plan.md).
+
 One command runs the whole protocol, about 37 minutes:
 
 1. Fresh database, stack started in the phase

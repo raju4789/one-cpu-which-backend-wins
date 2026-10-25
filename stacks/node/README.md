@@ -94,14 +94,12 @@ The `app_*` names are shared with the other stacks, so Grafana can show them sid
 
 ## Tuning log
 
-Every change from the defaults above is recorded here with its reason and the measurement behind it.
+Tuning follows the [tuning plan](../../docs/tuning-plan.md): one production-grade change at a time, a quick run for each, kept only on a clear win.
 
-| Date | Change | Why | Effect |
-| --- | --- | --- | --- |
-| | Baseline: pool of 10, default heap, one process | Starting point | First benchmark pending |
+**Untuned baseline, no-cache phase** (three full runs, 25 October 2026): median **1,694 req/s** (1,211 sessions/s), range 1,573 to 1,818, p95 13 to 39 ms at the confirmed rate. Postgres used 40 to 46% of the core, Node 28 to 30%. Node didn't recover from overload in any run: once a queue of thousands of requests formed at the database pool, it stayed. Runs `results/node/none/20261025-114855`, `-124346` and `-132854`.
 
-Candidates to try once there's a baseline, each kept only if the numbers improve:
+| Date | Change | Why | Quick run before | Quick run after | Kept? |
+| --- | --- | --- | --- | --- | --- |
+| | | | | | |
 
-1. **Pool size.** On one CPU, more connections than busy queries just adds switching. The App row's "waiting" line shows whether the pool is too small.
-2. **Likes in one statement.** The like is 4 round trips today (`BEGIN`, insert, update, `COMMIT`). A single SQL statement with a CTE does the same atomically in one. It means raw SQL instead of the ORM, so it's a trade-off worth measuring, not a default.
-3. **Heap size.** Node's default heap limit may be more or less than the 2 GB box can spare next to Postgres.
+Starting point: pool of 10, a 5-second wait for a database connection, default heap, one process. Candidates, in order, are in the tuning plan.
