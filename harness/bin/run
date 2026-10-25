@@ -266,7 +266,8 @@ def check_connections(run, r, t0, t1):
         raise RunInvalid(
             f"k6 could not open {r['dial_errors']} connections while the server answered in "
             f"p95 {(r['p95_s'] or 0) * 1000:.0f} ms. That is the Mac or the VM network, not the stack. "
-            f"Details: {run.log_path}")
+            f"Most likely the Mac firewall's connection limit: check `sudo pfctl -s memory`, "
+            f"see Network in harness/README.md. Details: {run.log_path}")
 
 
 def verdict(r, dropped_ratio=0.0):

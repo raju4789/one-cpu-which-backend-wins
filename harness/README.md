@@ -82,6 +82,8 @@ When you're done: `harness/bin/down` stops the stack, `harness/bin/vm-down` stop
 harness/bin/run <stack> <phase>    # e.g. harness/bin/run node none
 ```
 
+Once after every reboot, raise the [Mac firewall's connection limit](#network) first, or a fast stack will hit it.
+
 One command runs the whole protocol, about 30 minutes:
 
 1. Fresh database, stack started in the phase
@@ -164,6 +166,15 @@ The load never goes through Colima's port forwarding to `localhost`. That forwar
 
 Prometheus does scrape the bench VM's exporters through that forwarding, because macOS doesn't let the two VMs reach each other directly. That's 3 small requests every 5 seconds, the same for every stack.
 
+**The Mac firewall's connection limit.** The VMs' network turns on pf, the macOS firewall, which tracks every connection to them, including ones closed in the last 90 seconds. Once it tracks 10,000, it silently drops new connections to both VMs. k6 needs more than that from about 850 sessions/s (each virtual user holds a keep-alive connection, like a browser). Raise the limit before benchmarking. It loads only this one option and leaves the firewall's rules alone, and it resets on reboot:
+
+```sh
+echo "set limit states 200000" | sudo pfctl -O -f -
+sudo pfctl -s memory    # states hard limit 200000
+```
+
+The limit only affects the load generator's side, and it's the same for every stack.
+
 | Where | Port | Service |
 | --- | --- | --- |
 | bench VM | 8080 | Nginx, the entry point for all traffic |
@@ -185,6 +196,6 @@ Prometheus does scrape the bench VM's exporters through that forwarding, because
 | Per-container panels are empty | The bench VM uses Docker's containerd image store, which cAdvisor can't read. `vm-up` switches it to overlay2; rerun `bin/vm-up` |
 | `check` fails on the `mac` target | node_exporter isn't running: `brew services start node_exporter` |
 | `up` hangs at "Waiting for the seed" | First run seeds 2.5 million rows. Give it up to 15 minutes; check `docker --context colima-bench logs bench-postgres-1` |
-| k6 "dial: i/o timeout" and a Prometheus timeout at the same moment | The Mac stopped opening new connections to the VMs because thousands of idle ones had piled up. It happened when k6 used one 10,000-user pool for the whole ramp: each user came back after Nginx had closed its idle connection, so every session opened a new one. `load.js` now sizes the pool per step. If it happens again, Grafana's Nginx connections panel climbing into the thousands confirms it; `bin/run` stops such a run instead of blaming the stack |
+| k6 "dial: i/o timeout" and a Prometheus timeout at the same moment; `bin/run` says k6 could not connect | The Mac firewall's connection table is full (10,000 entries by default), so it drops new connections to the VMs. `sudo pfctl -s info` shows the `memory` counter rising. Raise the limit, see [Network](#network); it resets on reboot. It first showed up when k6 used one 10,000-user pool for the whole ramp, so every session opened a new connection; `load.js` now sizes the pool per step |
 | `up` fails at "load metadata for docker.io/..." with "DeadlineExceeded" | The bench VM can't reach Docker Hub, usually after the Mac slept or changed network. Test with `colima ssh -p bench -- curl -sI https://registry-1.docker.io/v2/` (any HTTP status means it works). Fix with `bin/vm-down` and `bin/vm-up`. Stack base images pinned by digest build from the local copy |
 | A cached `/feed` is up to 2 s old | Expected. Nginx counts cache expiry in whole seconds. See the [contract](../contract/README.md#design-decisions) |
