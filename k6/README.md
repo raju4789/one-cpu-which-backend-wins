@@ -48,11 +48,13 @@ So a "users" number on its own says little: the same server load can be called 4
 
 | Mode | Used for |
 | --- | --- |
-| `constant` | Warm-up and the 5-minute confirm |
+| `constant` | Warm-up, and the 5-minute confirm after a 45-second ramp-up |
 | `ramp` | 1-minute steps, one per rate |
-| `overload` | 2 minutes at 1.5x a rate, then 2 minutes back at it |
+| `overload` | A 45-second ramp-up to a rate, then 2 minutes at 1.5x it, then 2 minutes back at it |
 
 Every request is tagged with its step. The first 10 seconds after each rate change are tagged `settle` and left out of the results, so they measure steady load only.
+
+**Ramp-up before the confirm and overload tests.** Both start after a 2-minute pause, with the server idle. Jumping straight from nothing to the full rate makes a queue: more requests arrive in the first seconds than the server's 10 database connections can take, and the queue takes a while to clear. So both tests first build up from 0 to the rate over 45 seconds, tagged `settle` and left out of the results. The confirm then settles for another 30 seconds and measures 5 minutes. The overload test still jumps suddenly to 1.5x, because testing a sudden spike is its purpose, but it hits a server that's already running, not a cold one. Real traffic builds up too: it rarely goes from zero to full in an instant.
 
 **Connections.** Each virtual user keeps its own keep-alive connection to Nginx, like a browser. k6 hands out idle users in turn, so with a pool sized for the highest rate, a user at a low rate comes back after Nginx's 65-second keep-alive and opens a new connection, like a new visitor. Near the limit, each comes back within seconds and reuses it. That can leave up to 10,000 idle connections open, which is fine for Nginx but too many for the Mac firewall's default limit: raise it first (see [Network](../harness/README.md#network)). The first Node runs stopped there, and one attempt with a separate pool per step made k6 stall at a step change, so the single pool stays.
 

@@ -142,6 +142,32 @@ That explains everything:
 - A theory that fits the data still has to survive a test. This one didn't, so we said so and kept looking.
 - When you raise one limit, read the settings next to it. Related settings are often based on the old default and don't change on their own.
 
+## Chapter 7: A passing result that looked worse than it was
+
+**What we saw.** The first complete run confirmed 1,697 requests per second, with a p95 of 281 ms. That's a pass, but only just: the limit is 300 ms. Yet in the step just before, at the same rate, p95 was 20 ms. Something didn't add up.
+
+**How we found it.** Instead of one number for the whole 5 minutes, we looked at p95 for every 30 seconds:
+
+| Time into the confirm | 0:30 | 1:00 | 1:30 | 2:00 to 5:00 |
+| --- | --- | --- | --- | --- |
+| p95 | 665 ms | 542 ms | 325 ms | 19 to 36 ms |
+
+Grafana's database pool panel showed 1,076 requests waiting for a database connection at the start, then none for most of the rest.
+
+**Why.** Before the confirm, the server sits idle for 2 minutes. Then k6 starts at the full rate, 1,211 sessions per second, in the first second. Node has only 10 database connections, so most of those first requests have to wait in line. A queue forms, and with the server already near its limit, it took about 90 seconds to clear. The first 30 seconds aren't measured, but the rest of the queue was, and those slow requests dragged the p95 up. Once the queue was gone, Node handled the same rate at about 25 ms.
+
+So the 281 ms mostly measured how Node recovers from a sudden start, not whether it can sustain the rate, which is the one question the confirm is meant to answer.
+
+**What worked.** The confirm and overload tests now build up from 0 to their rate over 45 seconds, and those seconds aren't measured. The confirm then waits another 30 seconds and measures 5 minutes. The overload test still jumps suddenly to 1.5x, because a sudden spike is what it tests, but from a server that's already running. Every stack gets exactly the same.
+
+**Why this isn't bending the test in Node's favour.** The load during the 5 measured minutes is unchanged. Only the start changed, to how real traffic usually behaves: it builds up, it doesn't appear from nothing. Spikes are still tested, in the overload test, where they belong.
+
+**Lessons.**
+
+- One number for a whole test can hide what happened during it. Look at the timeline.
+- Know what each test is for, and make sure its numbers measure that and nothing else.
+- A server that starts cold, or after a pause, behaves differently from one that's warmed up. Decide which one you're measuring.
+
 ## Ideas worth understanding
 
 **Virtual users vs requests per second.** Requests per second is what the server actually handles, so it's the fair way to compare servers. The number of virtual users depends on how long the pretend people pause. At 577 sessions per second, k6 sent about 810 requests per second while about 2,300 virtual users were busy, most of them "reading". Make the pauses twice as long and you get twice the users for the same server work.

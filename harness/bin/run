@@ -11,9 +11,9 @@ Protocol (docs/rules.md):
   5. Warm-up at a fixed low rate, the same for every stack
   6. Coarse ramp: 1-minute steps, x1.5 each, until a step fails
   7. Fine ramp: 1-minute steps of +10% from the last passing rate
-  8. Confirm: hold the best passing rate for 5 minutes. If it fails,
+  8. Confirm: 45 s ramp-up, then hold the best passing rate for 5 minutes. If it fails,
      try the next lower passing rate once
-  9. Overload: 2 minutes at 1.5x the confirmed rate, then 2 minutes back at it
+  9. Overload: 45 s ramp-up, then 2 minutes at 1.5x the confirmed rate, then 2 minutes back at it
  10. Results saved to results/<stack>/<phase>/<timestamp>/
 
 Rates are user sessions per second (1.4 requests per session on average).
@@ -43,6 +43,9 @@ STEP_SECONDS, SETTLE_SECONDS, OVERLOAD_SECONDS = 60, 10, 120
 EVAL_DELAY = 12  # seconds after a step ends: k6 pushes every 5 s, Prometheus scrapes every 5 s
 # Pause between two k6 runs, so the server settles before the next test.
 COOLDOWN = 120
+# The confirm and overload tests build up from 0 over this long before measuring,
+# so a cold-start queue after the cool-down doesn't count against sustained load.
+RAMP_SECONDS = 45
 RUN_STARTED = time.time()
 
 
@@ -393,14 +396,16 @@ def _ramp_steps(ctx, prom, rates, test, run, start, steps):
             break
 
 
-def constant(ctx, test, rate, seconds, settle):
+def constant(ctx, test, rate, seconds, settle, ramp=0):
+    """ramp seconds building up from 0, then seconds at rate; the first settle of those aren't measured."""
     summary = os.path.join(ctx.out, f"k6-{test}-summary.json")
     run = K6Run(ctx, os.path.join(K6_DIR, "load.js"), test,
-                {"MODE": "constant", "RATE": rate, "DURATION": seconds, "SETTLE_SECONDS": settle},
+                {"MODE": "constant", "RATE": rate, "DURATION": seconds, "SETTLE_SECONDS": settle,
+                 "RAMP_SECONDS": ramp},
                 summary=summary)
     run.wait_start()
     run.wait()
-    start = run.start
+    start = run.start + ramp
     r = summary_numbers(summary, "steady", seconds - settle)
     check_run(ctx, run, r, start, start + seconds)
     return r, (start + settle, start + seconds)
@@ -532,9 +537,10 @@ def protocol(args, ctx, prom, result, bin_dir):
     candidates = sorted({s["rate"] for s in passing}, reverse=True)[:2]
     confirmed = None
     for rate in candidates:
-        log(f"Cool-down {COOLDOWN} s, then confirm {rate} sessions/s for {args.confirm_seconds} s")
+        log(f"Cool-down {COOLDOWN} s, then confirm {rate} sessions/s for {args.confirm_seconds} s "
+        f"after a {RAMP_SECONDS} s ramp-up")
         time.sleep(COOLDOWN)
-        c, (t0, t1) = constant(ctx, f"confirm-{rate}", rate, args.confirm_seconds, 30)
+        c, (t0, t1) = constant(ctx, f"confirm-{rate}", rate, args.confirm_seconds, 30, RAMP_SECONDS)
         dropped_ratio = c["dropped_sessions_whole_run"] / max(1, c["sessions"] + c["dropped_sessions_whole_run"])
         c["fail_reasons"] = verdict(c, dropped_ratio)
         c["rate"] = rate
@@ -549,16 +555,19 @@ def protocol(args, ctx, prom, result, bin_dir):
 
     # 9. Overload and recovery
     if confirmed and not args.skip_overload:
-        log(f"Cool-down {COOLDOWN} s, then overload: 2 min at 1.5x, 2 min back at the confirmed rate")
+        log(f"Cool-down {COOLDOWN} s, then overload: {RAMP_SECONDS} s ramp-up, 2 min at 1.5x, "
+            "2 min back at the confirmed rate")
         time.sleep(COOLDOWN)
         summary = os.path.join(ctx.out, "k6-overload-summary.json")
         run = K6Run(ctx, os.path.join(K6_DIR, "load.js"), "overload",
-                    {"MODE": "overload", "RATE": confirmed["rate"]}, summary=summary)
+                    {"MODE": "overload", "RATE": confirmed["rate"], "RAMP_SECONDS": RAMP_SECONDS},
+                    summary=summary)
         run.wait_start()
         run.wait()
         over = summary_numbers(summary, "over", OVERLOAD_SECONDS - SETTLE_SECONDS)
         rec = summary_numbers(summary, "recover", OVERLOAD_SECONDS - SETTLE_SECONDS)
-        check_run(ctx, run, rec, run.start + OVERLOAD_SECONDS, run.start + 2 * OVERLOAD_SECONDS)
+        t_over = run.start + RAMP_SECONDS
+        check_run(ctx, run, rec, t_over + OVERLOAD_SECONDS, t_over + 2 * OVERLOAD_SECONDS)
         rec["recovered"] = not verdict(rec)
         result["overload"] = {"over": over, "recover": rec}
         log(f"  at 1.5x: {fmt(over)}")

@@ -43,6 +43,10 @@ const RATE = Math.max(1, Math.round(Number(__ENV.RATE || 10)));
 const RATES = (__ENV.RATES || "10").split(",").map((r) => Math.max(1, Math.round(Number(r))));
 const OVER = Math.round(RATE * 1.5);
 const PHASE_SECONDS = Number(__ENV.OVERLOAD_SECONDS || 120); // overload: length of "over" and "recover"
+// constant and overload: build up from 0 to RATE over this long first, so the
+// test starts on a warm server instead of a cold-start queue. Tagged "settle".
+const RAMP = Number(__ENV.RAMP_SECONDS || 0);
+const rampStage = () => (RAMP > 0 ? [{ target: RATE, duration: `${RAMP}s` }] : []);
 
 // maxVUs equals the pool: if it runs dry, k6 logs "Insufficient VUs" and
 // bin/run stops the run as limited by the load generator.
@@ -58,16 +62,22 @@ function scenario() {
   }
   if (MODE === "overload") {
     const vus = preAllocate(OVER);
-    return { executor: "ramping-arrival-rate", startRate: RATE, timeUnit: "1s",
+    return { executor: "ramping-arrival-rate", startRate: RAMP > 0 ? 0 : RATE, timeUnit: "1s",
       preAllocatedVUs: vus, maxVUs: vus, gracefulStop: "5s",
       stages: [
+        ...rampStage(),
         { target: OVER, duration: "5s" }, { target: OVER, duration: `${PHASE_SECONDS - 5}s` },
         { target: RATE, duration: "5s" }, { target: RATE, duration: `${PHASE_SECONDS - 5}s` },
       ] };
   }
   const vus = preAllocate(RATE);
-  return { executor: "constant-arrival-rate", rate: RATE, timeUnit: "1s",
-    duration: `${Number(__ENV.DURATION || 120)}s`,
+  const duration = `${Number(__ENV.DURATION || 120)}s`;
+  if (RAMP > 0) {
+    return { executor: "ramping-arrival-rate", startRate: 0, timeUnit: "1s",
+      preAllocatedVUs: vus, maxVUs: vus, gracefulStop: "5s",
+      stages: [...rampStage(), { target: RATE, duration }] };
+  }
+  return { executor: "constant-arrival-rate", rate: RATE, timeUnit: "1s", duration,
     preAllocatedVUs: vus, maxVUs: vus, gracefulStop: "5s" };
 }
 
@@ -102,6 +112,8 @@ function stepFor(elapsed) {
     const i = Math.floor(elapsed / STEP);
     return elapsed - i * STEP < SETTLE ? "settle" : String(Math.min(i, RATES.length - 1));
   }
+  if (elapsed < RAMP) return "settle";
+  elapsed -= RAMP;
   if (MODE === "overload") {
     if (elapsed < SETTLE) return "settle";
     if (elapsed < PHASE_SECONDS) return "over";

@@ -84,7 +84,7 @@ harness/bin/run <stack> <phase>    # e.g. harness/bin/run node none
 
 Once after every reboot, raise the [Mac firewall's connection limit](#network) first, or a fast stack will hit it.
 
-One command runs the whole protocol, about 35 minutes:
+One command runs the whole protocol, about 37 minutes:
 
 1. Fresh database, stack started in the phase
 2. [Contract test](../k6/README.md#contract-test). The run stops if it fails
@@ -93,8 +93,8 @@ One command runs the whole protocol, about 35 minutes:
 5. Warm-up: 20 sessions/s for 2 minutes, the same for every stack
 6. Coarse ramp: 1-minute steps, x1.5 each, until a step fails
 7. Fine ramp: +10% steps from the last passing rate
-8. Confirm: hold the best passing rate for 5 minutes. If it fails, try the next lower one
-9. Overload: 2 minutes at 1.5x, then 2 minutes back, to see whether it recovers
+8. Confirm: build up to the best passing rate over 45 seconds, then hold it for 5 minutes. If it fails, try the next lower one
+9. Overload: build up to the confirmed rate over 45 seconds, then 2 minutes at 1.5x, then 2 minutes back, to see whether it recovers
 
 A step passes while p95 < 300 ms, p99 < 1 s, errors < 1% and k6 dropped fewer than 1% of sessions. The result is the confirmed rate, saved with everything else in [`results/`](../results/README.md). Progress shows live in Grafana.
 
