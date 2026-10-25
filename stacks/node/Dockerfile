@@ -1,8 +1,9 @@
-# Node.js 24 LTS on Alpine, native arm64. Pinned by digest at freeze time
-# (harness/bin/pin-images style) before results are published.
+# Node.js 24 LTS on Alpine, native arm64. Pinned by digest, like the harness
+# images: every build uses the same bytes, and with the image already local,
+# bin/up's rebuild before each run doesn't need Docker Hub.
 
 # ---- build: install everything, generate the Prisma client, compile TypeScript
-FROM node:24.22.1-alpine AS build
+FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 AS build
 # Prisma's CLI detects the OpenSSL version to pick its engine binaries; Alpine doesn't ship it.
 RUN apk add --no-cache openssl
 WORKDIR /app
@@ -22,7 +23,7 @@ RUN DATABASE_URL=postgres://build/none npm run build \
 # the host (mode 600) would be unreadable to the "node" user at runtime.
 
 # ---- runtime: production dependencies and compiled code only
-FROM node:24.22.1-alpine
+FROM node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /app/package.json ./

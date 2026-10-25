@@ -309,9 +309,12 @@ class Ctx:
 def sh(ctx, *cmd, capture=False):
     env = os.environ.copy()
     env["BASE_URL"] = ctx.base_url
-    if capture:
-        return subprocess.run(cmd, env=env, check=True, capture_output=True, text=True).stdout
-    subprocess.run(cmd, env=env, check=True)
+    try:
+        if capture:
+            return subprocess.run(cmd, env=env, check=True, capture_output=True, text=True).stdout
+        subprocess.run(cmd, env=env, check=True)
+    except subprocess.CalledProcessError as e:
+        fail(f"{os.path.basename(cmd[0])} failed (exit {e.returncode}), see its output above")
     return None
 
 
