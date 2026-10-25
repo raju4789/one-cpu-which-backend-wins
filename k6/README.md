@@ -25,6 +25,25 @@ That's 1.4 requests per session on average, about 70% reads. Likes go to posts t
 
 **Units.** Rates are sessions per second. Results also report requests per second (about 1.4x) and concurrent users: sessions per second times the average session length (Little's law).
 
+### Virtual users vs requests per second
+
+A **virtual user** is k6 pretending to be one person using the app. It runs one session: loads the feed, waits 1 to 3 seconds as if reading, maybe likes or writes a post, waits again, and leaves. Most of that time it is waiting, not sending anything.
+
+**Requests per second** is what actually reaches the server. That is the server's real work, and the number to compare stacks on.
+
+The two are linked by how long a session lasts. A session sends 1.4 requests on average and lasts about 4 seconds (two pauses of 2 seconds on average, plus the requests). So:
+
+| New sessions per second | Requests per second | Virtual users busy at any moment |
+| --- | --- | --- |
+| 100 | 140 | about 400 |
+| 577 | about 810 | about 2,300 |
+
+The second row is measured, from step 11 of a Node run: 810 req/s, with Grafana showing about 2,300 busy virtual users.
+
+So a "users" number on its own says little: the same server load can be called 400 users or 4,000 users, depending on how long the pretend people pause. That's why this benchmark sets the load in sessions per second and reports requests per second, with concurrent users only as a translation.
+
+**How k6 runs them here.** k6 starts new sessions at a fixed rate, whether or not the server keeps up (the open model above). It creates a pool of virtual users before each step, about 7 per session per second, more than the 4 that are busy on average, so a slow moment never leaves it without a free user. k6 hands out idle users in turn. Each one keeps its own keep-alive connection to Nginx and reuses it on its next session a few seconds later, like a browser would. See Connections below for why the pool is sized per step.
+
 ## Modes
 
 | Mode | Used for |
