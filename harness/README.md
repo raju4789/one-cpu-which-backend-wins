@@ -82,9 +82,9 @@ When you're done: `harness/bin/down` stops the stack, `harness/bin/vm-down` stop
 harness/bin/run <stack> <phase>    # e.g. harness/bin/run node none
 ```
 
-Once after every reboot, raise the [Mac firewall's connection limit](#network) first, or a fast stack will hit it.
+Once after every reboot, run `harness/bin/mac-setup` first (see [Network](#network)), or a fast stack will hit a connection limit.
 
-**Unattended batches, for final results.** `harness/bin/batch <plan>` runs a list of full runs one after another, for example overnight: each configuration three times, interleaved (one of each per round, so slow drift on the Mac affects all alike), 10 minutes apart, keeping the Mac awake throughout. Each stack is built exactly as it was at a git tag, while the harness comes from the current checkout. A failed run is recorded and the batch carries on. It writes `results/batches/<timestamp>/summary.md` with every run and the median per configuration. `--dry-run` shows the order first. Example plan: [`batches/node-final.txt`](batches/node-final.txt).
+**Unattended batches, for final results.** `harness/bin/batch <plan>` runs a list of full runs one after another, for example overnight: each configuration three times, interleaved (one of each per round, so slow drift on the Mac affects all alike), 10 minutes apart, keeping the Mac awake throughout. Each stack is built exactly as it was at a git tag, while the harness comes from the current checkout. A failed run is recorded and the batch carries on. It writes `results/batches/<timestamp>/summary.md` with every run and the median per configuration. `--dry-run` shows the order first. Plans: [`batches/node-final.txt`](batches/node-final.txt) (Node's twelve final runs) and [`batches/node-cache-rehearsal.txt`](batches/node-cache-rehearsal.txt) (one run of each cache phase, to check the limits first).
 
 **Quick mode, for tuning.** `harness/bin/run <stack> <phase> --quick` takes about 11 minutes instead of 37: the same checks, then a 45-second build-up to just below the stack's last full result and up to seven 1-minute steps. Add `--overload` for the overload test. A quick result is only comparable with other quick results. See the [tuning plan](../docs/tuning-plan.md).
 
@@ -171,15 +171,20 @@ The load never goes through Colima's port forwarding to `localhost`. That forwar
 
 Prometheus does scrape the bench VM's exporters through that forwarding, because macOS doesn't let the two VMs reach each other directly. That's 3 small requests every 5 seconds, the same for every stack.
 
-**The Mac firewall's connection limit.** The VMs' network turns on pf, the macOS firewall, which tracks every connection to them, including ones closed in the last 90 seconds. Once it tracks 10,000, it silently drops new connections to both VMs. Worse, from 6,000 tracked connections it starts shortening its timers ("adaptive timeouts"), and at 12,000 they reach zero, so it forgets connections still in their handshake. k6 holds up to 10,000 connections (each virtual user keeps one, like a browser), and closing ones linger up to 15 minutes. Raise both the limit and the adaptive thresholds before benchmarking. This loads only these options and leaves the firewall's rules alone, and it resets on reboot:
+**Limits outside the stack, raised once after every reboot.** A fast stack runs into connection limits long before its CPU is full. Each k6 virtual user keeps a connection open, like a browser, and the cache phases need up to 40,000 of them. One command raises them all and shows the result:
 
 ```sh
-printf 'set limit states 200000\nset timeout { adaptive.start 120000, adaptive.end 240000 }\n' | sudo pfctl -O -f -
-sudo pfctl -s memory              # states hard limit 200000
-sudo pfctl -s timeouts | grep adaptive   # 120000 and 240000
+harness/bin/mac-setup    # asks for your password; the settings don't survive a reboot
 ```
 
-The limit only affects the load generator's side, and it's the same for every stack.
+| Limit | Default | Raised to | Why |
+| --- | --- | --- | --- |
+| pf state table (Mac) | 10,000 | 400,000 | pf, the macOS firewall the VMs' network turns on, tracks every connection to the VMs, closed ones too, and silently drops new ones when full |
+| pf adaptive timeouts (Mac) | from 6,000 to 12,000 states | from 240,000 to 480,000 | Past the start, pf shortens its timers; at the end they reach zero and it forgets connections mid-handshake. Raising the limit alone doesn't move these |
+| Outgoing ports (Mac) | 16,384 (49152-65535) | about 55,500 (from 10000) | Each k6 connection needs its own port |
+| Connection tracking (bench VM) | 65,536 | 262,144 | Docker's port forwarding tracks every connection, closed ones for 2 minutes. `vm-up` sets it too |
+
+None of these change the VMs' CPU or memory, and they're the same for every stack. `bin/run` refuses to start if `--max-vus` could need more connections than the Mac has ports.
 
 | Where | Port | Service |
 | --- | --- | --- |
@@ -202,7 +207,7 @@ The limit only affects the load generator's side, and it's the same for every st
 | Per-container panels are empty | The bench VM uses Docker's containerd image store, which cAdvisor can't read. `vm-up` switches it to overlay2; rerun `bin/vm-up` |
 | `check` fails on the `mac` target | node_exporter isn't running: `brew services start node_exporter` |
 | `up` hangs at "Waiting for the seed" | First run seeds 2.5 million rows. Give it up to 15 minutes; check `docker --context colima-bench logs bench-postgres-1` |
-| k6 "dial: i/o timeout" and a Prometheus timeout at the same moment; `bin/run` says k6 could not connect | The Mac firewall's connection table is full (10,000 entries by default), so it drops new connections to the VMs. `sudo pfctl -s info` shows the `memory` counter rising. Raise the limit, see [Network](#network); it resets on reboot. It first showed up when k6 used one 10,000-user pool for the whole ramp, so every session opened a new connection; `load.js` now sizes the pool per step |
+| k6 "dial: i/o timeout" and a Prometheus timeout at the same moment; `bin/run` says k6 could not connect | The Mac firewall's connection table is full (10,000 entries by default), so it drops new connections to the VMs. `sudo pfctl -s info` shows the `memory` counter rising. Run `harness/bin/mac-setup`, see [Network](#network); it resets on reboot. With the limit raised, it's harmless that k6's one pool of virtual users leaves thousands of idle connections open at low rates |
 | `bin/run` says k6 could not connect at the start of a test; `sudo pfctl -s info` shows `state-mismatch` rising, not `memory` | pf's adaptive timeouts. Raising the state limit doesn't move `adaptive.start` and `adaptive.end` (6,000 and 12,000), and past 12,000 tracked connections pf's timers reach zero, so it forgets connections mid-handshake. A test opening thousands of connections on top of the previous test's leftovers crosses that. Raise the thresholds too, see [Network](#network) |
 | `up` fails at "load metadata for docker.io/..." with "DeadlineExceeded" | The bench VM can't reach Docker Hub, usually after the Mac slept or changed network. Test with `colima ssh -p bench -- curl -sI https://registry-1.docker.io/v2/` (any HTTP status means it works). Fix with `bin/vm-down` and `bin/vm-up`. Stack base images pinned by digest build from the local copy |
 | A cached `/feed` is up to 2 s old | Expected. Nginx counts cache expiry in whole seconds. See the [contract](../contract/README.md#design-decisions) |

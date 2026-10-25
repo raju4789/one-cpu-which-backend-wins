@@ -1,15 +1,16 @@
 # Node's final full runs: untuned vs tuned, then the two cache phases on the
 # tuned version. Run with: harness/bin/batch harness/batches/node-final.txt
 # About 9 to 10 hours. Before starting: raise the Mac firewall limits (harness
-# README, Network), plug the Mac in, lid open, nothing else running.
+# Before starting: harness/bin/mac-setup (after any reboot), plug the Mac in,
+# lid open, nothing else running.
 #
-# node-untuned is the Node code before tuning (commit 43614a0). node-tuned is
-# tagged when tuning is done; the cache phases also need the k6 and network
-# limits raised first (see docs/tuning-plan.md).
+# node-untuned is the Node code before tuning, node-tuned after it. The cache
+# phases get up to 40,000 virtual users: at several thousand sessions/s, each
+# lasting about 4 s, that many are busy at once.
 repeat 3
 cooldown 600
 # label            ref            stack  phase
 node-untuned       node-untuned   node   none
 node-tuned         node-tuned     node   none
-node-tuned-app     node-tuned     node   app
-node-tuned-nginx   node-tuned     node   nginx
+node-tuned-app     node-tuned     node   app     --max-vus 40000
+node-tuned-nginx   node-tuned     node   nginx   --max-vus 40000

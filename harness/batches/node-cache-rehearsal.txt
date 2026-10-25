@@ -1,0 +1,11 @@
+# One full run of each cache phase, before the overnight batch: shows how far
+# each one goes and whether a limit outside the stack (k6, the Mac, the network)
+# gives out first. About 1.5 hours, unattended.
+# Run with: harness/bin/batch harness/batches/node-cache-rehearsal.txt
+# Before starting: harness/bin/mac-setup (after any reboot), Mac plugged in,
+# lid open, nothing else running.
+repeat 1
+cooldown 600
+# label            ref            stack  phase
+node-tuned-app     node-tuned     node   app     --max-vus 40000
+node-tuned-nginx   node-tuned     node   nginx   --max-vus 40000

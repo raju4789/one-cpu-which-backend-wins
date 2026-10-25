@@ -45,7 +45,7 @@ services:
       - ./nginx/modes/${NGINX_MODE:-proxy}:/etc/nginx/mode:ro
       - nginx-logs:/var/log/nginx      # a real file, not the image's stdout symlink
     ulimits:
-      nofile: { soft: 65535, hard: 65535 }
+      nofile: { soft: 131072, hard: 131072 }
     ports:
       - "8080:80"
     depends_on:
