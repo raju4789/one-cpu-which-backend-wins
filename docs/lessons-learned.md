@@ -214,6 +214,29 @@ The runner now compares every calibration with earlier runs and warns when the c
 - When everything slows down by the same proportion, suspect the machine, not the change you just made.
 - Measure the speed of the hardware on every run, and act on it, not just record it.
 
+## Chapter 10: Teaching Node to say "busy"
+
+**The problem.** Chapter 8 showed that at its limit, one hiccup could tip Node into a stuck state: thousands of requests waiting for a database connection, each allowed to wait up to 5 seconds. Every overload test ended the same way. Even after the load dropped back to normal, latency stayed at about 5 seconds and over a quarter of requests failed.
+
+**What we changed.** Node now limits how many requests can use or wait for a database connection: the 10 that are using one, plus at most 100 waiting. Request number 111 doesn't join the queue. It's answered straight away with `503 Service Unavailable` and a `Retry-After: 1` header, which means "busy, try again in a second". No request waits more than 1 second for a connection any more. This is called load shedding, and it's standard practice for services that can be overloaded.
+
+**What happened.** The same quick run with overload, before and after:
+
+| | Before | After |
+| --- | --- | --- |
+| Overload, 1.5x the load | p95 5,032 ms, 26% errors | p95 94 ms, 43% errors |
+| Back to normal load | p95 5,064 ms, 28% errors, never recovered | p95 59 ms, 0.98% errors, recovered |
+
+During overload, more requests fail now, but they fail in milliseconds with a clear "busy", and everything else is answered in under 100 ms. Before, everything was slow and many requests timed out anyway. Once the load dropped, Node recovered straight away.
+
+**The honest trade-off.** Requests that are turned away count as errors. At the highest passing step, 0.69% of requests got a 503: under the 1% limit, but real. And the run passed one step higher than before (+8%), but steps are 8% apart and runs vary more than that, so that gain only counts if the full runs confirm it.
+
+**Lessons.**
+
+- An unbounded queue turns a short overload into a long outage. Bound every queue.
+- Failing fast is kinder than failing slowly: a quick "busy" lets a client retry, a 5-second timeout just wastes everyone's time.
+- Judge a change on what it's meant to fix. This one was about stability, so the overload test is what decides it.
+
 ## Ideas worth understanding
 
 **Virtual users vs requests per second.** Requests per second is what the server actually handles, so it's the fair way to compare servers. The number of virtual users depends on how long the pretend people pause. At 577 sessions per second, k6 sent about 810 requests per second while about 2,300 virtual users were busy, most of them "reading". Make the pauses twice as long and you get twice the users for the same server work.

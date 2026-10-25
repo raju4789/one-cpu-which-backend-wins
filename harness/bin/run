@@ -524,7 +524,7 @@ def protocol(args, ctx, prom, result, bin_dir):
         if ref and result["calibration_seconds"] and result["calibration_seconds"] > ref * CALIBRATION_TOLERANCE:
             warn(result, f"calibration {result['calibration_seconds']:.2f} s is "
                          f"{(result['calibration_seconds'] / ref - 1) * 100:.0f}% slower than the reference "
-                         f"{ref:.2f} s (median of earlier complete runs): the core was slower. Is something "
+                         f"{ref:.2f} s (harness/calibration-reference): the core was slower. Is something "
                          "else running on the Mac? Compare this run with care")
         with open(os.path.join(ctx.out, "env.json"), "w") as f:
             f.write(sh(ctx, os.path.join(bin_dir, "env-report"), capture=True))
@@ -616,18 +616,19 @@ def warn(result, msg):
 
 
 def calibration_reference():
-    """Median calibration of all earlier complete runs, any stack: what a normal core measures."""
-    vals = []
-    for path in glob.glob(os.path.join(REPO, "results", "*", "*", "*", "result.json")):
-        try:
-            with open(path) as f:
-                r = json.load(f)
-        except (OSError, ValueError):
-            continue
-        if r.get("status") == "complete" and r.get("calibration_seconds"):
-            vals.append(r["calibration_seconds"])
-    vals.sort()
-    return vals[len(vals) // 2] if len(vals) >= 3 else None
+    """The normal calibration time, from harness/calibration-reference (fixed on purpose).
+
+    A median of recent runs would drift: a slow afternoon drags it up and hides the slow runs.
+    """
+    try:
+        with open(os.path.join(HARNESS, "calibration-reference")) as f:
+            for line in f:
+                line = line.split("#", 1)[0].strip()
+                if line:
+                    return float(line)
+    except (OSError, ValueError):
+        return None
+    return None
 
 
 def quick_start_rate(stack, phase):

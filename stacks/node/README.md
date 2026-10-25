@@ -103,6 +103,6 @@ Tuning follows the [tuning plan](../../docs/tuning-plan.md): one production-grad
 
 | Date | Change | Why | Quick run before | Quick run after | Kept? |
 | --- | --- | --- | --- | --- | --- |
-| 25 Oct | Load shedding: at most 110 requests using or waiting for a database connection, then 503; connection wait 5 s → 1 s | Under overload, a queue of thousands formed at the pool and never drained, even after the load dropped | 1,709 req/s (1,221 sessions/s); no recovery after overload | pending | |
+| 25 Oct | Load shedding: at most 110 requests using or waiting for a database connection, then 503; connection wait 5 s → 1 s | Under overload, a queue of thousands formed at the pool and never drained, even after the load dropped | 1,709 req/s (1,221 sessions/s); no recovery after overload: p95 5,064 ms, 28% errors back at 1x | 1,844 req/s (1,318 sessions/s, 0.69% errors, all 503s); **recovered**: p95 59 ms, 0.98% errors back at 1x | Kept: clear stability win. The extra step (+8%) is within noise until the full runs confirm it |
 
 Starting point: pool of 10, a 5-second wait for a database connection, default heap, one process. The quick baseline (`results/node/none/20261025-151815-quick`, with the tuned Postgres settings) passed 1,221 sessions/s (1,709 req/s) and failed at 1,318. Candidates, in order, are in the tuning plan.
