@@ -35,6 +35,8 @@ That's 1.4 requests per session on average, about 70% reads. Likes go to posts t
 
 Every request is tagged with its step. The first 10 seconds after each rate change are tagged `settle` and left out of the results, so they measure steady load only.
 
+**Connections.** Each step runs as its own scenario, with a pool of virtual users sized for that step's rate (rate x 7 s). k6 hands out idle users in turn, so each one comes back every few seconds and reuses its keep-alive connection, as a real browser does. One pool sized for the highest rate would break this: at low rates each user would wait longer than Nginx's 65-second keep-alive, so every session would open a new connection and idle ones would pile up into the thousands. That happened in the first Node run: at 6,700 open connections the Mac stopped opening new ones, to either VM.
+
 ## Contract test
 
 `contract.js` checks, against a running stack:
