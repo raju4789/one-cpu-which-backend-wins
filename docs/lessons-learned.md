@@ -80,7 +80,7 @@ Most of these were not bugs in the stack under test. They were the test setup ly
 
 **Lesson.** Detect load-generator limits from the generator's own signals, not from guesses about the server.
 
-### 7. Connections refused at the start of a test: reused ports
+### 7. Connections refused at the start of a test: a wrong theory, then pf's adaptive timeouts
 
 **Symptom.** The fine ramp failed 322 connections in its first seconds, while Node answered in 16 ms. The pf table wasn't full: its `memory` counter hadn't moved.
 
@@ -88,18 +88,20 @@ Most of these were not bugs in the stack under test. They were the test setup ly
 
 1. Ruled out one hop at a time: the VM's conntrack table (65,536 max, nowhere near full), Nginx's listen queue inside its container (`ListenOverflows` and `ListenDrops` both 0).
 2. k6's connect times: every successful connection took under 32 ms. If packets were being lost at random, some would succeed on a retry after about a second. So specific connections were refused outright, not slowed.
-3. The timing: the fine ramp started 31 seconds after the previous k6 process closed 10,000 connections.
-4. pf's `state-mismatch` counter: 5 earlier, 8,835 now.
+3. pf's `state-mismatch` counter: 5 earlier, 8,835 after the run. So pf was the one dropping them.
 
-**Cause.** A connection is identified by its ports. macOS lets a closed connection's port be reused after 30 seconds, but pf remembers the closed connection for up to 90 seconds. A new connection that landed on a just-freed port matched pf's old record and was dropped. With thousands of new connections at once, a few percent collided.
+**The wrong theory.** I blamed reused ports: macOS reuses a closed connection's port after 30 s, while pf remembers the closed connection for up to 90 s. The fix was a 2-minute cool-down between tests. The next run failed again, worse (1,091 connections), and `state-mismatch` rose to 27,772. The theory explained the first numbers but didn't survive a test.
 
-**Fix.** The runner waits 2 minutes between tests instead of 30 seconds.
+**The actual cause** (to confirm with the next run). `sudo pfctl -s timeouts` showed `adaptive.start 6000` and `adaptive.end 12000`. Past 6,000 tracked connections, pf shortens all its timers, and at 12,000 they reach zero, so it forgets connections still in their handshake and drops the replies. These thresholds normally sit at 60% and 120% of the state limit, but raising the limit to 200,000 didn't move them. A fresh k6 opens about 8,000 connections in seconds, on top of the previous test's closing connections, which pf keeps for up to 15 minutes (`tcp.closing 900s`). That crosses 12,000. The first run's ceiling of about 6,700 connections also sits just past 6,000.
+
+**Fix.** Raise the adaptive thresholds with the limit: `set timeout { adaptive.start 120000, adaptive.end 240000 }`.
 
 **Lessons.**
 
 - Fast-or-failed with nothing in between means refusal, not overload.
 - Bisect along the path, checking each hop's counters, until one moves.
-- Back-to-back tests can interfere through state the first one left behind: closed connections, caches, queues. Leave enough time between them.
+- A theory that fits the data still has to survive a prediction. This one predicted that a longer pause would fix it, and it didn't. Say so, and keep looking.
+- When you raise one limit, read the settings around it. Related thresholds are often derived from defaults and don't follow.
 
 ### 8. The first real result: Node's limit is a cliff
 
@@ -123,7 +125,7 @@ Before trusting a result:
 
 1. **Is the load generator the bottleneck?** Check its CPU, memory, dropped iterations, "insufficient VUs" warnings, and connection errors, every run.
 2. **Did the generator machine stay awake and undisturbed?** No sleep, no other heavy work.
-3. **Are connection limits raised everywhere on the path?** Firewall state tables, conntrack, file descriptors, ephemeral ports, listen backlogs.
+3. **Are connection limits raised everywhere on the path?** Firewall state tables and the thresholds tied to them, conntrack, file descriptors, ephemeral ports, listen backlogs.
 4. **Do you know which errors you got?** Dial timeout, refused, reset, timeout, or 5xx all point to different places.
 5. **Are tests separated enough?** Enough cool-down for closed connections and other leftover state to clear.
 6. **Is the environment pinned and offline-capable?** Image digests, no network dependency during runs.

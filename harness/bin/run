@@ -41,9 +41,7 @@ K6_DIR = os.path.join(REPO, "k6")
 P95_MAX, P99_MAX, ERROR_MAX, DROP_MAX = 0.300, 1.0, 0.01, 0.01
 STEP_SECONDS, SETTLE_SECONDS, OVERLOAD_SECONDS = 60, 10, 120
 EVAL_DELAY = 12  # seconds after a step ends: k6 pushes every 5 s, Prometheus scrapes every 5 s
-# Pause between two k6 runs. macOS reuses a closed connection's port after 30 s,
-# but its firewall (pf) remembers the closed connection for up to 90 s and drops
-# a new one that lands on the same port. Two minutes lets those records expire.
+# Pause between two k6 runs, so the server settles before the next test.
 COOLDOWN = 120
 RUN_STARTED = time.time()
 

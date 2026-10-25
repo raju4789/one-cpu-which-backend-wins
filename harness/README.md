@@ -167,11 +167,12 @@ The load never goes through Colima's port forwarding to `localhost`. That forwar
 
 Prometheus does scrape the bench VM's exporters through that forwarding, because macOS doesn't let the two VMs reach each other directly. That's 3 small requests every 5 seconds, the same for every stack.
 
-**The Mac firewall's connection limit.** The VMs' network turns on pf, the macOS firewall, which tracks every connection to them, including ones closed in the last 90 seconds. Once it tracks 10,000, it silently drops new connections to both VMs. k6 needs more than that from about 850 sessions/s (each virtual user holds a keep-alive connection, like a browser). Raise the limit before benchmarking. It loads only this one option and leaves the firewall's rules alone, and it resets on reboot:
+**The Mac firewall's connection limit.** The VMs' network turns on pf, the macOS firewall, which tracks every connection to them, including ones closed in the last 90 seconds. Once it tracks 10,000, it silently drops new connections to both VMs. Worse, from 6,000 tracked connections it starts shortening its timers ("adaptive timeouts"), and at 12,000 they reach zero, so it forgets connections still in their handshake. k6 holds up to 10,000 connections (each virtual user keeps one, like a browser), and closing ones linger up to 15 minutes. Raise both the limit and the adaptive thresholds before benchmarking. This loads only these options and leaves the firewall's rules alone, and it resets on reboot:
 
 ```sh
-echo "set limit states 200000" | sudo pfctl -O -f -
-sudo pfctl -s memory    # states hard limit 200000
+printf 'set limit states 200000\nset timeout { adaptive.start 120000, adaptive.end 240000 }\n' | sudo pfctl -O -f -
+sudo pfctl -s memory              # states hard limit 200000
+sudo pfctl -s timeouts | grep adaptive   # 120000 and 240000
 ```
 
 The limit only affects the load generator's side, and it's the same for every stack.
@@ -198,6 +199,6 @@ The limit only affects the load generator's side, and it's the same for every st
 | `check` fails on the `mac` target | node_exporter isn't running: `brew services start node_exporter` |
 | `up` hangs at "Waiting for the seed" | First run seeds 2.5 million rows. Give it up to 15 minutes; check `docker --context colima-bench logs bench-postgres-1` |
 | k6 "dial: i/o timeout" and a Prometheus timeout at the same moment; `bin/run` says k6 could not connect | The Mac firewall's connection table is full (10,000 entries by default), so it drops new connections to the VMs. `sudo pfctl -s info` shows the `memory` counter rising. Raise the limit, see [Network](#network); it resets on reboot. It first showed up when k6 used one 10,000-user pool for the whole ramp, so every session opened a new connection; `load.js` now sizes the pool per step |
-| `bin/run` says k6 could not connect at the start of a test, right after the previous one; `sudo pfctl -s info` shows `state-mismatch` rising, not `memory` | Reused ports. macOS lets a closed connection's port be reused after 30 s, but pf remembers the closed connection for up to 90 s and drops a new one that lands on the same port. Each test opens thousands of connections at once, so a few percent collide. `bin/run` waits 2 minutes between tests so the old records expire |
+| `bin/run` says k6 could not connect at the start of a test; `sudo pfctl -s info` shows `state-mismatch` rising, not `memory` | pf's adaptive timeouts. Raising the state limit doesn't move `adaptive.start` and `adaptive.end` (6,000 and 12,000), and past 12,000 tracked connections pf's timers reach zero, so it forgets connections mid-handshake. A test opening thousands of connections on top of the previous test's leftovers crosses that. Raise the thresholds too, see [Network](#network) |
 | `up` fails at "load metadata for docker.io/..." with "DeadlineExceeded" | The bench VM can't reach Docker Hub, usually after the Mac slept or changed network. Test with `colima ssh -p bench -- curl -sI https://registry-1.docker.io/v2/` (any HTTP status means it works). Fix with `bin/vm-down` and `bin/vm-up`. Stack base images pinned by digest build from the local copy |
 | A cached `/feed` is up to 2 s old | Expected. Nginx counts cache expiry in whole seconds. See the [contract](../contract/README.md#design-decisions) |
