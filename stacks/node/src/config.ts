@@ -25,8 +25,10 @@ export const config = {
   dbPoolMax: int("DB_POOL_MAX", 10),
   // Load shedding: at most this many requests wait for a connection on top of
   // the ones using the pool; more get 503 at once (src/limiter.ts). At about
-  // 1,700 req/s, 100 waiting is roughly 60 ms of queue.
-  dbMaxQueue: int("DB_MAX_QUEUE", 100),
+  // 1,850 req/s, 300 waiting is roughly 160 ms of queue: enough to absorb
+  // bursts, far from the multi-second queues that never drained. 100 shed
+  // bursts while the server still had headroom (tuning log).
+  dbMaxQueue: int("DB_MAX_QUEUE", 300),
   // Backstop: never wait longer than this for a connection.
   dbConnectTimeoutMs: int("DB_CONNECT_TIMEOUT_MS", 1_000),
   // Benchmark rule: warnings and errors only, no per-request lines (Nginx keeps the access log).

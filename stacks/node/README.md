@@ -58,7 +58,7 @@ test/                 unit tests (node:test), no database needed
 - **Fails loudly on bugs.** An unhandled rejection or exception is logged as `fatal` in the same JSON format, then the process exits instead of running in an unknown state.
 - **Limits.** Queries are cancelled after 5 s (`statement_timeout`), so a stuck query can't hold a connection. Request bodies are capped at 16 KB.
 - **Prepared statements.** Every query gets a stable name (a hash of its SQL and parameter types), so `pg` prepares it once per connection and Postgres reuses the parsed query and its plan (`src/statements.ts`). Without names, every execution is parsed and planned again.
-- **Load shedding.** At most `DB_POOL_MAX + DB_MAX_QUEUE` requests (10 + 100) may be using or waiting for a database connection. The next one gets `503` with `Retry-After: 1` straight away, instead of joining a queue that can grow to thousands (`src/limiter.ts`). No request waits more than 1 s for a connection. Cached feeds and `/health` are never shed.
+- **Load shedding.** At most `DB_POOL_MAX + DB_MAX_QUEUE` requests (10 + 300) may be using or waiting for a database connection. The next one gets `503` with `Retry-After: 1` straight away, instead of joining a queue that can grow to thousands (`src/limiter.ts`). No request waits more than 1 s for a connection. Cached feeds and `/health` are never shed.
 - **Multi-stage image.** The build stage compiles TypeScript and generates the Prisma client. The runtime stage has only production dependencies and compiled code, runs as the unprivileged `node` user, with `NODE_ENV=production`.
 - **Exact versions** in `package.json` and a lockfile, so every build installs the same code.
 - **Tests in the build.** `npm test` runs unit tests for the feed cache, the error mapping and every HTTP status, with the database replaced by a fake. The image build runs them, so an image that fails them is never built. The full behaviour against Postgres is checked by the [contract test](../../k6/README.md#contract-test).
@@ -90,7 +90,7 @@ The `app_*` names are shared with the other stacks, so Grafana can show them sid
 | `FEED_CACHE` | `off` | harness, per phase |
 | `METRICS_PORT` | 9464 | |
 | `DB_POOL_MAX` | 10 | tuning |
-| `DB_MAX_QUEUE` | 100 | tuning |
+| `DB_MAX_QUEUE` | 300 | tuning |
 | `DB_CONNECT_TIMEOUT_MS` | 1000 | tuning |
 | `DB_STATEMENT_TIMEOUT_MS` | 5000 | |
 | `LOG_LEVEL` | `warn` | |
@@ -106,6 +106,7 @@ Tuning follows the [tuning plan](../../docs/tuning-plan.md): one production-grad
 | --- | --- | --- | --- | --- | --- |
 | 25 Oct | Load shedding: at most 110 requests using or waiting for a database connection, then 503; connection wait 5 s → 1 s | Under overload, a queue of thousands formed at the pool and never drained, even after the load dropped | 1,709 req/s (1,221 sessions/s); no recovery after overload: p95 5,064 ms, 28% errors back at 1x | 1,844 req/s (1,318 sessions/s, 0.69% errors, all 503s); **recovered**: p95 59 ms, 0.98% errors back at 1x | Kept: clear stability win. The extra step (+8%) is within noise until the full runs confirm it |
 | 25 Oct | Considered: the feed as hand-written SQL (plain `JOIN`) instead of Prisma's `LATERAL JOIN` with `JSONB_BUILD_OBJECT` | The feed query is 96% of Postgres's query time (pg_stat_statements: 508 s of 528 s) | pgbench, one client, 15 s: 0.238 ms per query | 0.228 ms (4% less) | Dropped before building: under the 10% bar, and it gives up the ORM on the hottest path |
-| 25 Oct | Named prepared statements (`statementNameGenerator` in the Prisma `pg` adapter) | Unnamed queries are parsed and planned on every execution | pgbench: 0.238 ms per feed query unnamed; quick run 1,844 req/s (1,318 sessions/s) | pgbench: 0.197 ms named (17% less); quick run pending | |
+| 25 Oct | Named prepared statements (`statementNameGenerator` in the Prisma `pg` adapter) | Unnamed queries are parsed and planned on every execution | pgbench: 0.238 ms per feed query unnamed; quick run 1,844 req/s (1,318 sessions/s) | pgbench: 0.197 ms named (17% less). Quick run: passed 1,221 sessions/s (1,707 req/s), failed 1,318 on 1.26% 503s at p95 59 ms; Postgres CPU 8 to 12% lower at every step | Kept: less work for the database with no downside, and it's the default in the other stacks (ActiveRecord prepares statements, pgjdbc does after 5 runs). Throughput unchanged within noise: the queue cap, not the CPU, ended the run |
+| 25 Oct | Load shedding queue 100 → 300 (`DB_MAX_QUEUE`) | With prepared statements, the run failed on 503s at 1,318 sessions/s while p95 was 59 ms and CPU 86%: the cap trimmed bursts with room to spare. 300 waiting is about 160 ms of queue, still bounded | 1,707 req/s (1,221 sessions/s); recovered after overload with the cap at 100 | pending | |
 
 Starting point: pool of 10, a 5-second wait for a database connection, default heap, one process. The quick baseline (`results/node/none/20261025-151815-quick`, with the tuned Postgres settings) passed 1,221 sessions/s (1,709 req/s) and failed at 1,318. Candidates, in order, are in the tuning plan.
