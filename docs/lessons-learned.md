@@ -284,9 +284,12 @@ The server had a problem too. k6 hands out its users in turn, so the first pass 
 
 **What we changed.** The cache phases get at most 25,000 virtual users, about what 5,000 sessions per second needs (each session lasts about 4 seconds), roughly 6.5 GB. If a phase needs more, the runner stops it as limited by the load generator instead of recording a result. And the runner now watches the Mac's memory: if macOS compresses more than 2 GB extra during a run, it warns that k6 may have slowed itself down.
 
+**The rerun.** Capped at 25,000 virtual users and starting at 3,200 sessions per second, the Nginx run failed its first step with 2.6% errors, and the Mac still compressed 2.6 GB extra. It looked as if Nginx caching barely beat the app cache. Then a gentler run, capped at 16,000 and starting at 2,400, climbed cleanly: it passed 3,526 sessions per second (4,931 requests per second) and failed at 3,808, with only 0.4 GB of extra compression on the Mac. So the Nginx cache beats the app cache by roughly 25%. The 3,200 failure had come from a cold start that was too big for the Mac, not from the server's limit. With the Nginx cache, Node handles only the writes, and at the same load it used 35% of the core instead of 42%. That shows serving the feed from Node's memory wasn't free, but the writes are the main cost.
+
 **Lessons.**
 
 - The load generator needs resources in proportion to the load. Ten thousand times a small number is a big number.
+- Don't trust a run that starts cold at a high rate. Build up to it, or the start itself becomes the test.
 - When the server says it served far more than the client says it received, suspect the client.
 - Check the load generator's memory as well as its CPU. Memory pressure shows up as CPU first.
 
