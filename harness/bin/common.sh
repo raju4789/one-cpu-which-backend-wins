@@ -44,7 +44,12 @@ fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
 # stacks/<name> for real stacks, harness/<name> for the dummy app
 stack_dir() {
-  if [ -f "$REPO_DIR/stacks/$1/compose.yaml" ]; then echo "$REPO_DIR/stacks/$1"
+  # STACK_SRC: build the stack from another folder, e.g. an older version
+  # exported by bin/batch. The harness itself always comes from this checkout.
+  if [ -n "${STACK_SRC:-}" ]; then
+    [ -f "$STACK_SRC/compose.yaml" ] || fail "STACK_SRC=$STACK_SRC has no compose.yaml"
+    echo "$STACK_SRC"
+  elif [ -f "$REPO_DIR/stacks/$1/compose.yaml" ]; then echo "$REPO_DIR/stacks/$1"
   elif [ -f "$HARNESS_DIR/$1/compose.yaml" ]; then echo "$HARNESS_DIR/$1"
   else fail "no compose.yaml for stack '$1' in stacks/ or harness/"
   fi

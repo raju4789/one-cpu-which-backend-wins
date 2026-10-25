@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+"""Runs a list of full benchmark runs unattended, for example overnight.
+
+    harness/bin/batch <plan-file> [--dry-run]
+
+A plan file lists configurations, one per line: a label, a git ref (a tag such
+as node-tuned), a stack, a phase, and optionally extra bin/run options:
+
+    repeat 3            # runs per configuration
+    cooldown 600        # seconds between runs
+    # label           ref            stack  phase
+    node-untuned      node-untuned   node   none
+    node-tuned        node-tuned     node   none
+
+Each run builds the stack exactly as it was at its ref (git archive into a
+temporary folder), while the harness always comes from the current checkout,
+so every run gets the same environment. Runs are interleaved, one of each
+configuration per round, so slow drift on the Mac during the night affects
+every configuration alike. A failed run is recorded and the batch carries on.
+
+Results: each run in results/<stack>/<phase>/ as usual, plus
+results/batches/<timestamp>/ with every run's log and summary.md: all runs
+and the median per configuration. Uses only the Python standard library.
+"""
+import argparse
+import datetime
+import json
+import os
+import re
+import shlex
+import signal
+import statistics
+import subprocess
+import sys
+import tempfile
+import time
+
+HARNESS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(HARNESS)
+RUNNER = os.environ.get("BATCH_RUNNER", os.path.join(HARNESS, "bin", "run"))  # overridable for testing
+
+
+def log(msg):
+    print(f"==> [batch] {msg}", flush=True)
+
+
+def fail(msg):
+    print(f"ERROR: {msg}", file=sys.stderr, flush=True)
+    sys.exit(1)
+
+
+def git(*args):
+    return subprocess.run(["git", "-C", REPO, *args], check=True, capture_output=True, text=True).stdout.strip()
+
+
+def read_plan(path):
+    plan = {"repeat": 3, "cooldown": 600, "configs": []}
+    with open(path) as f:
+        for n, raw in enumerate(f, 1):
+            line = raw.split("#", 1)[0].strip()
+            if not line:
+                continue
+            words = shlex.split(line)
+            if words[0] in ("repeat", "cooldown") and len(words) == 2 and words[1].isdigit():
+                plan[words[0]] = int(words[1])
+            elif len(words) >= 4:
+                label, ref, stack, phase, *extra = words
+                if phase not in ("none", "app", "nginx"):
+                    fail(f"{path}:{n}: phase must be none, app or nginx, got {phase!r}")
+                plan["configs"].append({"label": label, "ref": ref, "stack": stack, "phase": phase, "extra": extra})
+            else:
+                fail(f"{path}:{n}: expected 'label ref stack phase [options]', 'repeat N' or 'cooldown S'")
+    if not plan["configs"]:
+        fail(f"{path}: no configurations")
+    labels = [c["label"] for c in plan["configs"]]
+    if len(set(labels)) != len(labels):
+        fail(f"{path}: labels must be unique")
+    return plan
+
+
+def resolve(config):
+    """The commit a ref points to, after checking the stack exists there."""
+    try:
+        config["commit"] = git("rev-parse", "--verify", f"{config['ref']}^{{commit}}")
+    except subprocess.CalledProcessError:
+        fail(f"git ref {config['ref']!r} (for {config['label']}) doesn't exist. "
+             f"Create it, for example: git tag {config['ref']} <commit>")
+    try:
+        git("cat-file", "-e", f"{config['commit']}:stacks/{config['stack']}/compose.yaml")
+    except subprocess.CalledProcessError:
+        fail(f"stacks/{config['stack']}/compose.yaml doesn't exist at {config['ref']}")
+
+
+def export_stack(config, root):
+    """stacks/<stack> exactly as it was at the config's commit, in a temporary folder."""
+    dest = os.path.join(root, config["label"])
+    os.makedirs(dest, exist_ok=True)
+    archive = subprocess.Popen(["git", "-C", REPO, "archive", config["commit"], f"stacks/{config['stack']}"],
+                               stdout=subprocess.PIPE)
+    subprocess.run(["tar", "-x", "-C", dest], stdin=archive.stdout, check=True)
+    if archive.wait() != 0:
+        fail(f"git archive failed for {config['label']}")
+    return os.path.join(dest, "stacks", config["stack"])
+
+
+def run_one(config, stack_src, log_path):
+    """One full bin/run, its output shown and saved. Returns what the summary needs."""
+    cmd = [RUNNER, config["stack"], config["phase"], *config["extra"]]
+    env = dict(os.environ, STACK_SRC=stack_src)
+    started = time.time()
+    out_dir = None
+    with open(log_path, "w") as logf:
+        proc = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+        for line in proc.stdout:
+            sys.stdout.write(line)
+            logf.write(line)
+            m = re.search(r"results in (\S+)", line)
+            if m and out_dir is None:
+                out_dir = m.group(1)
+        code = proc.wait()
+    entry = {"label": config["label"], "ref": config["ref"], "commit": config["commit"][:10],
+             "exit_code": code, "minutes": round((time.time() - started) / 60, 1), "results": out_dir,
+             "status": "failed", "rps": None, "rate": None, "p95_ms": None, "p99_ms": None,
+             "calibration_s": None, "warnings": []}
+    result_path = os.path.join(REPO, out_dir, "result.json") if out_dir else None
+    if result_path and os.path.exists(result_path):
+        with open(result_path) as f:
+            r = json.load(f)
+        entry["status"] = r.get("status", "unknown")
+        entry["calibration_s"] = r.get("calibration_seconds")
+        entry["warnings"] = r.get("warnings", [])
+        if r.get("abort_reason"):
+            entry["warnings"].append(f"aborted: {r['abort_reason']}")
+        c = r.get("result")
+        if c and entry["status"] == "complete":
+            entry.update(rps=round(c["rps"]), rate=c["rate"], p95_ms=round(c["p95_s"] * 1000),
+                         p99_ms=round(c["p99_s"] * 1000))
+    return entry
+
+
+def write_summary(batch_dir, plan, entries, started, finished=None):
+    with open(os.path.join(batch_dir, "summary.json"), "w") as f:
+        json.dump({"plan": plan, "runs": entries, "started": started, "finished": finished}, f, indent=2)
+    lines = [f"# Batch {os.path.basename(batch_dir)}", "",
+             f"Started {started}" + (f", finished {finished}" if finished else ", still running"), "",
+             "## Median per configuration", "",
+             "| Configuration | Ref | Commit | Runs passed | Median req/s | Range | Median p95 |",
+             "| --- | --- | --- | --- | --- | --- | --- |"]
+    for c in plan["configs"]:
+        mine = [e for e in entries if e["label"] == c["label"]]
+        ok = [e for e in mine if e["rps"] is not None]
+        if ok:
+            rps = [e["rps"] for e in ok]
+            med = f"**{statistics.median(rps):.0f}**"
+            rng = f"{min(rps)} to {max(rps)}"
+            p95 = f"{statistics.median(e['p95_ms'] for e in ok):.0f} ms"
+        else:
+            med, rng, p95 = "-", "-", "-"
+        lines.append(f"| {c['label']} | {c['ref']} | {c['commit'][:10]} | {len(ok)} of {len(mine)} | {med} | {rng} | {p95} |")
+    lines += ["", "A configuration needs all its runs to pass for its median to be a result.", "",
+              "## Every run, in order", "",
+              "| # | Configuration | Status | Req/s | Sessions/s | p95 | p99 | Calibration | Minutes | Results |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for i, e in enumerate(entries, 1):
+        val = lambda v, unit="": f"{v}{unit}" if v is not None else "-"
+        lines.append(f"| {i} | {e['label']} | {e['status']} | {val(e['rps'])} | {val(e['rate'])} | "
+                     f"{val(e['p95_ms'], ' ms')} | {val(e['p99_ms'], ' ms')} | {val(e['calibration_s'], ' s')} | "
+                     f"{e['minutes']} | `{e['results'] or '-'}` |")
+    warned = [(i, w) for i, e in enumerate(entries, 1) for w in e["warnings"]]
+    if warned:
+        lines += ["", "## Warnings", ""] + [f"- Run {i}: {w}" for i, w in warned]
+    with open(os.path.join(batch_dir, "summary.md"), "w") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Run a list of full benchmark runs unattended.")
+    ap.add_argument("plan", help="plan file, e.g. harness/batches/node-final.txt")
+    ap.add_argument("--dry-run", action="store_true", help="show the order and commits, run nothing")
+    args = ap.parse_args()
+
+    plan = read_plan(args.plan)
+    for c in plan["configs"]:
+        resolve(c)
+    order = [c for _ in range(plan["repeat"]) for c in plan["configs"]]
+    total = len(order)
+    hours = (total * 40 + (total - 1) * plan["cooldown"] / 60) / 60
+    log(f"{total} runs: {len(plan['configs'])} configurations x {plan['repeat']}, interleaved, "
+        f"{plan['cooldown']} s between runs, about {hours:.1f} hours")
+    for i, c in enumerate(order, 1):
+        extra = f" {' '.join(c['extra'])}" if c["extra"] else ""
+        log(f"  {i:2}. {c['label']}: {c['stack']} {c['phase']}{extra} at {c['ref']} ({c['commit'][:10]})")
+    if args.dry_run:
+        return
+
+    if sys.platform == "darwin":  # keep the Mac awake for the whole batch, cool-downs included
+        subprocess.Popen(["caffeinate", "-ims", "-w", str(os.getpid())])
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    batch_dir = os.path.join(REPO, "results", "batches", stamp)
+    os.makedirs(batch_dir)
+    with open(args.plan) as src, open(os.path.join(batch_dir, "plan.txt"), "w") as dst:
+        dst.write(src.read())
+    started = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+    entries = []
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(1))
+    with tempfile.TemporaryDirectory(prefix="batch-stacks-") as root:
+        sources = {c["label"]: export_stack(c, root) for c in plan["configs"]}
+        try:
+            for i, c in enumerate(order, 1):
+                if i > 1:
+                    log(f"Cool-down {plan['cooldown']} s")
+                    time.sleep(plan["cooldown"])
+                log(f"Run {i} of {total}: {c['label']} ({c['ref']}, {c['commit'][:10]})")
+                entry = run_one(c, sources[c["label"]], os.path.join(batch_dir, f"{i:02d}-{c['label']}.log"))
+                entries.append(entry)
+                log(f"Run {i} of {total}: {entry['status']}" +
+                    (f", {entry['rps']} req/s, p95 {entry['p95_ms']} ms" if entry["rps"] is not None else ""))
+                write_summary(batch_dir, plan, entries, started)
+        except KeyboardInterrupt:
+            log("Interrupted: the summary covers the runs that finished")
+    finished = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+    write_summary(batch_dir, plan, entries, started, finished)
+    log(f"Done: {os.path.relpath(os.path.join(batch_dir, 'summary.md'), REPO)}")
+
+
+if __name__ == "__main__":
+    main()

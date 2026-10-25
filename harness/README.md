@@ -84,6 +84,8 @@ harness/bin/run <stack> <phase>    # e.g. harness/bin/run node none
 
 Once after every reboot, raise the [Mac firewall's connection limit](#network) first, or a fast stack will hit it.
 
+**Unattended batches, for final results.** `harness/bin/batch <plan>` runs a list of full runs one after another, for example overnight: each configuration three times, interleaved (one of each per round, so slow drift on the Mac affects all alike), 10 minutes apart, keeping the Mac awake throughout. Each stack is built exactly as it was at a git tag, while the harness comes from the current checkout. A failed run is recorded and the batch carries on. It writes `results/batches/<timestamp>/summary.md` with every run and the median per configuration. `--dry-run` shows the order first. Example plan: [`batches/node-final.txt`](batches/node-final.txt).
+
 **Quick mode, for tuning.** `harness/bin/run <stack> <phase> --quick` takes about 11 minutes instead of 37: the same checks, then a 45-second build-up to just below the stack's last full result and up to seven 1-minute steps. Add `--overload` for the overload test. A quick result is only comparable with other quick results. See the [tuning plan](../docs/tuning-plan.md).
 
 One command runs the whole protocol, about 37 minutes:

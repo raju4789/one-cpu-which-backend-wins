@@ -63,6 +63,8 @@ There's also a time limit: about one day of tuning per stack, the same for all t
 
 Three full runs of the final tuned version, 10 minutes apart. Report the median with its range, next to the untuned baseline, so readers see what tuning bought.
 
+**Rerun the untuned baseline too, in the same batch.** A before-and-after comparison is only fair if nothing else changed in between. Step 1 changed the shared Postgres settings after Node's first baseline was measured, so the untuned version gets three new full runs on the current harness. Tag the untuned and tuned code (for Node: `node-untuned`, `node-tuned`) and run both, plus the cache phases on the tuned version, with `harness/bin/batch`, interleaved, ideally overnight. Stacks tuned after the Postgres change don't need this.
+
 ## Candidates for Node, in order
 
 1. **Fail fast.** Today a request waits up to 5 seconds for a database connection, and one hiccup can snowball into an overload Node never recovers from (see [chapter 8 of the lessons](lessons-learned.md)). Instead: a short wait, then answer "busy" (503). Test with `--quick --overload`. Keep it if Node recovers without losing throughput.
