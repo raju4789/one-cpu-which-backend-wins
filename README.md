@@ -70,7 +70,7 @@ harness/bin/smoke                # 30 s of light load, watch it at http://localh
 | [`harness/`](harness) | The test environment and the scripts that run it |
 | [`k6/`](k6) | The load test and the contract test |
 | [`results/`](results) | Raw output of every benchmark run |
-| [`docs/`](docs) | The fairness rules |
+| [`docs/`](docs) | The fairness rules, and [lessons learned](docs/lessons-learned.md) from running the benchmark |
 
 Added as the project moves on: `stacks/`, with one folder per stack.
 
