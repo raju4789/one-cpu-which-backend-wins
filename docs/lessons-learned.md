@@ -133,7 +133,7 @@ That explains everything:
 - A 2-minute pause can't clear entries that last 15 minutes, so it didn't help.
 - The very first failure in Chapter 2 happened at about 6,700 connections, just past 6,000.
 
-**What we're doing now.** Raising both numbers in line with the limit, to 120,000 and 240,000. The command is in the harness README. The next run will show whether this was the cause.
+**What worked.** Raising both numbers in line with the limit, to 120,000 and 240,000. The command is in the harness README. The next full run had no connection failures at all, and its fine ramp started cleanly for the first time.
 
 **Lessons.**
 
