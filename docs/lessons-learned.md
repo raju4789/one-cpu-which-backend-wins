@@ -1,135 +1,164 @@
 # Lessons learned
 
-What went wrong while benchmarking, how each problem was found, and what it teaches about load testing in general. Written as we go, so the reasoning is captured while it's fresh. Problems are in the order we hit them.
+This is the story of getting the first stack, Node.js, through the benchmark: what went wrong, what we tried, what didn't work, what did, and what each problem teaches about load testing in general.
 
-Most of these were not bugs in the stack under test. They were the test setup lying about the stack. That's the main lesson: **a load test measures the whole system, including the machine generating the load, and you have to prove every run that the server was the limit.**
+The short version: **almost nothing that went wrong was Node's fault.** Most problems were in the test setup itself, and each one made Node look worse than it was. A load test measures everything between the load generator and the database, including the machine sending the load. So every run has to prove the server was the limit, not something else.
 
-## The Node stack, no-cache phase
+## A few words used below
 
-### 1. The app container exited: "permission denied" on package.json
+- **k6**: the tool that sends the load. It runs on the Mac.
+- **Virtual user**: k6 pretending to be one person. It loads the feed, pauses like someone reading, maybe likes or writes a post, and leaves. Most of its time is spent waiting.
+- **Session**: one visit by a virtual user. On average it sends 1.4 requests and lasts about 4 seconds.
+- **Connection**: before sending a request, k6 opens a TCP connection to the server, a short handshake of three messages. With **keep-alive**, the connection stays open and later requests reuse it, like a browser does. Nginx closes a connection that has been idle for 65 seconds.
+- **pf**: the firewall built into macOS. Colima turns it on for the VMs' network. It keeps a table with one entry for every connection to the VMs.
+- **Bench VM**: the 1-CPU, 2 GB virtual machine running Nginx, Node and Postgres. **Monitor VM**: a separate VM running Prometheus and Grafana.
 
-**Symptom.** The Node container exited at start. Nginx then exited too, because its upstream was gone.
+## Chapter 1: The app wouldn't start
 
-**How we found it.** `docker logs` on the app container: `Cannot read package config /app/package.json: permission denied`.
+**What we saw.** The Node container stopped immediately. Its log said: `Cannot read package config /app/package.json: permission denied`.
 
-**Cause.** Files written to the Mac had mode 600 (readable by the owner only). Docker's `COPY` keeps file permissions, and the image runs as the unprivileged `node` user, not root, so it couldn't read its own files.
+**Why.** The project files on the Mac could only be read by their owner. Docker copies files into the image with the same permissions. The app runs as a restricted user called `node`, not as the all-powerful root user, so it wasn't allowed to read its own files.
 
-**Fix.** `chmod -R a+rX` on the app files in the build stage of the Dockerfile.
+**What worked.** One line in the Dockerfile that makes the app's files readable by everyone (`chmod -R a+rX`).
 
-**Lesson.** Running as a non-root user is right, but test the image the way it runs in production. Host file permissions leak into images.
+**Lesson.** Running as a restricted user is good practice, but test the image exactly as it will run. Permissions from your laptop can sneak into the image.
 
-### 2. The runner crashed, and k6 couldn't connect, at about 6,700 connections
+## Chapter 2: The first run crashed at about 6,700 connections
 
-**Symptom.** The first full run crashed after 6 steps: the runner's query to Prometheus timed out. The k6 log showed 3,475 `dial: i/o timeout` errors starting at the same second. Node was at 39% CPU and answering in 13 ms.
+**What we saw.** The first full run passed six steps and then crashed. Two things failed in the same second:
 
-**How we found it.**
+- k6 reported 3,475 errors, all `dial: i/o timeout`. That means k6 tried to open a new connection and got no answer at all.
+- The runner tried to ask Prometheus for the results and also couldn't connect.
 
-1. The error type: every failure was `dial: i/o timeout`, meaning a new TCP connection got no answer at all. Not a slow response, not an error from the server.
-2. The timeline: k6 (talking to the bench VM) and the runner (talking to the monitor VM) failed in the same second. Two separate VMs failing together points to what they share: the Mac's networking.
-3. What kept working: k6's metric pushes to Prometheus, which reuse one connection that was already open. So open connections were fine, and only new ones failed.
-4. Grafana's Nginx connections panel: open connections climbed steadily from 3,155 to 6,695, step after step.
-5. Comparison: the dummy-app run never went above about 2,700 connections and never failed.
+Node was fine. It was using 39% of its CPU and answering in 13 ms.
 
-**Cause.** Two things combined.
+**How we narrowed it down.**
 
-- k6 created one pool of 10,000 virtual users for the highest rate in the ramp, and hands idle users out in turn. At low rates, each user's turn came back after more than a minute. Nginx closes idle connections after 65 seconds, so every session opened a new connection, and the old ones stayed open until Nginx closed them. They piled up.
-- macOS's firewall (pf) is switched on by the VMs' network and tracks every connection to them, including ones closed in the last 90 seconds. Its table holds 10,000 entries by default. About 6,700 open plus the recently closed ones filled it, and pf then silently dropped every new connection from any program on the Mac.
+1. Two different VMs failed at the same moment. When separate things fail together, look at what they share. Here, that was the Mac's networking.
+2. Connections that were already open kept working. k6's live metrics to Prometheus use one long-lived connection, and those kept arriving. Only new connections failed.
+3. Grafana's Nginx panel showed open connections climbing steadily, from 3,155 to 6,695.
+4. An earlier test of the dummy app never went above about 2,700 connections, and never failed.
 
-**Fix.** Raise pf's limit to 200,000 (`echo "set limit states 200000" | sudo pfctl -O -f -`, resets on reboot). Confirmed with `sudo pfctl -s info`: the `memory` counter, which counts connections pf couldn't record, stood at 210,980.
+**Why connections piled up.** k6 created 10,000 virtual users up front, enough for the highest rate in the test, and hands them out in turn. At low rates, each user waited more than a minute for its next turn. By then Nginx had closed its idle connection, so every session opened a new connection, and the count kept growing.
 
-**Lessons.**
+**What we tried first.** We made k6 build a smaller group of users for each step, so each user came back within seconds and reused its connection. That brought the number of connections down, so it looked like the fix.
 
-- The error type tells you where to look. `dial: i/o timeout` means the connection attempt got no answer. `connection refused` means something answered "no". A slow response means the server is struggling.
-- When independent things fail at the same moment, look at what they share.
-- Count connections, not just requests. Connection behaviour (keep-alive, pool sizes, idle timeouts) can break a test long before the server is busy.
-- Every hop has a connection table with a limit: firewall, NAT, conntrack, file descriptors, ports. Find their counters.
+**Why that wasn't the real fix.** The next run broke the same way at step 12, again at about 6,700 open connections. The same number twice meant a fixed limit somewhere.
 
-### 3. A workaround that made things worse
+**What we found.** `sudo pfctl -s info` and `sudo pfctl -s memory` showed that pf's connection table was limited to 10,000 entries. Its `memory` counter, which counts connections pf couldn't record because the table was full, stood at 210,980. Each of those was a connection silently dropped. Closed connections stay in the table for a while too, so about 6,700 open plus the recently closed ones filled it.
 
-**What happened.** Before the pf limit was confirmed, I changed k6 to use a separate, smaller pool per step, so connections would be reused and stay few. It lowered the count, but at high rates one step hit its pool cap, and once k6 stopped sending requests for about 90 seconds at a step change. Once pf was confirmed and raised, the workaround wasn't needed, so it was reverted to one pool.
-
-**Lesson.** Find the root cause before engineering around it. A workaround for a symptom adds new failure modes. When the root cause is fixed, remove the workaround.
-
-### 4. A run failed because Docker Hub didn't answer
-
-**Symptom.** `bin/up` failed at `load metadata for docker.io/library/node:24.22.1-alpine` with `DeadlineExceeded`, before any load ran.
-
-**Cause.** The runner rebuilds the image before every run. Even with everything cached, Docker checks the image tag online, and Docker Hub didn't answer in 60 seconds. Checked afterwards from the VM: it answered fine, so it was a passing blip.
-
-**Fix.** Pin the base image by digest (`node:24.22.1-alpine@sha256:...`). Builds are reproducible and use the local copy.
-
-**Lesson.** A benchmark run shouldn't depend on the internet. Pin everything, and make runs work offline once set up.
-
-### 5. The Mac went to sleep in the middle of a run
-
-**Symptom.** A confirm step was still "running" 20 minutes after it should have finished.
-
-**How we found it.** Prometheus had no samples at all from 07:46 to 08:03, for every target, including the Mac's own metrics. Everything going silent at once means the machine itself stopped.
-
-**Fix.** The runner keeps the Mac awake with `caffeinate` while it runs, and detects sleep anyway: if the wall clock jumps but the monotonic clock (which pauses during sleep) doesn't, the run is stopped as invalid.
-
-**Lesson.** Long tests on a laptop need the machine kept awake, and a check that it was. Gaps in all metrics at once mean the observer paused, not the server.
-
-### 6. A step "failed" because k6 ran out of users, and the runner guessed wrong
-
-**Symptom.** A step failed with 5% of sessions dropped. The runner said the load generator was the limit because p95 was 275 ms, which it counted as "still fast".
-
-**How we found it.** k6's own log said `Insufficient VUs, reached 5000 active VUs`.
-
-**Fix.** The runner now reads that message from k6's log and stops the run as invalid when it appears while latency still passes. It no longer guesses from latency.
-
-**Lesson.** Detect load-generator limits from the generator's own signals, not from guesses about the server.
-
-### 7. Connections refused at the start of a test: a wrong theory, then pf's adaptive timeouts
-
-**Symptom.** The fine ramp failed 322 connections in its first seconds, while Node answered in 16 ms. The pf table wasn't full: its `memory` counter hadn't moved.
-
-**How we found it.**
-
-1. Ruled out one hop at a time: the VM's conntrack table (65,536 max, nowhere near full), Nginx's listen queue inside its container (`ListenOverflows` and `ListenDrops` both 0).
-2. k6's connect times: every successful connection took under 32 ms. If packets were being lost at random, some would succeed on a retry after about a second. So specific connections were refused outright, not slowed.
-3. pf's `state-mismatch` counter: 5 earlier, 8,835 after the run. So pf was the one dropping them.
-
-**The wrong theory.** I blamed reused ports: macOS reuses a closed connection's port after 30 s, while pf remembers the closed connection for up to 90 s. The fix was a 2-minute cool-down between tests. The next run failed again, worse (1,091 connections), and `state-mismatch` rose to 27,772. The theory explained the first numbers but didn't survive a test.
-
-**The actual cause** (to confirm with the next run). `sudo pfctl -s timeouts` showed `adaptive.start 6000` and `adaptive.end 12000`. Past 6,000 tracked connections, pf shortens all its timers, and at 12,000 they reach zero, so it forgets connections still in their handshake and drops the replies. These thresholds normally sit at 60% and 120% of the state limit, but raising the limit to 200,000 didn't move them. A fresh k6 opens about 8,000 connections in seconds, on top of the previous test's closing connections, which pf keeps for up to 15 minutes (`tcp.closing 900s`). That crosses 12,000. The first run's ceiling of about 6,700 connections also sits just past 6,000.
-
-**Fix.** Raise the adaptive thresholds with the limit: `set timeout { adaptive.start 120000, adaptive.end 240000 }`.
+**What worked.** Raising pf's limit to 200,000. It resets when the Mac restarts, so it's now a setup step in the harness README.
 
 **Lessons.**
 
-- Fast-or-failed with nothing in between means refusal, not overload.
-- Bisect along the path, checking each hop's counters, until one moves.
-- A theory that fits the data still has to survive a prediction. This one predicted that a longer pause would fix it, and it didn't. Say so, and keep looking.
-- When you raise one limit, read the settings around it. Related thresholds are often derived from defaults and don't follow.
+- The error message tells you where to look. "No answer" (timeout), "no" (connection refused) and "slow" are three different problems in three different places.
+- When independent things fail together, look at what they share.
+- Count connections, not just requests. Connection limits can break a test while the server is barely busy.
 
-### 8. The first real result: Node's limit is a cliff
+## Chapter 3: A run failed because Docker Hub didn't answer
 
-At 865 sessions/s (1,209 req/s), Node passed with p95 14 ms and 66% server CPU. At 1,297 sessions/s it failed hard: 1,595 req/s, p95 4,880 ms, 21.8% errors, 96% CPU. No gentle slope in between.
+**What we saw.** A run stopped before any load, while building the Node image: `DeadlineExceeded` while checking `node:24.22.1-alpine` on Docker Hub.
 
-**Lesson.** On one CPU, saturation is a cliff: once requests arrive faster than they're served, the queue grows without limit and latency jumps by orders of magnitude. That's why the protocol uses coarse steps to find the cliff and fine steps to locate it.
+**Why.** Before every run, the image is rebuilt to make sure it matches the code. Even when everything is already on the machine, Docker checks the image's name online. Docker Hub didn't answer within 60 seconds. A minute later it answered fine, so it was a passing blip.
 
-**Still to verify** from the dashboards: why errors appear at about 5 seconds. The database statement timeout is 5 s, which would fit queries waiting behind each other, but that needs checking before it's written down as fact.
+**What worked.** Naming the base image by its exact fingerprint (a digest, `node:24.22.1-alpine@sha256:...`) instead of by name. Every build then uses exactly the same image, and Docker can use the copy it already has.
 
-## Concepts worth knowing
+**Lesson.** A benchmark run shouldn't depend on the internet. Pin every image so runs are repeatable and work offline.
 
-**Virtual users vs requests per second.** A virtual user is k6 pretending to be one person. It mostly waits, like a person reading. Requests per second is the server's actual work. Here a session sends 1.4 requests and lasts about 4 seconds, so 577 sessions/s gave about 810 req/s with about 2,300 virtual users busy. A "users" number on its own depends on how long the pretend people pause. Compare servers on requests per second.
+## Chapter 4: The Mac fell asleep, and k6 ran out of users
 
-**Open vs closed model.** In a closed model, a fixed number of users loop, and a slow server slows them down, which hides latency (coordinated omission). In an open model, new sessions start at a fixed rate whatever the server does, so overload shows up as real latency and errors. This benchmark uses the open model.
+**What we saw.** The third run got much further, but something was off. A test that should take 5 minutes was still "running" 20 minutes later.
 
-**Invalid is not the same as failed.** A failed step means the server couldn't keep up. An invalid run means something else broke, and the numbers say nothing about the server. Mixing the two up is how benchmarks lie.
+**How we found it.** Prometheus had no data at all from 07:46 to 08:03: not from the server, not from Postgres, not even from the Mac itself. When every source goes silent at once, the machine doing the observing stopped. The Mac had gone to sleep, which pauses the VMs and k6.
+
+**Also in that run.** One step failed because k6 ran out of virtual users. k6's log said `Insufficient VUs, reached 5000 active VUs`. That was the per-step groups from Chapter 2, which were capped at 5,000 users each. In another step, k6 stopped sending anything for about 90 seconds at the change from one step to the next.
+
+**What worked.**
+
+- The runner now keeps the Mac awake while it runs (macOS's `caffeinate` command). If the Mac sleeps anyway, for example because the lid was closed, the runner notices and stops the run.
+- Since pf's limit was fixed, the per-step groups weren't needed any more. k6 went back to one group of users for the whole test, which has no step changes to go wrong.
+- When k6 says it ran out of users while the server is still fast, the runner stops the run and says to give k6 more users. Before, it guessed from the server's speed, and guessed wrong.
+
+**Lessons.**
+
+- Keep the test machine awake, and check that it stayed awake.
+- Ask the load generator whether it kept up. Don't guess from the server's numbers.
+- Once the real cause is fixed, remove the workaround. It only adds new ways to fail.
+
+## Chapter 5: Node's first real result
+
+**What we saw.** The fourth run got past every earlier problem, and Node hit its real limit:
+
+| Load | Requests per second | p95 latency | Errors | Server CPU | Result |
+| --- | --- | --- | --- | --- | --- |
+| 865 sessions/s | 1,209 | 14 ms | 0% | 66% | Pass |
+| 1,297 sessions/s | 1,595 | 4,880 ms | 21.8% | 96% | Fail |
+
+The fifth run repeated it almost exactly: 1,211 req/s at 15 ms, then the same collapse.
+
+**What it means.** On one CPU, the limit is a cliff, not a slope. As long as requests arrive slower than the server finishes them, latency stays low. Once they arrive faster, they queue up, the queue grows every second, and latency jumps from milliseconds to seconds. That's why the test first takes big steps to find the cliff, then small steps to find exactly where it is.
+
+**Still to check.** The failing requests took about 5 seconds, which matches the database query timeout we set (5 s). That suggests queries waiting in line for the database, but it needs checking on the dashboards before it's a fact.
+
+## Chapter 6: New connections refused at the start of a test
+
+This one took two attempts to solve.
+
+**What we saw.** Right after Node's cliff, the next test (the fine ramp) started and k6 couldn't open 322 connections in its first few seconds. Node was answering in 16 ms. pf's `memory` counter hadn't moved, so the table wasn't full.
+
+**How we narrowed it down.**
+
+1. We checked each place a connection passes through. The bench VM's own connection table was nowhere near full. Nginx's queue for new connections had dropped nothing.
+2. Every connection that did succeed took less than 32 ms. If the network were randomly losing messages, some connections would succeed on a retry after a second or more. None did. So particular connections were refused outright.
+3. pf's `state-mismatch` counter had gone from 5 to 8,835. That counts messages pf rejected because they didn't match what it expected for that connection. So pf was rejecting them.
+
+**What we thought first.** Each new test starts a fresh k6, which opens about 8,000 new connections in a few seconds. The previous test had closed 10,000 connections 31 seconds earlier. macOS lets a closed connection's port number be reused after 30 seconds, but pf remembers closed connections for up to 90 seconds. So we thought new connections were landing on port numbers pf still linked to old connections.
+
+**What we tried.** A 2-minute pause between tests, so pf would forget the old connections first.
+
+**Why it didn't work.** The next run failed worse: 1,091 connections refused, and `state-mismatch` rose to 27,772. The theory explained the first numbers, but its prediction, that a longer pause would fix it, was wrong.
+
+**What we found.** `sudo pfctl -s timeouts` listed two settings we hadn't looked at:
+
+```
+adaptive.start   6000 states
+adaptive.end    12000 states
+```
+
+When pf tracks more than 6,000 connections, it starts shortening all its timers to save space. At 12,000 the timers reach zero, and pf forgets connections that are still in the middle of their handshake. When the server's reply arrives, pf no longer recognises the connection and drops it. These two numbers are normally 60% and 120% of the table limit, but raising the limit to 200,000 didn't move them.
+
+That explains everything:
+
+- A fresh k6 opens about 8,000 connections at once. The previous test's closing connections can stay in pf's table for up to 15 minutes (`tcp.closing 900s`). Together that's well over 12,000.
+- A 2-minute pause can't clear entries that last 15 minutes, so it didn't help.
+- The very first failure in Chapter 2 happened at about 6,700 connections, just past 6,000.
+
+**What we're doing now.** Raising both numbers in line with the limit, to 120,000 and 240,000. The command is in the harness README. The next run will show whether this was the cause.
+
+**Lessons.**
+
+- If connections either work instantly or fail completely, something is refusing them. It isn't overload.
+- Check each step along the path until one of them shows the problem.
+- A theory that fits the data still has to survive a test. This one didn't, so we said so and kept looking.
+- When you raise one limit, read the settings next to it. Related settings are often based on the old default and don't change on their own.
+
+## Ideas worth understanding
+
+**Virtual users vs requests per second.** Requests per second is what the server actually handles, so it's the fair way to compare servers. The number of virtual users depends on how long the pretend people pause. At 577 sessions per second, k6 sent about 810 requests per second while about 2,300 virtual users were busy, most of them "reading". Make the pauses twice as long and you get twice the users for the same server work.
+
+**Open vs closed load.** In a closed test, a fixed number of users loop. If the server slows down, they slow down too, which hides how slow the server got. In an open test, which this benchmark uses, new sessions start at a fixed rate no matter what. If the server can't keep up, it shows as real latency and errors.
+
+**Failed vs invalid.** A failed step means the server couldn't keep up, and that's a real result. An invalid run means something else broke, the Mac, the network or k6, so the numbers say nothing about the server. The runner stops invalid runs and says why, so they never get recorded as the server failing.
 
 ## Checklist for any load test
 
-Before trusting a result:
-
-1. **Is the load generator the bottleneck?** Check its CPU, memory, dropped iterations, "insufficient VUs" warnings, and connection errors, every run.
-2. **Did the generator machine stay awake and undisturbed?** No sleep, no other heavy work.
-3. **Are connection limits raised everywhere on the path?** Firewall state tables and the thresholds tied to them, conntrack, file descriptors, ephemeral ports, listen backlogs.
-4. **Do you know which errors you got?** Dial timeout, refused, reset, timeout, or 5xx all point to different places.
-5. **Are tests separated enough?** Enough cool-down for closed connections and other leftover state to clear.
-6. **Is the environment pinned and offline-capable?** Image digests, no network dependency during runs.
-7. **Is "invalid" kept separate from "failed"?** The runner should stop and say why, not record a failure for the server.
-8. **Can you line up every source on one timeline?** Generator logs, server metrics, and the generator machine's own metrics, with timestamps.
+1. **Did the load generator keep up?** Check its CPU, memory, and its own warnings about dropped sessions or too few users.
+2. **Did the test machine stay awake and undisturbed?**
+3. **Are connection limits raised along the whole path?** Firewall tables and the settings tied to them, plus port ranges, open-file limits and queue sizes.
+4. **Do you know exactly which errors you got?** No answer, refused, reset, slow and server error all point to different places.
+5. **Is there enough time between tests** for leftovers from the last one to clear?
+6. **Is everything pinned**, so a run doesn't depend on the internet?
+7. **Are invalid runs kept apart from failed ones?**
+8. **Can you line up every source on one timeline?** The load generator's log, the server's metrics and the test machine's own metrics.
 9. **Are you counting connections as well as requests?**
-10. **Did you fix the cause, or a symptom?** Remove workarounds once the cause is fixed.
+10. **Did you fix the cause, or only a symptom?** Remove workarounds once the cause is fixed.
