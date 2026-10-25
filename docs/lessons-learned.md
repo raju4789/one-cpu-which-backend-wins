@@ -168,6 +168,32 @@ So the 281 ms mostly measured how Node recovers from a sudden start, not whether
 - Know what each test is for, and make sure its numbers measure that and nothing else.
 - A server that starts cold, or after a pause, behaves differently from one that's warmed up. Decide which one you're measuring.
 
+## Chapter 8: Three runs that didn't agree
+
+**What we saw.** With the setup finally stable, we ran the Node test three times, 10 minutes apart, to get a number we could trust:
+
+| Run | Confirmed rate | Requests per second | p95 |
+| --- | --- | --- | --- |
+| 1 | 1,124 sessions/s | 1,573 | 13 ms |
+| 2 | 1,297 sessions/s | 1,818 | 39 ms |
+| 3 | 1,211 sessions/s | 1,694 | 18 ms |
+
+All three were valid. No connection failures, the Mac's CPU stayed at or below 25%, and the CPU calibration differed by only 1% between runs. Yet the results were 14% apart.
+
+**How we found out why.** Run 1 first tried to confirm 1,211 sessions/s, the same rate run 3 confirmed easily, and failed. Its timeline showed Node running fine for about 4.5 minutes, at 13 to 46 ms. Then one short hiccup, and about 4,800 requests were suddenly waiting for a database connection. The queue never went away. p95 stayed at over 2 seconds for the rest of the test, and the time Node spent on garbage collection (cleaning up unused memory) went up four times.
+
+**Why.** Right at its limit, Node has no spare capacity. Normally a small hiccup creates a short queue that clears in a moment. But when thousands of requests are waiting, each one holds memory, so Node spends more time cleaning up memory, which leaves less time for real work, so the queue can't shrink. The overload has become self-sustaining: a stable state of its own, even though the load hasn't changed. Engineers call this a metastable failure. It's the same reason Node never recovered in any overload test.
+
+So which rate a run confirms depends partly on luck: whether a hiccup happens during its 5-minute confirm. On top of that, the fine steps are about 7% apart, so the three runs landed exactly one step either side of the middle.
+
+**What we did.** Took the median of the three, 1,694 requests per second, and report it with its range (1,573 to 1,818). And we put "don't let a hiccup snowball" first on the tuning list: instead of letting requests wait up to 5 seconds for a database connection, answer "busy" quickly when the queue is long.
+
+**Lessons.**
+
+- Run more than once. A single run would have given 1,573, 1,694 or 1,818, depending on which one we happened to do.
+- When repeated runs disagree, find out why before averaging. Here the spread was real behaviour, not noise in the setup.
+- A system at its limit can tip from "fine" into a stuck state from one small disturbance, and stay there after the disturbance is gone. Unbounded queues make this worse: every waiting request costs memory and time.
+
 ## Ideas worth understanding
 
 **Virtual users vs requests per second.** Requests per second is what the server actually handles, so it's the fair way to compare servers. The number of virtual users depends on how long the pretend people pause. At 577 sessions per second, k6 sent about 810 requests per second while about 2,300 virtual users were busy, most of them "reading". Make the pauses twice as long and you get twice the users for the same server work.
