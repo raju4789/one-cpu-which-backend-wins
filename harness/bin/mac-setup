@@ -18,7 +18,8 @@ source "$(dirname "$0")/common.sh"
 
 log "Mac: pf state table and adaptive timeouts (asks for your password)"
 printf 'set limit states 400000\nset timeout { adaptive.start 240000, adaptive.end 480000 }\n' \
-  | sudo pfctl -O -f - 2>&1 | grep -v -e ALTQ -e "^$" || true
+  | sudo pfctl -O -f - 2>&1 | grep -v -e ALTQ -e "^$" -e "Use of -f option" -e "flushing of rules" -e "pf.conf for further" || true
+# (pfctl warns that -f can flush the system's rules; with -O only options are loaded, the rules stay.)
 
 log "Mac: outgoing port range"
 sudo sysctl -qw net.inet.ip.portrange.first=10000
