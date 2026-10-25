@@ -237,6 +237,41 @@ During overload, more requests fail now, but they fail in milliseconds with a cl
 - Failing fast is kinder than failing slowly: a quick "busy" lets a client retry, a 5-second timeout just wastes everyone's time.
 - Judge a change on what it's meant to fix. This one was about stability, so the overload test is what decides it.
 
+## Chapter 11: Tuning Node, and knowing when to stop
+
+After load shedding (chapter 10), we followed the data instead of the list of ideas, one change at a time, each judged by a quick run.
+
+**What the database was busy with.** Postgres's own statistics (`pg_stat_statements`) showed the feed query was 96% of its query time: 508 of 528 seconds. Likes and new posts together were about 20 seconds. So the planned "likes in one SQL statement" was skipped: even making likes free would barely matter.
+
+**Two ideas for the feed query, measured before building anything.** With `pgbench`, Postgres's benchmark tool, running each version thousands of times:
+
+| Version of the feed query | Time per query |
+| --- | --- |
+| As Prisma writes it (a `LATERAL JOIN` that builds the author as JSON) | 0.238 ms |
+| Hand-written plain `JOIN` | 0.228 ms (4% less) |
+| Prisma's, as a named prepared statement | 0.197 ms (17% less) |
+
+The hand-written query wasn't worth giving up the ORM for 4%. Prepared statements were: without a name, Postgres parses and plans every query from scratch; with one, it does that once per connection and reuses the plan.
+
+**What each change did in a quick run:**
+
+| Change | Result | Kept? |
+| --- | --- | --- |
+| Prepared statements | Postgres 8 to 12% less CPU at every step; passing rate unchanged | Yes: less work, and the default in the other stacks' database drivers |
+| Load-shedding queue 100 → 300 | Same step passed with fewer requests turned away (0.30% instead of 0.69%); clean recovery | Yes |
+| Connection pool 10 → 4 | Postgres no cheaper, Node busier, requests waited longer | No, back to 10 |
+
+**Why we stopped.** The tuning plan's rule: stop when changes stop paying. The last two were under the 10% bar. Most of the core now goes to work any stack must do: Postgres running the feed query and Nginx. And the original "reach 85 to 90% of what Postgres alone can do" turned out to be impossible: Node itself needs a third of the same core. We replaced it with a fairer measure, how the core is split at the limit, for every stack.
+
+**What tuning bought, in quick runs.** One step more, about +8% (1,221 to 1,318 sessions per second), which the full runs still have to confirm. The bigger change was stability: from never recovering after overload to recovering with no errors.
+
+**Lessons.**
+
+- Measure where the time goes before choosing what to tune. The obvious idea (likes) would have been wasted work.
+- Test an idea in isolation first when you can. `pgbench` settled two candidates in a minute each, before writing any code.
+- Rules of thumb are a starting point, not a result. "2 to 3 connections per core" made things worse here.
+- Decide in advance when to stop, or tuning never ends and the stack you spend the longest on wins.
+
 ## Ideas worth understanding
 
 **Virtual users vs requests per second.** Requests per second is what the server actually handles, so it's the fair way to compare servers. The number of virtual users depends on how long the pretend people pause. At 577 sessions per second, k6 sent about 810 requests per second while about 2,300 virtual users were busy, most of them "reading". Make the pauses twice as long and you get twice the users for the same server work.
