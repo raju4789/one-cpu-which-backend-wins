@@ -2,6 +2,18 @@
 
 The same process for Node, Spring Boot and Rails, so the comparison stays fair. It was written before tuning started, so it can't be bent later to suit one stack.
 
+## Status
+
+| Stack | Tuning | Result |
+| --- | --- | --- |
+| Node | **Finished** 25 October 2026, tagged `node-tuned` | See below. Final full runs pending (step 6) |
+| Spring Boot | Not started | |
+| Rails | Not started | |
+
+**Node, in short.** Kept: load shedding (at most 10 + 300 requests using or waiting for a database connection, then 503) and named prepared statements. Dropped: a hand-written feed query (4% cheaper, not worth leaving the ORM), a connection pool of 4 (Postgres no cheaper, requests waited longer in Node). Skipped: likes in one SQL statement (likes were 2% of Postgres's time). In quick runs the passing rate went from 1,221 to 1,318 sessions/s, about +8% and one step, still to be confirmed by full runs; the bigger change is that Node now recovers from overload with no errors, where before it never did.
+
+We stopped because the step 5 signals agreed: the last two changes each brought less than 10%, there was no obvious wasted work left (garbage collection about 3% of the core), and most of the core went to work every stack must do, Postgres running the feed query and Nginx. Not because ideas ran out: what remained was either tiny (Node's memory settings) or would make Node atypical (dropping the ORM), which isn't a fair comparison. Details: the tuning log in [`stacks/node/README.md`](../stacks/node/README.md#tuning-log) and [chapters 9 to 11 of the lessons](lessons-learned.md).
+
 ## The rule
 
 Every change must be something a production team would really ship. No benchmark-only tricks. If you wouldn't ship it at work, it's not allowed here.
@@ -12,19 +24,24 @@ Only the stack's own code and settings change, in `stacks/<name>/`. The machine,
 
 Postgres is configured for the machine it runs on: memory and connection settings sized for 1 CPU and 2 GB. This lives in the shared harness, not in a stack's folder, and every stack runs with it.
 
-It goes first because it changes the ceiling (step 2) for every stack. The Node baseline is rerun with it, so before-and-after numbers stay comparable.
+It goes first because it changes the environment every stack runs in. The Node baseline is rerun with it, so before-and-after numbers stay comparable.
 
-## Step 2: The ceiling test
+**Done.** `shared_buffers` 512 MB (the database fits), `effective_cache_size` 1 GB, gentler autovacuum, vacuum logging. Neutral for throughput, as the data predicted: the feed query itself is the work. Kept as sensible production defaults.
 
-Measure what Postgres alone can do on the one core, running exactly our queries (the feed read, creating a post, a like) in the same mix as the load test, with Postgres's own benchmark tool, pgbench, and no app in between.
+## Step 2: Where the time goes (replaces the ceiling test)
 
-pgbench runs from outside the bench VM, so only Postgres uses the core. Its result is the upper limit for any stack using this database.
+**Originally:** measure what Postgres alone can do on the core, with pgbench and no app, as an upper limit, and stop tuning at 85 to 90% of it.
 
-**Correction, after tuning Node.** A stack can't get anywhere near that limit, because the app itself needs a large share of the same core (Node used about a third of it). So "reach 85 to 90% of the ceiling" was the wrong stopping rule. What's useful and fair is to report, for every stack at its limit, how the core was split between the app, Postgres and Nginx, measured the same way for all three. A stack whose own share is small has little left to tune.
+**Changed after tuning Node, and no longer a required step.** No stack can get near that limit, because the app needs a large share of the same core (Node used about a third). So the number couldn't serve as a stopping rule, and nothing else depends on it. What replaces it is measured in every run already, the same way for every stack: how the core is split between the app, Postgres and Nginx at the limit (per-container CPU in `result.json` and Grafana). A stack whose own share is small has little left to tune.
+
+Two tools from this step stay, because they decided what to tune:
+
+- **`pg_stat_statements`**: which queries take Postgres's time. For Node, the feed query was 96% of it.
+- **pgbench on a single query**: test an idea in isolation before writing code, by running the query thousands of times in each form. For Node, this settled two candidates in a minute each.
 
 ## Step 3: Quick-mode baseline
 
-One quick run of the untuned stack. Every change is compared against this.
+One quick run of the untuned stack, after step 1. Every change is compared against this. Keep the Mac quiet: a busy Mac made one Node run look 25% worse. Compare only runs without a calibration warning, or with similar calibrations.
 
 ```sh
 harness/bin/run <stack> <phase> --quick              # about 11 minutes
@@ -43,6 +60,7 @@ Quick mode:
 
 For each candidate:
 
+0. Pick the candidate from the data, not from the order of the list: measure where the time goes first (step 2), and test the idea in isolation if you can.
 1. Make the change. Run the unit tests and the contract test.
 2. Do one quick run.
 3. Keep it only on a clear win: about 10% more throughput, or clearly better stability (for example, recovering after overload). Drop anything marginal.
@@ -67,12 +85,16 @@ Three full runs of the final tuned version, 10 minutes apart. Report the median 
 
 **Rerun the untuned baseline too, in the same batch.** A before-and-after comparison is only fair if nothing else changed in between. Step 1 changed the shared Postgres settings after Node's first baseline was measured, so the untuned version gets three new full runs on the current harness. Tag the untuned and tuned code (for Node: `node-untuned`, `node-tuned`) and run both, plus the cache phases on the tuned version, with `harness/bin/batch`, interleaved, ideally overnight. Stacks tuned after the Postgres change don't need this.
 
-## Candidates for Node, in order
+## Candidates for Node, as planned, and what happened
 
-1. **Fail fast.** Today a request waits up to 5 seconds for a database connection, and one hiccup can snowball into an overload Node never recovers from (see [chapter 8 of the lessons](lessons-learned.md)). Instead: a short wait, then answer "busy" (503). Test with `--quick --overload`. Keep it if Node recovers without losing throughput.
-2. **Likes in one SQL statement** instead of four round trips. Postgres is the busiest part (40 to 46% of the core). The likes-correctness check in the contract test must still pass. Look for less Postgres CPU and a higher limit.
-3. **Connection pool size.** Try a couple of sizes around the current 10, guided by Grafana's pool panel.
-4. **Node memory settings,** only if the dashboards show garbage collection costing real time.
+The list as written before tuning, with the outcome. Two candidates that weren't on it came from the data.
+
+1. **Fail fast.** *Kept, with the queue later raised from 100 to 300.* Today a request waits up to 5 seconds for a database connection, and one hiccup can snowball into an overload Node never recovers from (see [chapter 8 of the lessons](lessons-learned.md)). Instead: a short wait, then answer "busy" (503). Test with `--quick --overload`. Keep it if Node recovers without losing throughput.
+2. **Likes in one SQL statement** instead of four round trips. *Skipped: likes were 2% of Postgres's query time.* Postgres is the busiest part (40 to 46% of the core). The likes-correctness check in the contract test must still pass. Look for less Postgres CPU and a higher limit.
+3. **Connection pool size.** Try a couple of sizes around the current 10, guided by Grafana's pool panel. *Tried 4: dropped.*
+4. **Node memory settings,** only if the dashboards show garbage collection costing real time. *Not tried: about 3% of the core.*
+5. *Not on the list:* the feed as a hand-written `JOIN`. *Measured with pgbench, 4% cheaper: dropped before building.*
+6. *Not on the list:* named prepared statements. *Kept: Postgres 8 to 12% less CPU.*
 
 ## Candidates for Spring Boot and Rails
 
@@ -80,6 +102,6 @@ Decided when we build them, with the same rule and process. Starting points alre
 
 ## Time budget per stack
 
-- Shared Postgres settings and the ceiling test (once, before the first stack): about 1 hour
+- Shared Postgres settings (once, before the first stack): about 1 hour
 - Quick baseline and up to four changes: about 2 to 3 hours
 - Three full runs: about 2 hours
