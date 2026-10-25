@@ -18,7 +18,9 @@ It goes first because it changes the ceiling (step 2) for every stack. The Node 
 
 Measure what Postgres alone can do on the one core, running exactly our queries (the feed read, creating a post, a like) in the same mix as the load test, with Postgres's own benchmark tool, pgbench, and no app in between.
 
-pgbench runs from outside the bench VM, so only Postgres uses the core. Its result is the upper limit for any stack using this database. Every stack's result is then also reported as a share of it, for example "Node reaches 80% of what the database can handle".
+pgbench runs from outside the bench VM, so only Postgres uses the core. Its result is the upper limit for any stack using this database.
+
+**Correction, after tuning Node.** A stack can't get anywhere near that limit, because the app itself needs a large share of the same core (Node used about a third of it). So "reach 85 to 90% of the ceiling" was the wrong stopping rule. What's useful and fair is to report, for every stack at its limit, how the core was split between the app, Postgres and Nginx, measured the same way for all three. A stack whose own share is small has little left to tune.
 
 ## Step 3: Quick-mode baseline
 
@@ -55,7 +57,7 @@ Stop when the signals agree:
 
 1. **Diminishing returns.** Two sensible changes in a row each bring less than 10%.
 2. **No wasted work left.** The busiest part is spending its time on work that has to happen, not on extra round trips, waiting or garbage collection.
-3. **Close to the ceiling.** The stack reaches about 85 to 90% of the ceiling from step 2.
+3. **The app's own share is small.** At the limit, most of the core goes to work every stack must do (Postgres running the queries, Nginx), not to the app's overhead. (This replaced "85 to 90% of the ceiling", which no stack can reach while sharing the core.)
 
 There's also a time limit: about one day of tuning per stack, the same for all three, so no stack wins just by getting more attention.
 

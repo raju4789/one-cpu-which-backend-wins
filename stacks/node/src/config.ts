@@ -20,9 +20,10 @@ export const config = {
   // "app": cache GET /feed in memory for 1 s. "off": never cache. Set by the harness per phase.
   feedCache: process.env.FEED_CACHE === "app",
   feedCacheTtlMs: 1000,
-  // Postgres connection pool. One CPU is shared with Postgres, so more
-  // connections than busy queries only adds context switching. See README.
-  dbPoolMax: int("DB_POOL_MAX", 10),
+  // Postgres connection pool. One CPU is shared by Node, Postgres and Nginx, so
+  // connections beyond what the core can run at once only take turns (the
+  // usual rule of thumb is 2 to 3 per core). Was 10; see the tuning log.
+  dbPoolMax: int("DB_POOL_MAX", 4),
   // Load shedding: at most this many requests wait for a connection on top of
   // the ones using the pool; more get 503 at once (src/limiter.ts). At about
   // 1,850 req/s, 300 waiting is roughly 160 ms of queue: enough to absorb
