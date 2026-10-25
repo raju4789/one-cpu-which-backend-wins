@@ -262,6 +262,7 @@ def check_connections(run, r, t0, t1):
     r["dial_errors"] = sum(1 for t in run.dial_errors if t0 - 1 <= t <= t1 + 1)
     latency_ok = all(r[k] is None or r[k] < lim for k, lim in (("p95_s", P95_MAX), ("p99_s", P99_MAX)))
     if r["dial_errors"] and latency_ok:
+        r["passed"], r["fail_reasons"] = False, [f"invalid: k6 could not connect {r['dial_errors']} times"]
         raise RunInvalid(
             f"k6 could not open {r['dial_errors']} connections while the server answered in "
             f"p95 {(r['p95_s'] or 0) * 1000:.0f} ms. That is the Mac or the VM network, not the stack. "
@@ -567,7 +568,7 @@ def write_summary(ctx, res):
         for i, s in enumerate(res.get("ramp", {}).get(kind, [])):
             cpu = s["server"]["vm_cpu_avg"]
             cpu_txt = f"{cpu * 100:.0f}%" if cpu is not None else "-"
-            outcome = "pass" if s["passed"] else "fail: " + ", ".join(s["fail_reasons"])
+            outcome = "pass" if s.get("passed") else "fail: " + ", ".join(s.get("fail_reasons", ["not judged"]))
             lines.append(f"| {kind} {i + 1} | {s['rate']} | {s['rps']:.0f} | {ms(s['p95_s'])} ms | "
                          f"{ms(s['p99_s'])} ms | {pct(s['error_rate'])} | {cpu_txt} | {outcome} |")
     o = res.get("overload")
