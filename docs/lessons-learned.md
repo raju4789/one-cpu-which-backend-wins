@@ -272,6 +272,24 @@ The hand-written query wasn't worth giving up the ORM for 4%. Prepared statement
 - Rules of thumb are a starting point, not a result. "2 to 3 connections per core" made things worse here.
 - Decide in advance when to stop, or tuning never ends and the stack you spend the longest on wins.
 
+## Chapter 12: The first cache runs, and a load generator that ran out of memory
+
+**The app cache worked.** With Node keeping the feed in memory for one second, a quick run passed 2,808 sessions per second (3,926 requests per second), about twice the no-cache limit. The work moved: Postgres dropped to about 17% of the core, and Node became the busiest part at about 42%, since it now serves almost every request itself.
+
+**The Nginx cache run collapsed.** Its first step, 5,000 sessions per second, served only 360 requests per second, with requests taking 41 seconds and timing out.
+
+**How we found out why.** Two numbers didn't fit. Nginx's own counter showed it handling up to 6,700 requests per second, yet k6 recorded 360. And the Mac's CPU, normally about 20%, jumped to 63%. The Mac's memory explained both: free memory fell from 5.5 GB to 0.1 GB, and macOS compressed an extra 5.3 GB to make room. After k6 exited, 9 GB came back. k6 had been given 40,000 virtual users, about 250 KB each, roughly 10 GB. Compressing memory costs CPU, so k6 slowed itself down, and its timeouts were partly its own.
+
+The server had a problem too. k6 hands out its users in turn, so the first pass opened a new connection for each one: 40,000 open connections within 30 seconds, and Nginx spent the core and 880 MB of memory just holding them.
+
+**What we changed.** The cache phases get at most 25,000 virtual users, about what 5,000 sessions per second needs (each session lasts about 4 seconds), roughly 6.5 GB. If a phase needs more, the runner stops it as limited by the load generator instead of recording a result. And the runner now watches the Mac's memory: if macOS compresses more than 2 GB extra during a run, it warns that k6 may have slowed itself down.
+
+**Lessons.**
+
+- The load generator needs resources in proportion to the load. Ten thousand times a small number is a big number.
+- When the server says it served far more than the client says it received, suspect the client.
+- Check the load generator's memory as well as its CPU. Memory pressure shows up as CPU first.
+
 ## Ideas worth understanding
 
 **Virtual users vs requests per second.** Requests per second is what the server actually handles, so it's the fair way to compare servers. The number of virtual users depends on how long the pretend people pause. At 577 sessions per second, k6 sent about 810 requests per second while about 2,300 virtual users were busy, most of them "reading". Make the pauses twice as long and you get twice the users for the same server work.

@@ -395,6 +395,7 @@ def _ramp_steps(ctx, prom, rates, test, run, start, steps):
         r.update({"rate": rate, "dropped_sessions": int(dropped), "server": server_metrics(prom, t0, t1)})
         steps.append(r)
         check_run(ctx, run, r, t0 - SETTLE_SECONDS, t1)
+        check_mac_memory(ctx, prom, r, t1)
         r["fail_reasons"] = verdict(r, dropped_ratio)
         r["passed"] = not r["fail_reasons"]
         cpu = r["server"]["vm_cpu_avg"]
@@ -466,6 +467,12 @@ def main():
     bin_dir = os.path.join(HARNESS, "bin")
     log(f"Run {ctx.run_id}, results in {os.path.relpath(ctx.out, REPO)}")
     check_mac_ports(ctx.max_vus)
+    ctx.result = result
+    ctx.run_started = time.time()
+    try:
+        ctx.mac_compressed_start = mac_compressed_gb(prom) if sys.platform == "darwin" else None
+    except (RunInvalid, RuntimeError, OSError):
+        ctx.mac_compressed_start = None
     ctx.sleeps = []
     threading.Thread(target=watch_sleep, args=(ctx,), daemon=True).start()
     if sys.platform == "darwin":  # keep the Mac awake until this process exits (lid closed still sleeps)
@@ -577,6 +584,7 @@ def protocol(args, ctx, prom, result, bin_dir):
         c["fail_reasons"] = verdict(c, dropped_ratio)
         c["rate"] = rate
         c["server"] = server_metrics(prom, t0, t1)
+        check_mac_memory(ctx, prom, c, t1)
         outcome = "CONFIRMED" if not c["fail_reasons"] else "FAIL (" + ", ".join(c["fail_reasons"]) + ")"
         log(f"  {fmt(c)} -> {outcome}")
         result.setdefault("confirm_attempts", []).append(c)
@@ -624,6 +632,35 @@ def check_mac_ports(max_vus):
     if max_vus > ports * 0.9:
         fail(f"--max-vus {max_vus} needs up to {max_vus} connections, but the Mac has only {ports} ports "
              f"for them ({lo}-{hi}). Run harness/bin/mac-setup (after every reboot)")
+
+
+MAC_COMPRESSED_GROWTH_GB = 2.0  # more than this during a run: the Mac was short of memory
+
+
+def mac_compressed_gb(prom, t=None, over=None):
+    q = 'node_memory_compressed_bytes{job="mac"}'
+    v = prom.scalar(f"max_over_time({q}[{over}])" if over else q, t)
+    return v / 1e9 if v is not None else None
+
+
+def check_mac_memory(ctx, prom, r, t1):
+    """macOS compresses memory when it runs short, which costs CPU and slows k6 down.
+
+    With too many virtual users (about 250 KB each), k6 itself becomes the bottleneck and its
+    latencies include its own delays. Recorded per step; a warning, since macOS memory is noisy.
+    """
+    if ctx.mac_compressed_start is None:
+        return
+    peak = mac_compressed_gb(prom, t1, f"{max(10, int(t1 - ctx.run_started))}s")
+    if peak is None:
+        return
+    growth = peak - ctx.mac_compressed_start
+    r.setdefault("server", {})["mac_compressed_growth_gb"] = round(growth, 2)
+    if growth > MAC_COMPRESSED_GROWTH_GB and not getattr(ctx, "warned_memory", False):
+        ctx.warned_memory = True
+        warn(ctx.result, f"the Mac compressed {growth:.1f} GB more memory during the run: it was short of "
+                         "memory, so k6 may have slowed itself down. Lower --max-vus or close other apps, and "
+                         "don't trust latencies from this point on")
 
 
 def warn(result, msg):
@@ -674,7 +711,11 @@ def quick(args, ctx, prom, result):
     steps = ramp(ctx, prom, rates, "ramp-quick", result["ramp"]["coarse"], ramp_up=RAMP_SECONDS)
     passing = [s for s in steps if s["passed"]]
     if not passing:
-        fail(f"the first step ({rates[0]} sessions/s) already failed; rerun with a lower --quick-from")
+        result["result"] = None
+        result["status"] = "complete"
+        save(ctx, result)
+        fail(f"the first step ({rates[0]} sessions/s) already failed; rerun with a lower --quick-from. "
+             f"Results saved in {os.path.relpath(ctx.out, REPO)}")
     best = passing[-1]
     if len(passing) == len(rates):
         log(f"Every step passed up to {rates[-1]} sessions/s: rerun with a higher --quick-from")

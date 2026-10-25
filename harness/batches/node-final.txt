@@ -5,12 +5,13 @@
 # lid open, nothing else running.
 #
 # node-untuned is the Node code before tuning, node-tuned after it. The cache
-# phases get up to 40,000 virtual users: at several thousand sessions/s, each
-# lasting about 4 s, that many are busy at once.
+# phases get up to 25,000 virtual users: at 5,000 sessions/s, each lasting about
+# 4 s, about 20,000 are busy at once. 40,000 needed about 10 GB on the Mac and
+# slowed k6 down; past ~6,000 sessions/s the Mac can't generate the load cleanly.
 repeat 3
 cooldown 600
 # label            ref            stack  phase
 node-untuned       node-untuned   node   none
 node-tuned         node-tuned     node   none
-node-tuned-app     node-tuned     node   app     --max-vus 40000
-node-tuned-nginx   node-tuned     node   nginx   --max-vus 40000
+node-tuned-app     node-tuned     node   app     --max-vus 25000
+node-tuned-nginx   node-tuned     node   nginx   --max-vus 25000
