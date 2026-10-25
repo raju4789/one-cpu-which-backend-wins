@@ -194,6 +194,26 @@ So which rate a run confirms depends partly on luck: whether a hiccup happens du
 - When repeated runs disagree, find out why before averaging. Here the spread was real behaviour, not noise in the setup.
 - A system at its limit can tip from "fine" into a stuck state from one small disturbance, and stay there after the disturbance is gone. Unbounded queues make this worse: every waiting request costs memory and time.
 
+## Chapter 9: The same test, 25% more expensive, because the Mac was busy
+
+**What we tried.** The first tuning step was the shared Postgres settings: more memory for its cache, so the whole database fits, and gentler autovacuum. Then one quick run to check nothing got worse.
+
+**What we saw.** It looked worse. At about 1,000 sessions per second, every container used about 25% more CPU than in the earlier runs, Node and Nginx included: Node 30% instead of 24%, Postgres 41% instead of 32%. The run failed one step earlier than before.
+
+**How we found the cause.** A Postgres setting can't make Node or Nginx do more work per request. When everything gets slower by the same proportion, the processor itself was slower. Two numbers agreed. The CPU calibration took 5.75 seconds instead of the usual 5.45 to 5.52. And the Mac was busier than usual during the test, at 27 to 34% CPU instead of 14 to 24%, because a voice call with Claude and a browser were running alongside it.
+
+The VM always gets "one CPU", but that's a thread the Mac schedules on its real cores. When the Mac is busy, macOS can run it on a slower core, or lower the clock speed. The VM still has one CPU, it just does less work per second.
+
+**What worked.** The same quick run again, with the voice call ended and the browser closed. CPU per container went back to the earlier levels (Node 25%, Postgres 36%), and the run passed up to 1,221 sessions per second (1,709 requests per second), the same zone as before. So the Postgres settings were neutral for throughput, as the data had predicted: the feed query itself is the work, and settings don't make it smaller. We kept them as sensible production defaults.
+
+The runner now compares every calibration with earlier runs and warns when the core was more than 3% slower than usual.
+
+**Lessons.**
+
+- Keep the test machine quiet. Anything else running, even a voice call, changes the result.
+- When everything slows down by the same proportion, suspect the machine, not the change you just made.
+- Measure the speed of the hardware on every run, and act on it, not just record it.
+
 ## Ideas worth understanding
 
 **Virtual users vs requests per second.** Requests per second is what the server actually handles, so it's the fair way to compare servers. The number of virtual users depends on how long the pretend people pause. At 577 sessions per second, k6 sent about 810 requests per second while about 2,300 virtual users were busy, most of them "reading". Make the pauses twice as long and you get twice the users for the same server work.

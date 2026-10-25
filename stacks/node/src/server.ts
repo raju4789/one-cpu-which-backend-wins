@@ -1,4 +1,5 @@
 import { buildApp } from "./app.js";
+import { ConcurrencyLimit } from "./limiter.js";
 import { config } from "./config.js";
 import { closeDatabase, handlePoolErrors, pool, prisma, waitForDatabase } from "./db.js";
 import { registerPoolMetrics, startMetricsServer } from "./metrics.js";
@@ -6,7 +7,7 @@ import { PostService } from "./posts/service.js";
 
 // One process on one core. Cluster mode or worker threads would only add
 // processes competing for the same CPU, so there is exactly one event loop.
-const app = buildApp(new PostService(prisma));
+const app = buildApp(new PostService(prisma, new ConcurrencyLimit(config.dbPoolMax + config.dbMaxQueue)));
 handlePoolErrors((err) => app.log.warn({ err }, "idle database connection failed, the pool will replace it"));
 registerPoolMetrics(pool, config.dbPoolMax);
 const metricsServer = startMetricsServer(config.metricsPort);

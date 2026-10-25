@@ -57,6 +57,7 @@ test/                 unit tests (node:test), no database needed
 - **Survives a broken idle connection.** `pg` reports it as an `error` event, which would crash the process if unhandled. It's logged, and the pool replaces the connection.
 - **Fails loudly on bugs.** An unhandled rejection or exception is logged as `fatal` in the same JSON format, then the process exits instead of running in an unknown state.
 - **Limits.** Queries are cancelled after 5 s (`statement_timeout`), so a stuck query can't hold a connection. Request bodies are capped at 16 KB.
+- **Load shedding.** At most `DB_POOL_MAX + DB_MAX_QUEUE` requests (10 + 100) may be using or waiting for a database connection. The next one gets `503` with `Retry-After: 1` straight away, instead of joining a queue that can grow to thousands (`src/limiter.ts`). No request waits more than 1 s for a connection. Cached feeds and `/health` are never shed.
 - **Multi-stage image.** The build stage compiles TypeScript and generates the Prisma client. The runtime stage has only production dependencies and compiled code, runs as the unprivileged `node` user, with `NODE_ENV=production`.
 - **Exact versions** in `package.json` and a lockfile, so every build installs the same code.
 - **Tests in the build.** `npm test` runs unit tests for the feed cache, the error mapping and every HTTP status, with the database replaced by a fake. The image build runs them, so an image that fails them is never built. The full behaviour against Postgres is checked by the [contract test](../../k6/README.md#contract-test).
@@ -88,6 +89,8 @@ The `app_*` names are shared with the other stacks, so Grafana can show them sid
 | `FEED_CACHE` | `off` | harness, per phase |
 | `METRICS_PORT` | 9464 | |
 | `DB_POOL_MAX` | 10 | tuning |
+| `DB_MAX_QUEUE` | 100 | tuning |
+| `DB_CONNECT_TIMEOUT_MS` | 1000 | tuning |
 | `DB_STATEMENT_TIMEOUT_MS` | 5000 | |
 | `LOG_LEVEL` | `warn` | |
 | `OTEL_ENABLED` | `false` | |
@@ -100,6 +103,6 @@ Tuning follows the [tuning plan](../../docs/tuning-plan.md): one production-grad
 
 | Date | Change | Why | Quick run before | Quick run after | Kept? |
 | --- | --- | --- | --- | --- | --- |
-| | | | | | |
+| 25 Oct | Load shedding: at most 110 requests using or waiting for a database connection, then 503; connection wait 5 s → 1 s | Under overload, a queue of thousands formed at the pool and never drained, even after the load dropped | 1,709 req/s (1,221 sessions/s); no recovery after overload | pending | |
 
-Starting point: pool of 10, a 5-second wait for a database connection, default heap, one process. Candidates, in order, are in the tuning plan.
+Starting point: pool of 10, a 5-second wait for a database connection, default heap, one process. The quick baseline (`results/node/none/20261025-151815-quick`, with the tuned Postgres settings) passed 1,221 sessions/s (1,709 req/s) and failed at 1,318. Candidates, in order, are in the tuning plan.

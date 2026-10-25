@@ -9,7 +9,7 @@ export const pool = new pg.Pool({
   connectionString: config.databaseUrl,
   max: config.dbPoolMax,
   idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000,
+  connectionTimeoutMillis: config.dbConnectTimeoutMs,
   statement_timeout: config.dbStatementTimeoutMs,
   application_name: "one-cpu-node",
 });

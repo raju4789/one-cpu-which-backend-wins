@@ -1,6 +1,7 @@
 import fastJson from "fast-json-stringify";
 import type { PrismaClient } from "../generated/prisma/client.js";
 import { fromDatabaseError } from "../errors.js";
+import { ConcurrencyLimit } from "../limiter.js";
 import { feedResponse } from "./schemas.js";
 
 const FEED_SIZE = 20;
@@ -38,27 +39,31 @@ const postFields = { id: true, body: true, likeCount: true, createdAt: true, aut
 const serializeFeed = fastJson(feedResponse as unknown as Parameters<typeof fastJson>[0]);
 
 export class PostService {
-  constructor(private readonly db: PrismaClient) {}
+  // Every database call goes through `limit`, which sheds load when the queue is full.
+  constructor(
+    private readonly db: PrismaClient,
+    private readonly limit = new ConcurrencyLimit(Number.POSITIVE_INFINITY),
+  ) {}
 
   // Latest 20 posts with their authors, as one SQL query: relationLoadStrategy
   // "join" makes Prisma fetch the author with a LATERAL JOIN instead of a second query.
   async feedJson(): Promise<string> {
-    const rows = await this.db.post.findMany({
+    const rows = await this.limit.run(() => this.db.post.findMany({
       select: postFields,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: FEED_SIZE,
       relationLoadStrategy: "join",
-    });
+    }));
     return serializeFeed({ posts: rows.map(toDto) });
   }
 
   async create(userId: number, body: string): Promise<PostDto> {
     try {
-      const row = await this.db.post.create({
+      const row = await this.limit.run(() => this.db.post.create({
         data: { userId: BigInt(userId), body },
         select: postFields,
         relationLoadStrategy: "join",
-      });
+      }));
       return toDto(row);
     } catch (err) {
       throw fromDatabaseError(err) ?? err;
@@ -71,7 +76,7 @@ export class PostService {
   // Never read-modify-write in app code: under concurrency that loses likes.
   async like(postId: number, userId: number): Promise<void> {
     try {
-      await this.db.$transaction(async (tx) => {
+      await this.limit.run(() => this.db.$transaction(async (tx) => {
         const { count } = await tx.like.createMany({
           data: [{ postId: BigInt(postId), userId: BigInt(userId) }],
           skipDuplicates: true,
@@ -83,7 +88,7 @@ export class PostService {
             select: { id: true },
           });
         }
-      });
+      }));
     } catch (err) {
       throw fromDatabaseError(err) ?? err;
     }

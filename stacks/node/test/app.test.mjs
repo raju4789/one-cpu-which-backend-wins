@@ -6,11 +6,13 @@ process.env.DATABASE_URL ??= "postgres://unused/none";
 process.env.LOG_LEVEL = "silent";
 const { buildApp } = await import("../dist/app.js");
 const { ApiError } = await import("../dist/errors.js");
+const { Overloaded } = await import("../dist/limiter.js");
 
 const created = { id: 1, body: "hi", like_count: 0, created_at: new Date("2026-01-01T00:00:00Z"),
   author: { id: 7, username: "user_7", display_name: "User 7" } };
+let overloaded = false;
 const fake = {
-  feedJson: async () => '{"posts":[]}',
+  feedJson: async () => { if (overloaded) throw new Overloaded(); return '{"posts":[]}'; },
   create: async (userId, body) => ({ ...created, body, author: { ...created.author, id: userId } }),
   like: async (postId) => { if (postId === 404) throw new ApiError(404, "post not found"); },
 };
@@ -70,4 +72,17 @@ test("unknown routes are a 404 with an error body", async () => {
 test("bodies over the size limit are rejected", async () => {
   const r = await inject({ method: "POST", url: "/posts", headers: { ...json, "x-user-id": "7" }, payload: { body: "x".repeat(20_000) } });
   assert.equal(r.statusCode, 413);
+});
+
+test("a full database queue is a 503 with Retry-After, and /health still answers", async () => {
+  overloaded = true;
+  try {
+    const r = await inject({ url: "/feed" });
+    assert.equal(r.statusCode, 503);
+    assert.equal(r.headers["retry-after"], "1");
+    assert.equal(typeof r.json().error, "string");
+    assert.equal((await inject({ url: "/health" })).statusCode, 200);
+  } finally {
+    overloaded = false;
+  }
 });

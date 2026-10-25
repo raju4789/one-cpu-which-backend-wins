@@ -23,6 +23,12 @@ export const config = {
   // Postgres connection pool. One CPU is shared with Postgres, so more
   // connections than busy queries only adds context switching. See README.
   dbPoolMax: int("DB_POOL_MAX", 10),
+  // Load shedding: at most this many requests wait for a connection on top of
+  // the ones using the pool; more get 503 at once (src/limiter.ts). At about
+  // 1,700 req/s, 100 waiting is roughly 60 ms of queue.
+  dbMaxQueue: int("DB_MAX_QUEUE", 100),
+  // Backstop: never wait longer than this for a connection.
+  dbConnectTimeoutMs: int("DB_CONNECT_TIMEOUT_MS", 1_000),
   // Benchmark rule: warnings and errors only, no per-request lines (Nginx keeps the access log).
   logLevel: process.env.LOG_LEVEL ?? "warn",
   // A query running longer than this is cancelled by Postgres instead of holding a connection.

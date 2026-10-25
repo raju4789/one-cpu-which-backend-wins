@@ -33,7 +33,10 @@ export function buildApp(posts: PostService): FastifyInstance {
 
   // Every error leaves as { error: "..." } with the contract's status code.
   app.setErrorHandler((err: FastifyError | ApiError, req, reply) => {
-    if (err instanceof ApiError) return reply.code(err.statusCode).send({ error: err.message });
+    if (err instanceof ApiError) {
+      if (err.statusCode === 503) reply.header("retry-after", "1"); // load shed: try again shortly
+      return reply.code(err.statusCode).send({ error: err.message });
+    }
     if ("validation" in err && err.validation) return reply.code(400).send({ error: err.message });
     const status = err.statusCode ?? 500;
     if (status >= 500) {
