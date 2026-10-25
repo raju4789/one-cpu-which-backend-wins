@@ -84,7 +84,7 @@ harness/bin/run <stack> <phase>    # e.g. harness/bin/run node none
 
 Once after every reboot, raise the [Mac firewall's connection limit](#network) first, or a fast stack will hit it.
 
-One command runs the whole protocol, about 30 minutes:
+One command runs the whole protocol, about 35 minutes:
 
 1. Fresh database, stack started in the phase
 2. [Contract test](../k6/README.md#contract-test). The run stops if it fails
@@ -198,5 +198,6 @@ The limit only affects the load generator's side, and it's the same for every st
 | `check` fails on the `mac` target | node_exporter isn't running: `brew services start node_exporter` |
 | `up` hangs at "Waiting for the seed" | First run seeds 2.5 million rows. Give it up to 15 minutes; check `docker --context colima-bench logs bench-postgres-1` |
 | k6 "dial: i/o timeout" and a Prometheus timeout at the same moment; `bin/run` says k6 could not connect | The Mac firewall's connection table is full (10,000 entries by default), so it drops new connections to the VMs. `sudo pfctl -s info` shows the `memory` counter rising. Raise the limit, see [Network](#network); it resets on reboot. It first showed up when k6 used one 10,000-user pool for the whole ramp, so every session opened a new connection; `load.js` now sizes the pool per step |
+| `bin/run` says k6 could not connect at the start of a test, right after the previous one; `sudo pfctl -s info` shows `state-mismatch` rising, not `memory` | Reused ports. macOS lets a closed connection's port be reused after 30 s, but pf remembers the closed connection for up to 90 s and drops a new one that lands on the same port. Each test opens thousands of connections at once, so a few percent collide. `bin/run` waits 2 minutes between tests so the old records expire |
 | `up` fails at "load metadata for docker.io/..." with "DeadlineExceeded" | The bench VM can't reach Docker Hub, usually after the Mac slept or changed network. Test with `colima ssh -p bench -- curl -sI https://registry-1.docker.io/v2/` (any HTTP status means it works). Fix with `bin/vm-down` and `bin/vm-up`. Stack base images pinned by digest build from the local copy |
 | A cached `/feed` is up to 2 s old | Expected. Nginx counts cache expiry in whole seconds. See the [contract](../contract/README.md#design-decisions) |

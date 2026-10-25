@@ -41,6 +41,10 @@ K6_DIR = os.path.join(REPO, "k6")
 P95_MAX, P99_MAX, ERROR_MAX, DROP_MAX = 0.300, 1.0, 0.01, 0.01
 STEP_SECONDS, SETTLE_SECONDS, OVERLOAD_SECONDS = 60, 10, 120
 EVAL_DELAY = 12  # seconds after a step ends: k6 pushes every 5 s, Prometheus scrapes every 5 s
+# Pause between two k6 runs. macOS reuses a closed connection's port after 30 s,
+# but its firewall (pf) remembers the closed connection for up to 90 s and drops
+# a new one that lands on the same port. Two minutes lets those records expire.
+COOLDOWN = 120
 RUN_STARTED = time.time()
 
 
@@ -519,8 +523,8 @@ def protocol(args, ctx, prom, result, bin_dir):
         fine_rates = sorted({round(best * f) for f in (1.1, 1.2, 1.3, 1.4)
                              if best < round(best * f) < failed_at})
         if fine_rates:
-            log("Cool-down 30 s before the fine ramp")
-            time.sleep(30)
+            log(f"Cool-down {COOLDOWN} s before the fine ramp")
+            time.sleep(COOLDOWN)
             fine = ramp(ctx, prom, fine_rates, "ramp-fine", result["ramp"]["fine"])
             passing += [s for s in fine if s["passed"]]
     else:
@@ -530,8 +534,8 @@ def protocol(args, ctx, prom, result, bin_dir):
     candidates = sorted({s["rate"] for s in passing}, reverse=True)[:2]
     confirmed = None
     for rate in candidates:
-        log(f"Cool-down 30 s, then confirm {rate} sessions/s for {args.confirm_seconds} s")
-        time.sleep(30)
+        log(f"Cool-down {COOLDOWN} s, then confirm {rate} sessions/s for {args.confirm_seconds} s")
+        time.sleep(COOLDOWN)
         c, (t0, t1) = constant(ctx, f"confirm-{rate}", rate, args.confirm_seconds, 30)
         dropped_ratio = c["dropped_sessions_whole_run"] / max(1, c["sessions"] + c["dropped_sessions_whole_run"])
         c["fail_reasons"] = verdict(c, dropped_ratio)
@@ -547,8 +551,8 @@ def protocol(args, ctx, prom, result, bin_dir):
 
     # 9. Overload and recovery
     if confirmed and not args.skip_overload:
-        log("Cool-down 30 s, then overload: 2 min at 1.5x, 2 min back at the confirmed rate")
-        time.sleep(30)
+        log(f"Cool-down {COOLDOWN} s, then overload: 2 min at 1.5x, 2 min back at the confirmed rate")
+        time.sleep(COOLDOWN)
         summary = os.path.join(ctx.out, "k6-overload-summary.json")
         run = K6Run(ctx, os.path.join(K6_DIR, "load.js"), "overload",
                     {"MODE": "overload", "RATE": confirmed["rate"]}, summary=summary)
