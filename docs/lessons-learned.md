@@ -313,3 +313,7 @@ The server had a problem too. k6 hands out its users in turn, so the first pass 
 8. **Can you line up every source on one timeline?** The load generator's log, the server's metrics and the test machine's own metrics.
 9. **Are you counting connections as well as requests?**
 10. **Did you fix the cause, or only a symptom?** Remove workarounds once the cause is fixed.
+11. **Does the load generator have enough memory?** Thousands of virtual users cost gigabytes. Watch for the machine compressing or swapping memory.
+12. **Is the machine quiet, and was its processor at normal speed?** Measure it every run against a fixed reference, not against recent runs, which drift.
+13. **Did the test build up to its rate, or start cold at it?** A cold start at a high rate tests the start, not the steady state.
+14. **Does the server's own count match what the load generator recorded?** If the server says it served far more, the load generator is the problem.
