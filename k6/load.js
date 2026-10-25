@@ -30,44 +30,45 @@ const SETTLE = Number(__ENV.SETTLE_SECONDS || 10);
 const MAX_VUS = Number(__ENV.MAX_VUS || 10000);
 const LIKE_SHARE = 0.3;
 const POST_SHARE = 0.1;
-// VUs are created up front: creating them mid-test is slow enough that k6
-// drops sessions it can't start in time. Each step gets its own pool, sized
-// for its own rate. k6 hands out idle VUs in turn, so in a pool sized for a
-// much higher rate each VU waits longer than Nginx's 65 s keep-alive between
-// sessions: every session opens a new connection and idle ones pile up into
-// the thousands, until the Mac stops opening new ones. Sized per step, each VU
-// comes back every few seconds and reuses its connection.
+// VUs are created up front for the highest rate: creating them mid-test is
+// slow enough that k6 drops sessions it can't start in time. One pool serves
+// the whole test. k6 hands out idle VUs in turn, so at low rates each VU comes
+// back after Nginx's 65 s keep-alive and opens a new connection, like a new
+// visitor; near the limit each comes back within seconds and reuses it. The
+// idle connections this leaves are fine, but they need the Mac firewall's
+// connection limit raised (harness/README.md, Network).
 const SESSION_SECONDS = 7; // generous session length for VU pre-allocation (avg is about 4 s)
-const GRACE = "10s";       // sessions still running at a step change finish, up to this long
 
 const RATE = Math.max(1, Math.round(Number(__ENV.RATE || 10)));
 const RATES = (__ENV.RATES || "10").split(",").map((r) => Math.max(1, Math.round(Number(r))));
 const OVER = Math.round(RATE * 1.5);
 const PHASE_SECONDS = Number(__ENV.OVERLOAD_SECONDS || 120); // overload: length of "over" and "recover"
 
-// A pool that runs dry shows as dropped sessions, which bin/run reports as the
-// load generator's limit when the server is still fast. Consecutive steps
-// overlap for the grace period, so in multi-step modes each pool gets at most
-// half of MAX_VUS.
-const preAllocate = (rate, cap = MAX_VUS) => Math.min(cap, Math.max(20, Math.ceil(rate * SESSION_SECONDS)));
+// maxVUs equals the pool: if it runs dry, k6 logs "Insufficient VUs" and
+// bin/run stops the run as limited by the load generator.
+const preAllocate = (rate) => Math.min(MAX_VUS, Math.max(20, Math.ceil(rate * SESSION_SECONDS)));
 
-function step(rate, seconds, startSeconds, cap) {
-  const vus = preAllocate(rate, cap);
-  return { executor: "constant-arrival-rate", rate, timeUnit: "1s", duration: `${seconds}s`,
-    startTime: `${startSeconds}s`, preAllocatedVUs: vus, maxVUs: vus, gracefulStop: GRACE };
-}
-
-function scenarios() {
+function scenario() {
   if (MODE === "ramp") {
-    const s = {};
-    RATES.forEach((r, i) => { s[`step${i}`] = step(r, STEP, i * STEP, Math.floor(MAX_VUS / 2)); });
-    return s;
+    const stages = [];
+    for (const r of RATES) stages.push({ target: r, duration: "5s" }, { target: r, duration: `${STEP - 5}s` });
+    const vus = preAllocate(Math.max(...RATES));
+    return { executor: "ramping-arrival-rate", startRate: RATES[0], timeUnit: "1s",
+      preAllocatedVUs: vus, maxVUs: vus, stages, gracefulStop: "5s" };
   }
   if (MODE === "overload") {
-    const cap = Math.floor(MAX_VUS / 2);
-    return { over: step(OVER, PHASE_SECONDS, 0, cap), recover: step(RATE, PHASE_SECONDS, PHASE_SECONDS, cap) };
+    const vus = preAllocate(OVER);
+    return { executor: "ramping-arrival-rate", startRate: RATE, timeUnit: "1s",
+      preAllocatedVUs: vus, maxVUs: vus, gracefulStop: "5s",
+      stages: [
+        { target: OVER, duration: "5s" }, { target: OVER, duration: `${PHASE_SECONDS - 5}s` },
+        { target: RATE, duration: "5s" }, { target: RATE, duration: `${PHASE_SECONDS - 5}s` },
+      ] };
   }
-  return { load: step(RATE, Number(__ENV.DURATION || 120), 0, MAX_VUS) };
+  const vus = preAllocate(RATE);
+  return { executor: "constant-arrival-rate", rate: RATE, timeUnit: "1s",
+    duration: `${Number(__ENV.DURATION || 120)}s`,
+    preAllocatedVUs: vus, maxVUs: vus, gracefulStop: "5s" };
 }
 
 function stepLabels() {
@@ -91,7 +92,7 @@ function thresholds() {
 }
 
 export const options = {
-  scenarios: scenarios(),
+  scenarios: { load: scenario() },
   thresholds: thresholds(),
   summaryTrendStats: ["avg", "min", "med", "max", "p(90)", "p(95)", "p(99)"],
 };

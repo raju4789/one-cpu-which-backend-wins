@@ -98,12 +98,13 @@ One command runs the whole protocol, about 30 minutes:
 
 A step passes while p95 < 300 ms, p99 < 1 s, errors < 1% and k6 dropped fewer than 1% of sessions. The result is the confirmed rate, saved with everything else in [`results/`](../results/README.md). Progress shows live in Grafana.
 
-If the runner reports that k6 ran out of virtual users while the server was still fast, the load generator is the limit, not the stack: rerun with `--max-vus` higher. `bin/run --help` lists the other options.
+Keep the Mac plugged in with the lid open. `bin/run` keeps it awake while it runs (`caffeinate`), and stops a run if the Mac slept anyway, since sleep pauses the VMs and k6. If k6 runs out of virtual users while the server is still fast, it stops too and says to rerun with a higher `--max-vus`. `bin/run --help` lists the other options.
 
 The runner also stops a run it can't trust, and says why:
 
 - **k6 couldn't connect while the server was fast.** Failed connections count as errors, so without this check a network problem on the Mac would show up as the stack failing. A server that is truly overloaded fails on latency too, and that is still recorded as a normal fail.
 - **Prometheus didn't answer** after retrying for about 80 seconds.
+- **The Mac slept**, or **k6 ran out of virtual users** while latency still passed.
 
 The partial results are saved, marked aborted. They are not a result: fix the cause and rerun.
 

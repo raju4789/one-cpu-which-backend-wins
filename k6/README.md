@@ -42,7 +42,7 @@ The second row is measured, from step 11 of a Node run: 810 req/s, with Grafana 
 
 So a "users" number on its own says little: the same server load can be called 400 users or 4,000 users, depending on how long the pretend people pause. That's why this benchmark sets the load in sessions per second and reports requests per second, with concurrent users only as a translation.
 
-**How k6 runs them here.** k6 starts new sessions at a fixed rate, whether or not the server keeps up (the open model above). It creates a pool of virtual users before each step, about 7 per session per second, more than the 4 that are busy on average, so a slow moment never leaves it without a free user. k6 hands out idle users in turn. Each one keeps its own keep-alive connection to Nginx and reuses it on its next session a few seconds later, like a browser would. See Connections below for why the pool is sized per step.
+**How k6 runs them here.** k6 starts new sessions at a fixed rate, whether or not the server keeps up (the open model above). Before the test it creates one pool of virtual users for the highest rate, about 7 per session per second, more than the 4 that are busy on average, so a slow moment never leaves it without a free user. The pool is capped by `--max-vus` (default 10,000). If it runs dry while the server is still fast, `bin/run` stops the run: the load generator was the limit, not the stack.
 
 ## Modes
 
@@ -54,7 +54,7 @@ So a "users" number on its own says little: the same server load can be called 4
 
 Every request is tagged with its step. The first 10 seconds after each rate change are tagged `settle` and left out of the results, so they measure steady load only.
 
-**Connections.** Each step runs as its own scenario, with a pool of virtual users sized for that step's rate (rate x 7 s). k6 hands out idle users in turn, so each one comes back every few seconds and reuses its keep-alive connection, as a real browser does. One pool sized for the highest rate would break this: at low rates each user would wait longer than Nginx's 65-second keep-alive, so every session would open a new connection and idle ones would pile up into the thousands. That happened in the first Node run: at 6,700 open connections the Mac stopped opening new ones, to either VM.
+**Connections.** Each virtual user keeps its own keep-alive connection to Nginx, like a browser. k6 hands out idle users in turn, so with a pool sized for the highest rate, a user at a low rate comes back after Nginx's 65-second keep-alive and opens a new connection, like a new visitor. Near the limit, each comes back within seconds and reuses it. That can leave up to 10,000 idle connections open, which is fine for Nginx but too many for the Mac firewall's default limit: raise it first (see [Network](../harness/README.md#network)). The first Node runs stopped there, and one attempt with a separate pool per step made k6 stall at a step change, so the single pool stays.
 
 ## Contract test
 

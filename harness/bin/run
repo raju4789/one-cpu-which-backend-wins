@@ -166,6 +166,7 @@ class K6Run:
     def __init__(self, ctx, script, test, env, summary=None):
         self.start = None
         self.dial_errors = []  # when k6 failed to open a TCP connection, from its log
+        self.vus_short = []    # when k6 ran out of pre-allocated virtual users
         self.log_path = os.path.join(ctx.out, f"k6-{test}.log")
         full_env = os.environ.copy()
         full_env.update({
@@ -199,10 +200,11 @@ class K6Run:
                 m = re.search(r"RUN_START (\d+)", line)
                 if m and self.start is None:
                     self.start = int(m.group(1)) / 1000.0
-                if "Request Failed" in line and "dial" in line:
-                    t = re.search(r'time="([^"]+)"', line)
-                    if t:
-                        self.dial_errors.append(datetime.datetime.fromisoformat(t.group(1)).timestamp())
+                kind = (self.dial_errors if "Request Failed" in line and "dial" in line
+                        else self.vus_short if "Insufficient VUs" in line else None)
+                t = re.search(r'time="([^"]+)"', line) if kind is not None else None
+                if t:
+                    kind.append(datetime.datetime.fromisoformat(t.group(1)).timestamp())
 
     def wait_start(self, timeout=120):
         deadline = time.time() + timeout
@@ -254,20 +256,52 @@ def summary_numbers(path, step, seconds):
     }
 
 
+def latency_ok(r):
+    return all(r[k] is None or r[k] < lim for k, lim in (("p95_s", P95_MAX), ("p99_s", P99_MAX)))
+
+
 def check_connections(run, r, t0, t1):
     """k6 failing to connect while the server answers fast is the network on the Mac, not the stack.
 
     A saturated server can also refuse connections, but then its latency fails the step too.
     """
     r["dial_errors"] = sum(1 for t in run.dial_errors if t0 - 1 <= t <= t1 + 1)
-    latency_ok = all(r[k] is None or r[k] < lim for k, lim in (("p95_s", P95_MAX), ("p99_s", P99_MAX)))
-    if r["dial_errors"] and latency_ok:
+    if r["dial_errors"] and latency_ok(r):
         r["passed"], r["fail_reasons"] = False, [f"invalid: k6 could not connect {r['dial_errors']} times"]
         raise RunInvalid(
             f"k6 could not open {r['dial_errors']} connections while the server answered in "
             f"p95 {(r['p95_s'] or 0) * 1000:.0f} ms. That is the Mac or the VM network, not the stack. "
             f"Most likely the Mac firewall's connection limit: check `sudo pfctl -s memory`, "
             f"see Network in harness/README.md. Details: {run.log_path}")
+
+
+def check_run(ctx, run, r, t0, t1):
+    """Stops the run if anything outside the stack limited this window."""
+    check_connections(run, r, t0, t1)
+    reason = None
+    if ctx.sleeps:
+        start, _, gap = ctx.sleeps[0]
+        reason = (f"the Mac slept for {gap:.0f} s at {time.strftime('%H:%M:%S', time.localtime(start))}, "
+                  "which pauses the VMs and k6. Keep it awake and plugged in, lid open")
+    elif any(t <= t1 + 1 for t in run.vus_short) and latency_ok(r):
+        # With latency already failing, slow sessions drained the pool: a normal fail for the stack
+        reason = (f"k6 ran out of virtual users (--max-vus {ctx.max_vus}), so it could not start every "
+                  f"session: the load generator was the limit. Rerun with --max-vus {ctx.max_vus * 2}")
+    if reason:
+        r["passed"], r["fail_reasons"] = False, [f"invalid: {reason.split(',')[0]}"]
+        raise RunInvalid(reason)
+
+
+def watch_sleep(ctx):
+    """Records gaps where the wall clock jumped but the monotonic clock didn't: the Mac was asleep."""
+    wall, mono = time.time(), time.monotonic()
+    while True:
+        time.sleep(2)
+        wall2, mono2 = time.time(), time.monotonic()
+        gap = (wall2 - wall) - (mono2 - mono)
+        if gap > 5:
+            ctx.sleeps.append((wall, wall2, gap))
+        wall, mono = wall2, mono2
 
 
 def verdict(r, dropped_ratio=0.0):
@@ -346,17 +380,13 @@ def _ramp_steps(ctx, prom, rates, test, run, start, steps):
         dropped_ratio = dropped / (r["sessions"] + dropped) if (r["sessions"] + dropped) else 0.0
         r.update({"rate": rate, "dropped_sessions": int(dropped), "server": server_metrics(prom, t0, t1)})
         steps.append(r)
-        check_connections(run, r, t0 - SETTLE_SECONDS, t1)
+        check_run(ctx, run, r, t0 - SETTLE_SECONDS, t1)
         r["fail_reasons"] = verdict(r, dropped_ratio)
         r["passed"] = not r["fail_reasons"]
         cpu = r["server"]["vm_cpu_avg"]
         cpu_txt = f"{cpu * 100:.0f}%" if cpu is not None else "-"
         outcome = "PASS" if r["passed"] else "FAIL (" + ", ".join(r["fail_reasons"]) + ")"
         log(f"  step {i + 1}/{len(rates)} @ {rate} sessions/s: {fmt(r)}, server CPU {cpu_txt} -> {outcome}")
-        if dropped_ratio >= DROP_MAX and r["p95_s"] is not None and r["p95_s"] < P95_MAX:
-            log("  k6 ran out of virtual users while the server was still fast: "
-                "raise --max-vus, the limit is the load generator, not the stack")
-            r["generator_limited"] = True
         if not r["passed"] or run.proc.poll() is not None:
             break
 
@@ -370,7 +400,7 @@ def constant(ctx, test, rate, seconds, settle):
     run.wait()
     start = run.start
     r = summary_numbers(summary, "steady", seconds - settle)
-    check_connections(run, r, start, start + seconds)
+    check_run(ctx, run, r, start, start + seconds)
     return r, (start + settle, start + seconds)
 
 
@@ -411,6 +441,10 @@ def main():
                                                    "error_rate": ERROR_MAX, "dropped": DROP_MAX}}
     bin_dir = os.path.join(HARNESS, "bin")
     log(f"Run {ctx.run_id}, results in {os.path.relpath(ctx.out, REPO)}")
+    ctx.sleeps = []
+    threading.Thread(target=watch_sleep, args=(ctx,), daemon=True).start()
+    if sys.platform == "darwin":  # keep the Mac awake until this process exits (lid closed still sleeps)
+        subprocess.Popen(["caffeinate", "-ims", "-w", str(os.getpid())])
 
     try:
         confirmed = protocol(args, ctx, prom, result, bin_dir)
@@ -522,7 +556,7 @@ def protocol(args, ctx, prom, result, bin_dir):
         run.wait()
         over = summary_numbers(summary, "over", OVERLOAD_SECONDS - SETTLE_SECONDS)
         rec = summary_numbers(summary, "recover", OVERLOAD_SECONDS - SETTLE_SECONDS)
-        check_connections(run, rec, run.start + OVERLOAD_SECONDS, run.start + 2 * OVERLOAD_SECONDS)
+        check_run(ctx, run, rec, run.start + OVERLOAD_SECONDS, run.start + 2 * OVERLOAD_SECONDS)
         rec["recovered"] = not verdict(rec)
         result["overload"] = {"over": over, "recover": rec}
         log(f"  at 1.5x: {fmt(over)}")
