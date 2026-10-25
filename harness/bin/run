@@ -47,6 +47,9 @@ COOLDOWN = 120
 # The confirm and overload tests build up from 0 over this long before measuring,
 # so a cold-start queue after the cool-down doesn't count against sustained load.
 RAMP_SECONDS = 45
+# Warn when the calibration is this much slower than earlier runs. The baseline
+# runs agreed within 1.3%; a run at 4% slower used about 25% more CPU per request.
+CALIBRATION_TOLERANCE = 1.03
 QUICK_STEPS = 7  # --quick: 1-minute steps, 8% apart, starting just below the known limit
 RUN_STARTED = time.time()
 
@@ -487,6 +490,8 @@ def main():
             f"p95 {confirmed['p95_s'] * 1000:.0f} ms, p99 {confirmed['p99_s'] * 1000:.0f} ms")
     else:
         log(f"RESULT {args.stack} / {args.phase}: no rate passed the 5-minute confirm")
+    for w in result.get("warnings", []):
+        log(f"WARNING: {w}")
     log(f"Saved {os.path.relpath(ctx.out, REPO)}. Let the Mac cool down 5 minutes before the next run.")
 
 
@@ -515,6 +520,12 @@ def protocol(args, ctx, prom, result, bin_dir):
         m = re.search(r"calibration_seconds=([\d.]+)", cal or "")
         result["calibration_seconds"] = float(m.group(1)) if m else None
         log(cal.strip().splitlines()[0] if cal else "calibration: no output")
+        ref = calibration_reference()
+        if ref and result["calibration_seconds"] and result["calibration_seconds"] > ref * CALIBRATION_TOLERANCE:
+            warn(result, f"calibration {result['calibration_seconds']:.2f} s is "
+                         f"{(result['calibration_seconds'] / ref - 1) * 100:.0f}% slower than the reference "
+                         f"{ref:.2f} s (median of earlier complete runs): the core was slower. Is something "
+                         "else running on the Mac? Compare this run with care")
         with open(os.path.join(ctx.out, "env.json"), "w") as f:
             f.write(sh(ctx, os.path.join(bin_dir, "env-report"), capture=True))
 
@@ -599,6 +610,26 @@ def overload(ctx, result, rate):
     log(f"  back at 1x: {fmt(rec)} -> {'recovered' if rec['recovered'] else 'did NOT recover'}")
 
 
+def warn(result, msg):
+    result.setdefault("warnings", []).append(msg)
+    log(f"WARNING: {msg}")
+
+
+def calibration_reference():
+    """Median calibration of all earlier complete runs, any stack: what a normal core measures."""
+    vals = []
+    for path in glob.glob(os.path.join(REPO, "results", "*", "*", "*", "result.json")):
+        try:
+            with open(path) as f:
+                r = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if r.get("status") == "complete" and r.get("calibration_seconds"):
+            vals.append(r["calibration_seconds"])
+    vals.sort()
+    return vals[len(vals) // 2] if len(vals) >= 3 else None
+
+
 def quick_start_rate(stack, phase):
     """80% of the rate the stack's latest complete full run confirmed, or None."""
     runs = sorted(glob.glob(os.path.join(REPO, "results", stack, phase, "*", "result.json")))
@@ -650,6 +681,8 @@ def write_summary(ctx, res):
              f"Run `{res['run_id']}`, {res['started']} to {res['finished']}", ""]
     if res.get("status") == "aborted":
         lines += [f"**Aborted, not a valid result:** {res['abort_reason']}", ""]
+    for w in res.get("warnings", []):
+        lines += [f"**Warning:** {w}", ""]
     c = res.get("result")
     if c:
         lines += ["## Result", "",
