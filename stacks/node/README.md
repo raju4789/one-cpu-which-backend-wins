@@ -1,0 +1,132 @@
+# Node.js stack
+
+The contract API in Node.js, built the way a production team would build it, and sized for one CPU and 2 GB.
+
+| Layer | Choice |
+| --- | --- |
+| Runtime | Node.js 24 LTS, one process |
+| Web framework | [Fastify 5](https://fastify.dev) |
+| Data access | [Prisma 7](https://www.prisma.io) with the `pg` driver adapter |
+| Language | TypeScript, compiled to JavaScript in the image |
+| Logs | pino (Fastify's logger), JSON, warnings and errors only |
+| Metrics | Prometheus format on port 9464 |
+| Traces | OpenTelemetry, off by default |
+
+Passes [the contract test](../../k6/README.md#contract-test) in all three phases.
+
+## Layout
+
+```
+src/
+├── main.ts           entry point: loads tracing first if enabled, then the server
+├── server.ts         startup, readiness, graceful shutdown
+├── app.ts            Fastify instance, error handling, request timing
+├── config.ts         everything configurable, from environment variables
+├── db.ts             the Postgres pool and the Prisma client
+├── metrics.ts        Prometheus metrics and their HTTP server
+├── feedCache.ts      the 1-second feed cache for the app-cache phase
+├── errors.ts         API errors and how database errors map to them
+├── tracing.ts        OpenTelemetry setup
+└── posts/
+    ├── routes.ts     the three endpoints
+    ├── schemas.ts    JSON schemas: request validation and response serialization
+    └── service.ts    the queries
+prisma/schema.prisma  maps the shared tables, never migrates them
+test/                 unit tests (node:test), no database needed
+```
+
+## How the contract rules are met
+
+| Rule | How |
+| --- | --- |
+| Feed in one query | `relationLoadStrategy: "join"`: Prisma loads each post's author with a `LATERAL JOIN` in the same SQL statement. Without it, Prisma runs a second query for the authors. Verified with `pg_stat_statements`: one statement per feed request |
+| Atomic, idempotent likes | One transaction: `INSERT ... ON CONFLICT DO NOTHING` on `likes` (Prisma's `createMany` with `skipDuplicates`), then `UPDATE posts SET like_count = like_count + 1` only if a row was inserted (Prisma's `increment`) |
+| Unknown user is 400, missing post is 404 | No extra lookup query: the insert's foreign key violation (Prisma error `P2003`) names the constraint, which says which reference was missing |
+| Validation | Fastify JSON schemas, checked by Ajv before the handler runs. Ids above 2^53 - 1 are rejected as 400, since JavaScript can't represent them exactly |
+| Errors as `{ "error": "..." }` | One error handler for everything |
+| `/health` means ready | The server only starts listening after a query to Postgres succeeds |
+| `FEED_CACHE=app` | The serialized feed is cached for 1 second. Concurrent requests during a reload share the same query (single flight), so expiry never causes a stampede |
+
+## Production practices
+
+- **One process.** One CPU means one event loop. Cluster mode or worker threads would add processes fighting over the same core.
+- **Responses serialized from schemas.** Fastify uses `fast-json-stringify` with the response schema, faster than `JSON.stringify` because the shape is known.
+- **Keep-alive longer than Nginx's.** Node keeps idle connections 75 s, longer than Nginx keeps its upstream connections, so Node never closes one Nginx is about to reuse.
+- **Graceful shutdown.** On `SIGTERM`, stop accepting connections, finish in-flight requests, close the pool, then exit. The grace period (8 s) is shorter than Docker's stop timeout (10 s), so the process exits on its own terms.
+- **Waits for the database at startup** (up to 30 tries, 1 s apart) instead of crashing if Postgres is a moment late.
+- **Survives a broken idle connection.** `pg` reports it as an `error` event, which would crash the process if unhandled. It's logged, and the pool replaces the connection.
+- **Fails loudly on bugs.** An unhandled rejection or exception is logged as `fatal` in the same JSON format, then the process exits instead of running in an unknown state.
+- **Limits.** Queries are cancelled after 5 s (`statement_timeout`), so a stuck query can't hold a connection. Request bodies are capped at 16 KB.
+- **Prepared statements.** Every query gets a stable name (a hash of its SQL and parameter types), so `pg` prepares it once per connection and Postgres reuses the parsed query and its plan (`src/statements.ts`). Without names, every execution is parsed and planned again.
+- **Load shedding.** At most `DB_POOL_MAX + DB_MAX_QUEUE` requests (10 + 300) may be using or waiting for a database connection. The next one gets `503` with `Retry-After: 1` straight away, instead of joining a queue that can grow to thousands (`src/limiter.ts`). No request waits more than 1 s for a connection. Cached feeds and `/health` are never shed.
+- **Multi-stage image.** The build stage compiles TypeScript and generates the Prisma client. The runtime stage has only production dependencies and compiled code, runs as the unprivileged `node` user, with `NODE_ENV=production`.
+- **Exact versions** in `package.json` and a lockfile, so every build installs the same code.
+- **Tests in the build.** `npm test` runs unit tests for the feed cache, the error mapping and every HTTP status, with the database replaced by a fake. The image build runs them, so an image that fails them is never built. The full behaviour against Postgres is checked by the [contract test](../../k6/README.md#contract-test).
+
+## Observability
+
+**Logs.** pino writes JSON lines to stdout. In benchmark runs the level is `warn`, the same rule for every stack: Nginx keeps the access log. Set `LOG_LEVEL=info` to see more when debugging.
+
+**Metrics** on `:9464/metrics`, scraped by Prometheus and shown in the Grafana App row.
+
+| Metric | What it shows |
+| --- | --- |
+| `app_http_request_duration_seconds` | Time inside the app per route. Compared with k6's latency, it shows how much is the app and how much is everything around it |
+| `app_db_pool_connections{state}` | Connections in use, idle, and requests waiting for one. Waiting above zero means the pool, not the CPU, is the limit |
+| `app_feed_cache_requests_total{result}` | Hits and misses in the app-cache phase |
+| `nodejs_eventloop_lag_*` | How late the event loop runs. On one CPU, rising lag is the clearest sign the process is saturated |
+| `nodejs_heap_*`, `nodejs_gc_*` | Memory and garbage collection |
+
+The `app_*` names are shared with the other stacks, so Grafana can show them side by side.
+
+**Traces.** OpenTelemetry instruments HTTP, the `pg` driver and Prisma, but only with `OTEL_ENABLED=true`. When it's off, none of its code is even loaded. It stays off in benchmark runs: tracing every request costs CPU, and on one core that would change the result. Configure it with the standard variables, for example `OTEL_EXPORTER_OTLP_ENDPOINT`, or `OTEL_TRACES_EXPORTER=console` to print spans.
+
+## Configuration
+
+| Variable | Default | Set by |
+| --- | --- | --- |
+| `PORT` | 8080 | harness |
+| `DATABASE_URL` | | harness |
+| `FEED_CACHE` | `off` | harness, per phase |
+| `METRICS_PORT` | 9464 | |
+| `DB_POOL_MAX` | 10 | tuning |
+| `DB_MAX_QUEUE` | 300 | tuning |
+| `DB_CONNECT_TIMEOUT_MS` | 1000 | tuning |
+| `DB_STATEMENT_TIMEOUT_MS` | 5000 | |
+| `LOG_LEVEL` | `warn` | |
+| `OTEL_ENABLED` | `false` | |
+
+## Tuning log
+
+Tuning follows the [tuning plan](../../docs/tuning-plan.md): one production-grade change at a time, a quick run for each, kept only on a clear win.
+
+**Untuned baseline, no-cache phase** (three full runs, 25 October 2026, before the shared Postgres change; superseded by the final results below): median **1,694 req/s** (1,211 sessions/s), range 1,573 to 1,818, p95 13 to 39 ms at the confirmed rate. Postgres used 40 to 46% of the core, Node 28 to 30%. Node didn't recover from overload in any run: once a queue of thousands of requests formed at the database pool, it stayed. Runs `results/node/none/20261025-114855`, `-124346` and `-132854`.
+
+| Date | Change | Why | Quick run before | Quick run after | Kept? |
+| --- | --- | --- | --- | --- | --- |
+| 25 Oct | Load shedding: at most 110 requests using or waiting for a database connection, then 503; connection wait 5 s → 1 s | Under overload, a queue of thousands formed at the pool and never drained, even after the load dropped | 1,709 req/s (1,221 sessions/s); no recovery after overload: p95 5,064 ms, 28% errors back at 1x | 1,844 req/s (1,318 sessions/s, 0.69% errors, all 503s); **recovered**: p95 59 ms, 0.98% errors back at 1x | Kept: clear stability win. The extra step (+8%) wasn't confirmed by the full runs (see Final results) |
+| 25 Oct | Considered: the feed as hand-written SQL (plain `JOIN`) instead of Prisma's `LATERAL JOIN` with `JSONB_BUILD_OBJECT` | The feed query is 96% of Postgres's query time (pg_stat_statements: 508 s of 528 s) | pgbench, one client, 15 s: 0.238 ms per query | 0.228 ms (4% less) | Dropped before building: under the 10% bar, and it gives up the ORM on the hottest path |
+| 25 Oct | Named prepared statements (`statementNameGenerator` in the Prisma `pg` adapter) | Unnamed queries are parsed and planned on every execution | pgbench: 0.238 ms per feed query unnamed; quick run 1,844 req/s (1,318 sessions/s) | pgbench: 0.197 ms named (17% less). Quick run: passed 1,221 sessions/s (1,707 req/s), failed 1,318 on 1.26% 503s at p95 59 ms; Postgres CPU 8 to 12% lower at every step | Kept: less work for the database with no downside, and it's the default in the other stacks (ActiveRecord prepares statements, pgjdbc does after 5 runs). Throughput unchanged within noise: the queue cap, not the CPU, ended the run |
+| 25 Oct | Load shedding queue 100 → 300 (`DB_MAX_QUEUE`) | With prepared statements, the run failed on 503s at 1,318 sessions/s while p95 was 59 ms and CPU 86%: the cap trimmed bursts with room to spare. 300 waiting is about 160 ms of queue, still bounded | 1,707 req/s (1,221 sessions/s); recovered after overload with the cap at 100 | 1,851 req/s (1,318 sessions/s, 0.30% errors, was 0.69% at this step with the cap at 100); failed 1,424 on 4.3% errors (was 20.3%); recovered after overload with 0.00% errors, p95 26 ms. Overload p95 242 ms, was 94 ms | Kept: far fewer requests shed near the limit and cleaner recovery, for higher latency during overload, still under 300 ms. Calibration 4% slow on this run |
+| 25 Oct | Connection pool 10 → 4 (`DB_POOL_MAX`) | One core: more connections than the core can run at once just take turns. The usual rule of thumb is 2 to 3 per core. Untested here | 1,851 req/s (1,318 sessions/s), recovered after overload | Passed 1,130 sessions/s (1,582 req/s), failed 1,221 on 1.4% errors; recovered. Postgres CPU unchanged at each step (32, 34, 37, 41%), Node CPU higher (30 to 39% against 26 to 31%), p95 190 ms at 1,221 against 13 ms. Calibration 6% slow | Dropped, back to 10: fewer connections didn't make Postgres cheaper, requests just waited longer in Node |
+
+**Tuning finished on 25 October**, tagged `node-tuned`: load shedding with a queue of 300, named prepared statements, pool of 10. The last two candidates were under the bar (the plan's stopping rule). Quick runs: from 1,221 to 1,318 sessions/s (about +8%, one step), and from never recovering after overload to recovering with no errors. The full runs below didn't confirm the +8%.
+
+## Final results
+
+Batch `results/batches/20261026-094626` (26 October 2026): three full runs per configuration, interleaved, every run passed all 11 validity checks (Nginx and k6 agreed on every request, every acknowledged write was stored), raw results committed unedited with checksums.
+
+| Configuration | Runs (req/s) | Median | Highest rate held | Recovered from overload | p95 at the limit |
+| --- | --- | --- | --- | --- | --- |
+| Untuned, no cache | 1,694 / 1,814 / 1,815 | 1,814 | 1,297 sessions/s in 2 of 3 | 0 of 3 | 16 to 83 ms |
+| Tuned, no cache | 1,815 / 1,817 / 1,817 | 1,817 | 1,297 sessions/s in 3 of 3 | 3 of 3 | 17 to 54 ms |
+| Tuned, app cache | 4,906 / 4,906 / 4,495 | 4,906 | 3,503 sessions/s in 2 of 3 | 1 of 3 | 23 to 238 ms |
+| Tuned, Nginx cache | 4,907 / 4,905 / 4,898 | 4,905 | 3,503 sessions/s in 3 of 3 | 3 of 3 | 17 to 28 ms |
+
+**Read the medians as bands.** The runner confirms only rates it tried, about 10% apart. Every no-cache run that held up held 1,297 sessions/s and failed at 1,427; every cache run held 3,503 and failed at 3,795.
+
+**What tuning bought: reliability, not throughput.** Tuned reached 1,297 sessions/s in every full run (6 of 6 over this batch and the one before); untuned reached it in 4 of 6, twice tipping into a queue it never drained. Tuned recovered from overload every time; untuned never did.
+
+**Caching.** Both caches roughly 2.7x the no-cache rate, and the same ceiling within the 10% band, because the writes (30% of requests) still go through Node and Postgres and fill the core. The Nginx cache is steadier at that ceiling: reached it in 6 of 6 runs against 3 of 6 for the app cache, p95 17 to 28 ms against up to 238 ms, and recovered from overload 3 of 3 against 1 of 3.
+
+Starting point: pool of 10, a 5-second wait for a database connection, default heap, one process. The quick baseline (`results/node/none/20261025-151815-quick`, with the tuned Postgres settings) passed 1,221 sessions/s (1,709 req/s) and failed at 1,318. Candidates, in order, are in the tuning plan.

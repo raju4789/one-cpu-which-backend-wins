@@ -2,10 +2,13 @@
 # Prints the environment as JSON, saved next to every result.
 source "$(dirname "$0")/common.sh"
 
+# Each image's ID identifies local builds too, such as the app image.
+# No comments inside $( ): macOS bash 3.2 misreads an apostrophe in one as a quote.
 images="$(for c in $(bench ps --format '{{.Names}}'); do
   img="$(bench inspect -f '{{.Config.Image}}' "$c")"
   digest="$(bench image inspect -f '{{if .RepoDigests}}{{index .RepoDigests 0}}{{else}}local build{{end}}' "$img")"
-  printf '{"container":"%s","image":"%s","digest":"%s"},' "$c" "$img" "$digest"
+  id="$(bench image inspect -f '{{.Id}}' "$img")"
+  printf '{"container":"%s","image":"%s","digest":"%s","id":"%s"},' "$c" "$img" "$digest" "$id"
 done)"
 
 cat <<JSON

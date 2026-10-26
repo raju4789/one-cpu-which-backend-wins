@@ -8,6 +8,15 @@ from pathlib import Path
 DS = {"type": "prometheus", "uid": "prometheus"}
 K6 = 'stack=~"$stack", phase=~"$phase"'
 WIN = "30s"  # k6 pushes every 5 s; 30 s windows keep the lines readable
+# Join gaps up to this long (ms), so cool-downs between tests show as gaps, not as
+# straight lines drawn across them.
+SPAN_GAPS_MS = 30000
+# k6 gauges such as k6_vus get no stale marker when a test ends, so Prometheus keeps
+# returning the last value for 5 minutes and sum() adds finished tests to the running
+# one. Only samples from the last 10 s (k6 pushes every 5 s) count as current, and max()
+# rather than sum(), since only one test runs at a time and two can overlap for seconds.
+def k6_gauge(metric):
+    return f"max(max_over_time({metric}{{{K6}}}[10s]))"
 
 panels = []
 _id = 0
@@ -39,9 +48,15 @@ def thresholds_line(values):
     return {"mode": "absolute", "steps": steps}
 
 
-def ts(title, exprs, unit, x, w, h=8, desc="", lines=None, maxv=None, stack=False):
+def right_axis(series, unit):
+    """Override: draw series (by legend name) on a right-hand axis with its own unit."""
+    return {"matcher": {"id": "byName", "options": series},
+            "properties": [{"id": "custom.axisPlacement", "value": "right"}, {"id": "unit", "value": unit}]}
+
+
+def ts(title, exprs, unit, x, w, h=8, desc="", lines=None, maxv=None, stack=False, overrides=None):
     custom = {"lineWidth": 2, "fillOpacity": 10 if stack else 5, "showPoints": "never",
-              "spanNulls": True, "stacking": {"mode": "normal" if stack else "none"}}
+              "spanNulls": SPAN_GAPS_MS, "stacking": {"mode": "normal" if stack else "none"}}
     defaults = {"unit": unit, "custom": custom}
     if lines:
         custom["thresholdsStyle"] = {"mode": "line"}
@@ -51,7 +66,7 @@ def ts(title, exprs, unit, x, w, h=8, desc="", lines=None, maxv=None, stack=Fals
         defaults["min"] = 0
     return {"id": next_id(), "type": "timeseries", "title": title, "description": desc,
             "datasource": DS, "gridPos": {"x": x, "y": _y, "w": w, "h": h},
-            "fieldConfig": {"defaults": defaults, "overrides": []},
+            "fieldConfig": {"defaults": defaults, "overrides": overrides or []},
             "options": {"legend": {"displayMode": "list", "placement": "bottom"},
                         "tooltip": {"mode": "multi", "sort": "desc"}},
             "targets": targets(exprs)}
@@ -93,7 +108,7 @@ add(stat("Requests / s", reqs, "reqps", 0, decimals=0),
     stat("p95 latency", q(0.95), "s", 4, red_above=0.3),
     stat("p99 latency", q(0.99), "s", 8, red_above=1),
     stat("Error rate", f"({errs} or vector(0)) / {reqs}", "percentunit", 12, red_above=0.01, decimals=2),
-    stat("Virtual users", f"sum(k6_vus{{{K6}}})", "none", 16),
+    stat("Virtual users", k6_gauge("k6_vus"), "none", 16),
     stat("Server CPU (1 core)", vm_cpu, "percentunit", 20, red_above=0.9),
     h=4)
 
@@ -111,7 +126,7 @@ add(ts("p95 latency by endpoint", [(q(0.95, "name"), "{{name}}")], "s", 0, 12, l
        "percentunit", 12, 12, desc="Red line: pass criteria, errors < 1%", lines=[0.01]))
 add(ts("Responses by status code", [(f"sum by (status) (rate(k6_http_reqs_total{{{K6}}}[{WIN}]))", "{{status}}")],
        "reqps", 0, 12, stack=True),
-    ts("Virtual users", [(f"sum(k6_vus{{{K6}}})", "VUs")], "none", 12, 12))
+    ts("Virtual users", [(k6_gauge("k6_vus"), "VUs")], "none", 12, 12))
 
 # ---------------------------------------------------------------- server
 row("Server: the 1 vCPU, 2 GB bench VM")
@@ -161,7 +176,7 @@ add(ts("Rows / s",
        [(f'sum(increase(pg_stat_database_deadlocks{{datname="app"}}[1m]))', "deadlocks / min"),
         ('sum(pg_database_size_bytes{datname="app"}) / 1e9', "size (GB)")],
        "none", 16, 8))
-top = {"id": next_id(), "type": "table", "title": "Top queries by total time (last 5 min)",
+top = {"id": next_id(), "type": "table", "title": "Top queries by total time (selected time range)",
        "description": "From pg_stat_statements. Look up the text with: "
                       "SELECT query FROM pg_stat_statements WHERE queryid = <id>;",
        "datasource": DS, "gridPos": {"x": 0, "y": _y, "w": 24, "h": 8},
@@ -174,18 +189,57 @@ top = {"id": next_id(), "type": "table", "title": "Top queries by total time (la
        "transformations": [{"id": "merge"}, {"id": "organize", "options": {
            "excludeByName": {"Time": True}, "renameByName": {"queryid": "query id"}}}],
        "targets": targets([
-           ('topk(10, sum by (queryid) (increase(pg_stat_statements_seconds_total{datname="app"}[5m])))', ""),
-           ('sum by (queryid) (increase(pg_stat_statements_calls_total{datname="app"}[5m]))', "")],
+           ('topk(10, sum by (queryid) (increase(pg_stat_statements_seconds_total{datname="app"}[$__range])))', ""),
+           ('sum by (queryid) (increase(pg_stat_statements_calls_total{datname="app"}[$__range]))', "")],
            fmt="table", instant=True)}
 add(top)
 
+# ---------------------------------------------------------------- app
+row("App: measured inside the stack (empty if the stack exposes no metrics)")
+add(ts("Time inside the app, p95 by route",
+       [(f"histogram_quantile(0.95, sum by (le, route) (rate(app_http_request_duration_seconds_bucket[{WIN}])))", "{{route}}")],
+       "s", 0, 12, desc="Compare with k6's p95: the difference is Nginx, the network and queueing before the app"),
+    ts("Database connection pool",
+       [("sum by (state) (app_db_pool_connections)", "{{state}}"), ("max(app_db_pool_max)", "pool max")],
+       "none", 12, 12, desc="Waiting above zero: requests queue for a connection, the pool is the limit"))
+add(ts("Feed cache hit ratio (app-cache phase)",
+       [(f'sum(rate(app_feed_cache_requests_total{{result="hit"}}[{WIN}])) / sum(rate(app_feed_cache_requests_total[{WIN}]))', "hit ratio")],
+       "percentunit", 0, 8, maxv=1),
+    ts("Node.js event loop lag",
+       [("max(nodejs_eventloop_lag_p99_seconds)", "p99"), ("max(nodejs_eventloop_lag_mean_seconds)", "mean")],
+       "s", 8, 8, desc="How late the event loop runs. On one CPU, rising lag means the process is saturated"),
+    ts("Node.js heap and GC",
+       [("max(nodejs_heap_size_used_bytes)", "heap used"),
+        (f"sum(rate(nodejs_gc_duration_seconds_sum[{WIN}]))", "GC seconds per second")],
+       "none", 16, 8, desc="Heap in bytes; GC as the share of each second spent collecting"))
+
 # ---------------------------------------------------------------- mac
-row("Load generator: the Mac running k6")
+row("Load generator and trust checks: is k6 telling the truth?")
 add(ts("Mac CPU busy",
        [(f'1 - avg(rate(node_cpu_seconds_total{{job="mac", mode="idle"}}[{WIN}]))', "busy")],
-       "percentunit", 0, 24, h=6, maxv=1,
-       desc="If this goes above 70%, k6 may be slowing the bench VM down. Recorded, not a hard limit."),
-    h=6)
+       "percentunit", 0, 12, maxv=1, lines=[0.7],
+       desc="If this goes above 70%, k6 may be slowing the bench VM down. Recorded in every run's checks."),
+    ts("Mac memory pressure",
+       [('node_memory_compressed_bytes{job="mac"}', "compressed"),
+        ('node_memory_swap_used_bytes{job="mac"}', "swap used"),
+        ('node_memory_free_bytes{job="mac"}', "free")],
+       "bytes", 12, 12,
+       desc="macOS compresses memory when it runs short, which costs CPU and slows k6. Compressed rising more "
+            "than 2 GB during a run triggers the runner's memory warning. Thousands of virtual users cost "
+            "about 250 KB each."))
+add(ts("Requests / s: Nginx vs k6",
+       [(f"sum(rate(nginx_http_requests_total[{WIN}]))", "Nginx (received)"),
+        (f"sum(rate(k6_http_reqs_total{{{K6}}}[{WIN}]))", "k6 (recorded)")],
+       "reqps", 0, 12,
+       desc="Two independent counts of the same traffic. The lines should lie on top of each other. If they "
+            "split, one of them is wrong, most likely k6. The runner checks the totals for every confirm and "
+            "overload test (within 2%). Nginx also counts the exporter's scrape, 0.2 requests/s."),
+    ts("k6 virtual users and dropped sessions",
+       [(k6_gauge("k6_vus"), "busy"), (k6_gauge("k6_vus_max"), "pool"),
+        (f"sum(rate(k6_dropped_iterations_total{{{K6}}}[{WIN}])) or vector(0)", "dropped / s")],
+       "none", 12, 12, overrides=[right_axis("dropped / s", "short")],
+       desc="Busy reaching the pool means k6 ran out of virtual users and drops sessions (right axis): it "
+            "couldn't send the load it should. Expected during the 1.5x overload phase, a problem anywhere else."))
 
 dashboard = {
     "uid": "bench", "title": "one-cpu-which-backend-wins", "tags": ["bench"],

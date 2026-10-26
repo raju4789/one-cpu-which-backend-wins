@@ -14,51 +14,83 @@
 // Modes (run by harness/bin/run, which sets these variables):
 //   MODE=constant RATE=<sessions/s> DURATION=<s>   steady load, measured after SETTLE_SECONDS
 //   MODE=ramp     RATES=<r1,r2,...>                 one STEP_SECONDS step per rate
+//   RAMP_SECONDS=<s>  constant, ramp and overload: build up from 0 to the first rate first (tagged settle)
 //   MODE=overload RATE=<sessions/s>                 2 min at 1.5x RATE, then 2 min back at RATE
 //
 // Every request is tagged with "step": the step index in a ramp, "steady",
 // "over" or "recover", or "settle" during the first SETTLE_SECONDS after a
 // rate change. Results only use the tagged, settled parts.
+//
+// Four counters record the writes k6 sent and the ones the server acknowledged
+// (201 for a post, 204 for a like). After the run, bin/run compares them with
+// the database: a stack can't look faster by acknowledging writes it never
+// stored. They only count; the load itself is unchanged.
 import http from "k6/http";
 import { sleep } from "k6";
 import exec from "k6/execution";
+import { Counter } from "k6/metrics";
 
 const BASE = __ENV.BASE_URL || "http://localhost:8080";
 const MODE = __ENV.MODE || "constant";
 const STEP = Number(__ENV.STEP_SECONDS || 60);
 const SETTLE = Number(__ENV.SETTLE_SECONDS || 10);
 const MAX_VUS = Number(__ENV.MAX_VUS || 10000);
+const postsSent = new Counter("bench_posts_sent");
+const postsOk = new Counter("bench_posts_ok");
+const likesSent = new Counter("bench_likes_sent");
+const likesOk = new Counter("bench_likes_ok");
 const LIKE_SHARE = 0.3;
 const POST_SHARE = 0.1;
 // VUs are created up front for the highest rate: creating them mid-test is
-// slow enough that k6 drops sessions it can't start in time.
+// slow enough that k6 drops sessions it can't start in time. One pool serves
+// the whole test. k6 hands out idle VUs in turn, so at low rates each VU comes
+// back after Nginx's 65 s keep-alive and opens a new connection, like a new
+// visitor; near the limit each comes back within seconds and reuses it. The
+// idle connections this leaves are fine, but they need the Mac firewall's
+// connection limit raised (harness/README.md, Network).
 const SESSION_SECONDS = 7; // generous session length for VU pre-allocation (avg is about 4 s)
 
 const RATE = Math.max(1, Math.round(Number(__ENV.RATE || 10)));
 const RATES = (__ENV.RATES || "10").split(",").map((r) => Math.max(1, Math.round(Number(r))));
 const OVER = Math.round(RATE * 1.5);
 const PHASE_SECONDS = Number(__ENV.OVERLOAD_SECONDS || 120); // overload: length of "over" and "recover"
+// constant and overload: build up from 0 to RATE over this long first, so the
+// test starts on a warm server instead of a cold-start queue. Tagged "settle".
+const RAMP = Number(__ENV.RAMP_SECONDS || 0);
+const rampStage = (target = RATE) => (RAMP > 0 ? [{ target, duration: `${RAMP}s` }] : []);
 
+// maxVUs equals the pool: if it runs dry, k6 logs "Insufficient VUs" and
+// bin/run stops the run as limited by the load generator.
 const preAllocate = (rate) => Math.min(MAX_VUS, Math.max(20, Math.ceil(rate * SESSION_SECONDS)));
 
 function scenario() {
   if (MODE === "ramp") {
     const stages = [];
     for (const r of RATES) stages.push({ target: r, duration: "5s" }, { target: r, duration: `${STEP - 5}s` });
-    return { executor: "ramping-arrival-rate", startRate: RATES[0], timeUnit: "1s",
-      preAllocatedVUs: preAllocate(Math.max(...RATES)), maxVUs: MAX_VUS, stages, gracefulStop: "5s" };
+    const vus = preAllocate(Math.max(...RATES));
+    stages.unshift(...rampStage(RATES[0]));
+    return { executor: "ramping-arrival-rate", startRate: RAMP > 0 ? 0 : RATES[0], timeUnit: "1s",
+      preAllocatedVUs: vus, maxVUs: vus, stages, gracefulStop: "5s" };
   }
   if (MODE === "overload") {
-    return { executor: "ramping-arrival-rate", startRate: RATE, timeUnit: "1s",
-      preAllocatedVUs: preAllocate(OVER), maxVUs: MAX_VUS, gracefulStop: "5s",
+    const vus = preAllocate(OVER);
+    return { executor: "ramping-arrival-rate", startRate: RAMP > 0 ? 0 : RATE, timeUnit: "1s",
+      preAllocatedVUs: vus, maxVUs: vus, gracefulStop: "5s",
       stages: [
+        ...rampStage(),
         { target: OVER, duration: "5s" }, { target: OVER, duration: `${PHASE_SECONDS - 5}s` },
         { target: RATE, duration: "5s" }, { target: RATE, duration: `${PHASE_SECONDS - 5}s` },
       ] };
   }
-  return { executor: "constant-arrival-rate", rate: RATE, timeUnit: "1s",
-    duration: `${Number(__ENV.DURATION || 120)}s`,
-    preAllocatedVUs: preAllocate(RATE), maxVUs: MAX_VUS, gracefulStop: "5s" };
+  const vus = preAllocate(RATE);
+  const duration = `${Number(__ENV.DURATION || 120)}s`;
+  if (RAMP > 0) {
+    return { executor: "ramping-arrival-rate", startRate: 0, timeUnit: "1s",
+      preAllocatedVUs: vus, maxVUs: vus, gracefulStop: "5s",
+      stages: [...rampStage(), { target: RATE, duration }] };
+  }
+  return { executor: "constant-arrival-rate", rate: RATE, timeUnit: "1s", duration,
+    preAllocatedVUs: vus, maxVUs: vus, gracefulStop: "5s" };
 }
 
 function stepLabels() {
@@ -88,6 +120,8 @@ export const options = {
 };
 
 function stepFor(elapsed) {
+  if (elapsed < RAMP) return "settle";
+  elapsed -= RAMP;
   if (MODE === "ramp") {
     const i = Math.floor(elapsed / STEP);
     return elapsed - i * STEP < SETTLE ? "settle" : String(Math.min(i, RATES.length - 1));
@@ -123,17 +157,21 @@ export default function (data) {
     try { posts = feed.json("posts") || []; } catch (e) { posts = []; }
     if (posts.length > 0) {
       const id = posts[Math.floor(Math.random() * posts.length)].id;
-      http.post(`${BASE}/posts/${id}/like`, null, {
+      likesSent.add(1);
+      const like = http.post(`${BASE}/posts/${id}/like`, null, {
         headers: { "X-User-Id": user }, responseType: "none", tags: { name: "POST /posts/:id/like" },
       });
+      if (like.status === 204) likesOk.add(1);
     }
   }
 
   if (Math.random() < POST_SHARE) {
-    http.post(`${BASE}/posts`, JSON.stringify({ body: `Load test post from user ${user} at ${Date.now()}` }), {
+    postsSent.add(1);
+    const post = http.post(`${BASE}/posts`, JSON.stringify({ body: `Load test post from user ${user} at ${Date.now()}` }), {
       headers: { "Content-Type": "application/json", "X-User-Id": user },
       responseType: "none", tags: { name: "POST /posts" },
     });
+    if (post.status === 201) postsOk.add(1);
   }
 
   think();

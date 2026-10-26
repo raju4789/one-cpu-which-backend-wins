@@ -4,7 +4,8 @@
 //   PHASE=none k6 run k6/contract.js
 //
 // PHASE tells the test how stale /feed may be: fresh in "none", up to 2.5 s
-// in the cache phases ("app", "nginx").
+// in the cache phases ("app", "nginx"): the contract's 2 seconds, plus half a
+// second for this test's own polling (every 0.2 s) and request time.
 import http from "k6/http";
 import { check, sleep } from "k6";
 

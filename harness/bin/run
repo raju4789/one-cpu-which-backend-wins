@@ -11,10 +11,12 @@ Protocol (docs/rules.md):
   5. Warm-up at a fixed low rate, the same for every stack
   6. Coarse ramp: 1-minute steps, x1.5 each, until a step fails
   7. Fine ramp: 1-minute steps of +10% from the last passing rate
-  8. Confirm: hold the best passing rate for 5 minutes. If it fails,
+  8. Confirm: 45 s ramp-up, then hold the best passing rate for 5 minutes. If it fails,
      try the next lower passing rate once
-  9. Overload: 2 minutes at 1.5x the confirmed rate, then 2 minutes back at it
- 10. Results saved to results/<stack>/<phase>/<timestamp>/
+  9. Overload: 45 s ramp-up, then 2 minutes at 1.5x the confirmed rate, then 2 minutes back at it
+ 10. Data check: every write the server acknowledged is in the database, like counts add up
+ 11. Results saved to results/<stack>/<phase>/<timestamp>/, with the evidence for every
+     validity check in summary.md and a fingerprint of the code and config that ran
 
 Rates are user sessions per second (1.4 requests per session on average).
 A step passes while p95 < 300 ms, p99 < 1 s, errors < 1% and k6 dropped
@@ -22,6 +24,8 @@ fewer than 1% of sessions. Uses only the Python standard library.
 """
 import argparse
 import datetime
+import glob
+import hashlib
 import json
 import os
 import re
@@ -30,6 +34,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -40,6 +45,27 @@ K6_DIR = os.path.join(REPO, "k6")
 P95_MAX, P99_MAX, ERROR_MAX, DROP_MAX = 0.300, 1.0, 0.01, 0.01
 STEP_SECONDS, SETTLE_SECONDS, OVERLOAD_SECONDS = 60, 10, 120
 EVAL_DELAY = 12  # seconds after a step ends: k6 pushes every 5 s, Prometheus scrapes every 5 s
+# Pause between two k6 runs, so the server settles before the next test.
+COOLDOWN = 120
+# The confirm and overload tests build up from 0 over this long before measuring,
+# so a cold-start queue after the cool-down doesn't count against sustained load.
+RAMP_SECONDS = 45
+# Warn when the calibration is this much slower than earlier runs. The baseline
+# runs agreed within 1.3%; a run at 4% slower used about 25% more CPU per request.
+CALIBRATION_TOLERANCE = 1.03
+QUICK_STEPS = 7  # --quick: 1-minute steps, 8% apart, starting just below the known limit
+RUN_STARTED = time.time()
+# Nginx counts every request it receives. If its count and k6's differ by more than this
+# over a whole test, one of them is wrong, most likely k6 (for example short of memory).
+NGINX_MISMATCH_MAX = 0.02
+# Likes are idempotent, so a repeat like (same user, same post) is acknowledged but adds no
+# row. Repeats are rare: 50,000 users, and the feed's posts change every second or two.
+# Measured: 0.09% (Nginx cache, 26 Oct). Fewer new rows than this allows means lost writes.
+LIKE_REPEAT_MAX = 0.005
+MAC_CPU_MAX = 0.70
+# What the fingerprint hashes: everything shared that decides how a run behaves.
+FINGERPRINT_PATHS = ["k6", "contract", "harness/compose.yaml", "harness/nginx", "harness/postgres",
+                     "harness/bin", "harness/calibration-reference"]
 
 
 def log(msg):
@@ -53,7 +79,23 @@ def fail(msg):
 
 # ---------------------------------------------------------------- Prometheus
 
+class RunInvalid(Exception):
+    """Something outside the stack broke, so the numbers can't be trusted."""
+
+
+class PromUnavailable(RunInvalid):
+    """Prometheus could not be reached, even after retries."""
+
+
+def lookback():
+    """Range for last_over_time over k6 counters: from shortly before this run started."""
+    return f"[{int(time.time() - RUN_STARTED) + 120}s]"
+
+
 class Prom:
+    TIMEOUT = 10
+    RETRY_DELAYS = (2, 5, 10, 20)  # with the timeouts, rides out about 80 s of trouble
+
     def __init__(self, url):
         self.url = url.rstrip("/")
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -62,8 +104,19 @@ class Prom:
         params = {"query": q}
         if t is not None:
             params["time"] = f"{t:.3f}"
-        with self.opener.open(f"{self.url}/api/v1/query?{urllib.parse.urlencode(params)}", timeout=30) as r:
-            body = json.load(r)
+        url = f"{self.url}/api/v1/query?{urllib.parse.urlencode(params)}"
+        for delay in self.RETRY_DELAYS + (None,):
+            try:
+                with self.opener.open(url, timeout=self.TIMEOUT) as r:
+                    body = json.load(r)
+                break
+            except urllib.error.HTTPError:
+                raise  # Prometheus answered: a bad query, retrying won't help
+            except OSError as e:  # connection refused or timed out
+                if delay is None:
+                    raise PromUnavailable(f"Prometheus at {self.url} did not answer: {e}") from e
+                log(f"  Prometheus did not answer ({e}), retrying in {delay} s")
+                time.sleep(delay)
         if body.get("status") != "success":
             raise RuntimeError(f"Prometheus query failed: {q}: {body}")
         return body["data"]["result"]
@@ -82,10 +135,10 @@ class Prom:
 def k6_step_metrics(prom, sel, seconds):
     """Load numbers for one tagged step, from the counters k6 pushed."""
     def total(metric, extra=""):
-        return prom.scalar(f"sum(last_over_time({metric}{{{sel}{extra}}}[3h]))") or 0.0
+        return prom.scalar(f"sum(last_over_time({metric}{{{sel}{extra}}}{lookback()}))") or 0.0
 
-    hist = f"sum(last_over_time(k6_http_req_duration_seconds{{{sel}}}[3h]))"
-    it_hist = f"sum(last_over_time(k6_iteration_duration_seconds{{{sel}}}[3h]))"
+    hist = f"sum(last_over_time(k6_http_req_duration_seconds{{{sel}}}{lookback()}))"
+    it_hist = f"sum(last_over_time(k6_iteration_duration_seconds{{{sel}}}{lookback()}))"
     reqs = total("k6_http_reqs_total")
     errors = total("k6_http_reqs_total", ',expected_response="false"')
     sessions = total("k6_iterations_total")
@@ -104,7 +157,7 @@ def k6_step_metrics(prom, sel, seconds):
 
 def counter_delta(prom, series, t0, t1):
     """Increase of a k6 counter between two moments (k6 counters start at 0)."""
-    q = f"sum(last_over_time({series}[3h]))"
+    q = f"sum(last_over_time({series}{lookback()}))"
     return (prom.scalar(q, t1) or 0.0) - (prom.scalar(q, t0) or 0.0)
 
 
@@ -136,6 +189,10 @@ class K6Run:
 
     def __init__(self, ctx, script, test, env, summary=None):
         self.start = None
+        self.dial_errors = []  # when k6 failed to open a TCP connection, from its log
+        self.vus_short = []    # when k6 ran out of pre-allocated virtual users
+        self.cpu_peak = 0.0    # k6's own CPU, in cores, peak over 5-second samples
+        self.rss_peak_mb = 0.0  # k6's own memory, peak
         self.log_path = os.path.join(ctx.out, f"k6-{test}.log")
         full_env = os.environ.copy()
         full_env.update({
@@ -161,6 +218,27 @@ class K6Run:
                                      stderr=subprocess.STDOUT, text=True, bufsize=1)
         self.reader = threading.Thread(target=self._read, daemon=True)
         self.reader.start()
+        threading.Thread(target=self._sample, daemon=True).start()
+
+    def _sample(self):
+        """k6's own CPU and memory, from ps every 5 s: evidence the load generator wasn't struggling."""
+        last = None
+        while self.proc.poll() is None:
+            try:
+                out = subprocess.run(["ps", "-o", "time=,rss=", "-p", str(self.proc.pid)],
+                                     capture_output=True, text=True, timeout=5).stdout.split()
+                cpu_s, rss_kb, now = parse_cputime(out[0]), int(out[1]), time.monotonic()
+            except (OSError, ValueError, IndexError, subprocess.SubprocessError):
+                time.sleep(5)
+                continue
+            if last and now > last[0]:
+                self.cpu_peak = max(self.cpu_peak, (cpu_s - last[1]) / (now - last[0]))
+            last = (now, cpu_s)
+            self.rss_peak_mb = max(self.rss_peak_mb, rss_kb / 1024)
+            time.sleep(5)
+
+    def usage(self):
+        return {"cpu_peak_cores": round(self.cpu_peak, 2), "rss_peak_mb": round(self.rss_peak_mb)}
 
     def _read(self):
         with open(self.log_path, "w") as f:
@@ -169,6 +247,11 @@ class K6Run:
                 m = re.search(r"RUN_START (\d+)", line)
                 if m and self.start is None:
                     self.start = int(m.group(1)) / 1000.0
+                kind = (self.dial_errors if "Request Failed" in line and "dial" in line
+                        else self.vus_short if "Insufficient VUs" in line else None)
+                t = re.search(r'time="([^"]+)"', line) if kind is not None else None
+                if t:
+                    kind.append(datetime.datetime.fromisoformat(t.group(1)).timestamp())
 
     def wait_start(self, timeout=120):
         deadline = time.time() + timeout
@@ -191,6 +274,15 @@ class K6Run:
         code = self.proc.wait()
         self.reader.join(timeout=5)
         return code
+
+
+def parse_cputime(text):
+    """ps cumulative CPU time: [dd-][hh:]mm:ss[.ss] -> seconds."""
+    days, _, rest = text.rpartition("-")
+    secs = 0.0
+    for part in rest.split(":"):
+        secs = secs * 60 + float(part)
+    return secs + (int(days) * 86400 if days else 0)
 
 
 def summary_numbers(path, step, seconds):
@@ -218,6 +310,59 @@ def summary_numbers(path, step, seconds):
         "dropped_sessions_whole_run": int(dropped),
         "vus_max": m.get("vus_max", {}).get("values", {}).get("max"),
     }
+
+
+def latency_ok(r):
+    return all(r[k] is None or r[k] < lim for k, lim in (("p95_s", P95_MAX), ("p99_s", P99_MAX)))
+
+
+def check_connections(run, r, t0, t1):
+    """k6 failing to connect while the server answers fast is the network on the Mac, not the stack.
+
+    A saturated server can also refuse connections, but then its latency fails the step too.
+    """
+    r["dial_errors"] = sum(1 for t in run.dial_errors if t0 - 1 <= t <= t1 + 1)
+    if r["dial_errors"] and latency_ok(r):
+        r["passed"], r["fail_reasons"] = False, [f"invalid: k6 could not connect {r['dial_errors']} times"]
+        raise RunInvalid(
+            f"k6 could not open {r['dial_errors']} connections while the server answered in "
+            f"p95 {(r['p95_s'] or 0) * 1000:.0f} ms. That is the Mac or the VM network, not the stack. "
+            f"Most likely the Mac firewall's connection limit: check `sudo pfctl -s memory`, "
+            f"see Network in harness/README.md. Details: {run.log_path}")
+
+
+def check_run(ctx, run, r, t0, t1, check_vus=True):
+    """Stops the run if anything outside the stack limited this window.
+
+    check_vus: judge k6's "Insufficient VUs" warning. k6 logs it once per test, so it only
+    says something about the window it falls in. The overload test checks drops instead.
+    """
+    check_connections(run, r, t0, t1)
+    r["vus_short_warnings"] = sum(1 for t in run.vus_short if t0 - 1 <= t <= t1 + 1)
+    reason = None
+    if ctx.sleeps:
+        start, _, gap = ctx.sleeps[0]
+        reason = (f"the Mac slept for {gap:.0f} s at {time.strftime('%H:%M:%S', time.localtime(start))}, "
+                  "which pauses the VMs and k6. Keep it awake and plugged in, lid open")
+    elif check_vus and any(t0 - 1 <= t <= t1 + 1 for t in run.vus_short) and latency_ok(r):
+        # With latency already failing, slow sessions drained the pool: a normal fail for the stack
+        reason = (f"k6 ran out of virtual users (--max-vus {ctx.max_vus}), so it could not start every "
+                  f"session: the load generator was the limit. Rerun with --max-vus {ctx.max_vus * 2}")
+    if reason:
+        r["passed"], r["fail_reasons"] = False, [f"invalid: {reason.split(',')[0]}"]
+        raise RunInvalid(reason)
+
+
+def watch_sleep(ctx):
+    """Records gaps where the wall clock jumped but the monotonic clock didn't: the Mac was asleep."""
+    wall, mono = time.time(), time.monotonic()
+    while True:
+        time.sleep(2)
+        wall2, mono2 = time.time(), time.monotonic()
+        gap = (wall2 - wall) - (mono2 - mono)
+        if gap > 5:
+            ctx.sleeps.append((wall, wall2, gap))
+        wall, mono = wall2, mono2
 
 
 def verdict(r, dropped_ratio=0.0):
@@ -261,19 +406,35 @@ class Ctx:
 def sh(ctx, *cmd, capture=False):
     env = os.environ.copy()
     env["BASE_URL"] = ctx.base_url
-    if capture:
-        return subprocess.run(cmd, env=env, check=True, capture_output=True, text=True).stdout
-    subprocess.run(cmd, env=env, check=True)
+    try:
+        if capture:
+            return subprocess.run(cmd, env=env, check=True, capture_output=True, text=True).stdout
+        subprocess.run(cmd, env=env, check=True)
+    except subprocess.CalledProcessError as e:
+        fail(f"{os.path.basename(cmd[0])} failed (exit {e.returncode}), see its output above")
     return None
 
 
-def ramp(ctx, prom, rates, test):
-    log(f"{test}: {len(rates)} steps of {STEP_SECONDS} s, rates {', '.join(map(str, rates))} sessions/s")
+def ramp(ctx, prom, rates, test, steps, ramp_up=0):
+    """Runs the steps until one fails, appending each to steps as it is judged.
+
+    ramp_up: seconds building up from 0 to the first rate before step 1 (not measured).
+    """
+    log(f"{test}: {len(rates)} steps of {STEP_SECONDS} s, rates {', '.join(map(str, rates))} sessions/s"
+        + (f", after a {ramp_up} s ramp-up" if ramp_up else ""))
     run = K6Run(ctx, os.path.join(K6_DIR, "load.js"), test,
-                {"MODE": "ramp", "RATES": ",".join(map(str, rates))},
+                {"MODE": "ramp", "RATES": ",".join(map(str, rates)), "RAMP_SECONDS": ramp_up},
                 summary=os.path.join(ctx.out, f"k6-{test}-summary.json"))
-    start = run.wait_start()
-    steps = []
+    start = run.wait_start() + ramp_up
+    try:
+        _ramp_steps(ctx, prom, rates, test, run, start, steps)
+    finally:
+        run.stop()
+        ctx.result.setdefault("k6_process", {})[test] = run.usage()
+    return steps
+
+
+def _ramp_steps(ctx, prom, rates, test, run, start, steps):
     for i, rate in enumerate(rates):
         t0, t1 = start + i * STEP_SECONDS + SETTLE_SECONDS, start + (i + 1) * STEP_SECONDS
         while time.time() < t1 + EVAL_DELAY and run.proc.poll() is None:
@@ -284,33 +445,70 @@ def ramp(ctx, prom, rates, test):
                                 t0, t1)
         dropped_ratio = dropped / (r["sessions"] + dropped) if (r["sessions"] + dropped) else 0.0
         r.update({"rate": rate, "dropped_sessions": int(dropped), "server": server_metrics(prom, t0, t1)})
+        steps.append(r)
+        check_run(ctx, run, r, t0 - SETTLE_SECONDS, t1)
+        check_mac_memory(ctx, prom, r, t1)
         r["fail_reasons"] = verdict(r, dropped_ratio)
         r["passed"] = not r["fail_reasons"]
         cpu = r["server"]["vm_cpu_avg"]
         cpu_txt = f"{cpu * 100:.0f}%" if cpu is not None else "-"
         outcome = "PASS" if r["passed"] else "FAIL (" + ", ".join(r["fail_reasons"]) + ")"
         log(f"  step {i + 1}/{len(rates)} @ {rate} sessions/s: {fmt(r)}, server CPU {cpu_txt} -> {outcome}")
-        if dropped_ratio >= DROP_MAX and r["p95_s"] is not None and r["p95_s"] < P95_MAX:
-            log("  k6 ran out of virtual users while the server was still fast: "
-                "raise --max-vus, the limit is the load generator, not the stack")
-            r["generator_limited"] = True
-        steps.append(r)
         if not r["passed"] or run.proc.poll() is not None:
             break
-    run.stop()
-    return steps
 
 
-def constant(ctx, test, rate, seconds, settle):
+def constant(ctx, test, rate, seconds, settle, ramp=0, prom=None):
+    """ramp seconds building up from 0, then seconds at rate; the first settle of those aren't measured.
+
+    prom: also cross-check k6's request count against Nginx's.
+    """
     summary = os.path.join(ctx.out, f"k6-{test}-summary.json")
     run = K6Run(ctx, os.path.join(K6_DIR, "load.js"), test,
-                {"MODE": "constant", "RATE": rate, "DURATION": seconds, "SETTLE_SECONDS": settle},
+                {"MODE": "constant", "RATE": rate, "DURATION": seconds, "SETTLE_SECONDS": settle,
+                 "RAMP_SECONDS": ramp},
                 summary=summary)
     run.wait_start()
     run.wait()
-    start = run.start
+    t_end = time.time()
+    start = run.start + ramp
     r = summary_numbers(summary, "steady", seconds - settle)
+    r["k6_process"] = run.usage()
+    ctx.result.setdefault("k6_process", {})[test] = r["k6_process"]
+    check_run(ctx, run, r, start, start + seconds)
+    if prom:
+        r["nginx_check"] = check_nginx_count(ctx, prom, test, run, summary, t_end)
     return r, (start + settle, start + seconds)
+
+
+def check_nginx_count(ctx, prom, test, run, summary, t_end):
+    """Nginx's request count over a whole k6 test, against k6's: do they agree?
+
+    Nginx counts every request it receives, independently of k6. A gap means one of them
+    is wrong: k6 recording requests that never reached the server, or missing ones it sent.
+    The exporter reads /stub_status every 5 s and Nginx counts that too, so it's subtracted.
+    """
+    with open(summary) as f:
+        k6_total = json.load(f)["metrics"].get("http_reqs", {}).get("values", {}).get("count")
+    t1 = t_end + EVAL_DELAY  # the last scrape after k6 stopped
+    if time.time() < t1:
+        time.sleep(t1 - time.time())
+    t0 = run.start - 1  # k6 sends nothing before RUN_START; the cool-down before is quiet
+    q = "sum(nginx_http_requests_total)"
+    before, after = prom.scalar(q, t0), prom.scalar(q, t1)
+    if not k6_total or before is None or after is None:
+        warn(ctx.result, f"{test}: could not compare Nginx's request count with k6's (no data)")
+        return {"ok": None}
+    nginx = after - before - (t1 - t0) / 5
+    diff = (nginx - k6_total) / k6_total
+    check = {"k6_requests": int(k6_total), "nginx_requests": int(round(nginx)),
+             "difference": round(diff, 4), "ok": abs(diff) < NGINX_MISMATCH_MAX}
+    log(f"  Nginx counted {check['nginx_requests']} requests, k6 {check['k6_requests']} ({diff * 100:+.2f}%)")
+    if not check["ok"]:
+        warn(ctx.result, f"{test}: Nginx counted {check['nginx_requests']} requests but k6 recorded "
+                         f"{check['k6_requests']} ({diff * 100:+.1f}%). One of them is wrong, most likely k6: "
+                         "don't trust this test's numbers")
+    return check
 
 
 def main():
@@ -318,7 +516,7 @@ def main():
     ap.add_argument("stack")
     ap.add_argument("phase", choices=["none", "app", "nginx"])
     ap.add_argument("--start-rate", type=int, default=10, help="first ramp rate, sessions/s (default 10)")
-    ap.add_argument("--max-rate", type=int, default=5000, help="highest ramp rate tried (default 5000)")
+    ap.add_argument("--max-rate", type=int, default=20000, help="highest ramp rate tried (default 20000)")
     ap.add_argument("--max-vus", type=int, default=10000, help="k6 virtual user cap (default 10000)")
     ap.add_argument("--warmup-rate", type=int, default=20, help="warm-up rate, sessions/s (default 20)")
     ap.add_argument("--warmup-seconds", type=int, default=120)
@@ -326,6 +524,11 @@ def main():
     ap.add_argument("--skip-overload", action="store_true")
     ap.add_argument("--step-seconds", type=int, default=60, help=argparse.SUPPRESS)  # for testing the runner
     ap.add_argument("--overload-seconds", type=int, default=120, help=argparse.SUPPRESS)
+    ap.add_argument("--quick", action="store_true",
+                    help="tuning mode, about 10 minutes: a few 1-minute steps near the known limit, no confirm")
+    ap.add_argument("--quick-from", type=int,
+                    help="--quick: first rate in sessions/s (default: 80%% of the latest full result)")
+    ap.add_argument("--overload", action="store_true", help="--quick: also run the overload test")
     ap.add_argument("--no-up", action="store_true",
                     help="use whatever is already running: no bin/up, calibrate or env-report")
     args = ap.parse_args()
@@ -338,19 +541,62 @@ def main():
     ctx.max_vus = args.max_vus
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     ctx.run_id = f"{args.stack}-{args.phase}-{stamp}"
-    ctx.out = os.path.join(REPO, "results", args.stack, args.phase, stamp)
+    ctx.out = os.path.join(REPO, "results", args.stack, args.phase, stamp + ("-quick" if args.quick else ""))
     os.makedirs(ctx.out, exist_ok=True)
     version = subprocess.run(["k6", "version"], capture_output=True, text=True).stdout
     major = re.search(r"v(\d+)\.", version)
     ctx.legacy_native_histograms = bool(major) and int(major.group(1)) < 2
     prom = Prom(ctx.prom_url)
+    if args.quick and args.warmup_seconds == 120:
+        args.warmup_seconds = 60
     result = {"stack": args.stack, "phase": args.phase, "run_id": ctx.run_id,
+              "mode": "quick" if args.quick else "full",
               "started": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
               "k6": version.strip(), "criteria": {"p95_s": P95_MAX, "p99_s": P99_MAX,
                                                    "error_rate": ERROR_MAX, "dropped": DROP_MAX}}
     bin_dir = os.path.join(HARNESS, "bin")
     log(f"Run {ctx.run_id}, results in {os.path.relpath(ctx.out, REPO)}")
+    check_mac_ports(ctx.max_vus)
+    ctx.result = result
+    ctx.run_started = time.time()
+    try:
+        ctx.mac_compressed_start = mac_compressed_gb(prom) if sys.platform == "darwin" else None
+    except (RunInvalid, RuntimeError, OSError):
+        ctx.mac_compressed_start = None
+    ctx.sleeps = []
+    threading.Thread(target=watch_sleep, args=(ctx,), daemon=True).start()
+    if sys.platform == "darwin":  # keep the Mac awake until this process exits (lid closed still sleeps)
+        subprocess.Popen(["caffeinate", "-ims", "-w", str(os.getpid())])
 
+    result["fingerprint"] = fingerprint(ctx)
+    try:
+        confirmed = protocol(args, ctx, prom, result, bin_dir)
+        data_check(ctx, result)
+    except (RunInvalid, KeyboardInterrupt) as e:
+        result["status"] = "aborted"
+        result["abort_reason"] = str(e) or type(e).__name__
+        save(ctx, result)
+        fail(f"run aborted: {result['abort_reason']}\n"
+             f"Partial results are in {os.path.relpath(ctx.out, REPO)}. They are not a valid result: rerun.")
+    result["status"] = "complete"
+    save(ctx, result)
+    if args.quick:
+        log(f"QUICK RESULT {args.stack} / {args.phase}: highest passing 1-minute step "
+            f"{confirmed['rps']:.0f} req/s ({confirmed['rate']} sessions/s), p95 {confirmed['p95_s'] * 1000:.0f} ms, "
+            f"p99 {confirmed['p99_s'] * 1000:.0f} ms. For tuning only: not comparable with full results")
+    elif confirmed:
+        log(f"RESULT {args.stack} / {args.phase}: {confirmed['rps']:.0f} req/s sustained "
+            f"({confirmed['rate']} sessions/s, about {confirmed['concurrent_users'] or 0:.0f} concurrent users), "
+            f"p95 {confirmed['p95_s'] * 1000:.0f} ms, p99 {confirmed['p99_s'] * 1000:.0f} ms")
+    else:
+        log(f"RESULT {args.stack} / {args.phase}: no rate passed the 5-minute confirm")
+    for w in result.get("warnings", []):
+        log(f"WARNING: {w}")
+    log(f"Saved {os.path.relpath(ctx.out, REPO)}. Let the Mac cool down 5 minutes before the next run.")
+
+
+def protocol(args, ctx, prom, result, bin_dir):
+    """Steps 1 to 9. Fills in result as it goes and returns the confirmed step, if any."""
     # 1. Fresh start
     if not args.no_up:
         sh(ctx, os.path.join(bin_dir, "up"), args.stack, args.phase)
@@ -361,6 +607,7 @@ def main():
     if contract.wait() != 0:
         fail(f"contract test failed, not load testing. Details: {contract.log_path}")
     result["contract"] = "passed"
+    result["data_check"] = {"before": db_counts(ctx)}  # after the contract test's own writes
 
     # 3. Idle baseline
     log("Idle baseline (30 s)")
@@ -374,6 +621,12 @@ def main():
         m = re.search(r"calibration_seconds=([\d.]+)", cal or "")
         result["calibration_seconds"] = float(m.group(1)) if m else None
         log(cal.strip().splitlines()[0] if cal else "calibration: no output")
+        ref = calibration_reference()
+        if ref and result["calibration_seconds"] and result["calibration_seconds"] > ref * CALIBRATION_TOLERANCE:
+            warn(result, f"calibration {result['calibration_seconds']:.2f} s is "
+                         f"{(result['calibration_seconds'] / ref - 1) * 100:.0f}% slower than the reference "
+                         f"{ref:.2f} s (harness/calibration-reference): the core was slower. Is something "
+                         "else running on the Mac? Compare this run with care")
         with open(os.path.join(ctx.out, "env.json"), "w") as f:
             f.write(sh(ctx, os.path.join(bin_dir, "env-report"), capture=True))
 
@@ -382,6 +635,8 @@ def main():
     warm, _ = constant(ctx, "warmup", args.warmup_rate, args.warmup_seconds, 10)
     result["warmup"] = warm
     log(f"  {fmt(warm)}")
+    if args.quick:
+        return quick(args, ctx, prom, result)
 
     # 6. Coarse ramp
     rates, r = [], float(args.start_rate)
@@ -389,7 +644,8 @@ def main():
         if not rates or round(r) > rates[-1]:
             rates.append(round(r))
         r *= 1.5
-    coarse = ramp(ctx, prom, rates, "ramp-coarse")
+    result["ramp"] = {"coarse": [], "fine": []}
+    coarse = ramp(ctx, prom, rates, "ramp-coarse", result["ramp"]["coarse"])
     passing = [s for s in coarse if s["passed"]]
     if not passing:
         fail(f"the first step ({rates[0]} sessions/s) already failed; use a lower --start-rate")
@@ -402,25 +658,26 @@ def main():
         fine_rates = sorted({round(best * f) for f in (1.1, 1.2, 1.3, 1.4)
                              if best < round(best * f) < failed_at})
         if fine_rates:
-            log("Cool-down 30 s before the fine ramp")
-            time.sleep(30)
-            fine = ramp(ctx, prom, fine_rates, "ramp-fine")
+            log(f"Cool-down {COOLDOWN} s before the fine ramp")
+            time.sleep(COOLDOWN)
+            fine = ramp(ctx, prom, fine_rates, "ramp-fine", result["ramp"]["fine"])
             passing += [s for s in fine if s["passed"]]
     else:
         log(f"Every step passed up to --max-rate {args.max_rate}: the stack may handle more")
-    result["ramp"] = {"coarse": coarse, "fine": fine}
 
     # 8. Confirm
     candidates = sorted({s["rate"] for s in passing}, reverse=True)[:2]
     confirmed = None
     for rate in candidates:
-        log(f"Cool-down 30 s, then confirm {rate} sessions/s for {args.confirm_seconds} s")
-        time.sleep(30)
-        c, (t0, t1) = constant(ctx, f"confirm-{rate}", rate, args.confirm_seconds, 30)
+        log(f"Cool-down {COOLDOWN} s, then confirm {rate} sessions/s for {args.confirm_seconds} s "
+        f"after a {RAMP_SECONDS} s ramp-up")
+        time.sleep(COOLDOWN)
+        c, (t0, t1) = constant(ctx, f"confirm-{rate}", rate, args.confirm_seconds, 30, RAMP_SECONDS, prom)
         dropped_ratio = c["dropped_sessions_whole_run"] / max(1, c["sessions"] + c["dropped_sessions_whole_run"])
         c["fail_reasons"] = verdict(c, dropped_ratio)
         c["rate"] = rate
         c["server"] = server_metrics(prom, t0, t1)
+        check_mac_memory(ctx, prom, c, t1)
         outcome = "CONFIRMED" if not c["fail_reasons"] else "FAIL (" + ", ".join(c["fail_reasons"]) + ")"
         log(f"  {fmt(c)} -> {outcome}")
         result.setdefault("confirm_attempts", []).append(c)
@@ -431,38 +688,330 @@ def main():
 
     # 9. Overload and recovery
     if confirmed and not args.skip_overload:
-        log("Cool-down 30 s, then overload: 2 min at 1.5x, 2 min back at the confirmed rate")
-        time.sleep(30)
-        summary = os.path.join(ctx.out, "k6-overload-summary.json")
-        run = K6Run(ctx, os.path.join(K6_DIR, "load.js"), "overload",
-                    {"MODE": "overload", "RATE": confirmed["rate"]}, summary=summary)
-        run.wait_start()
-        run.wait()
-        over = summary_numbers(summary, "over", OVERLOAD_SECONDS - SETTLE_SECONDS)
-        rec = summary_numbers(summary, "recover", OVERLOAD_SECONDS - SETTLE_SECONDS)
-        rec["recovered"] = not verdict(rec)
-        result["overload"] = {"over": over, "recover": rec}
-        log(f"  at 1.5x: {fmt(over)}")
-        log(f"  back at 1x: {fmt(rec)} -> {'recovered' if rec['recovered'] else 'did NOT recover'}")
+        overload(ctx, prom, result, confirmed["rate"])
+    return confirmed
 
+
+def overload(ctx, prom, result, rate):
+    """Ramp up to rate, 2 minutes at 1.5x it, then 2 minutes back at it: does the stack recover?"""
+    log(f"Cool-down {COOLDOWN} s, then overload: {RAMP_SECONDS} s ramp-up, 2 min at 1.5x, "
+        f"2 min back at {rate} sessions/s")
+    time.sleep(COOLDOWN)
+    summary = os.path.join(ctx.out, "k6-overload-summary.json")
+    run = K6Run(ctx, os.path.join(K6_DIR, "load.js"), "overload",
+                {"MODE": "overload", "RATE": rate, "RAMP_SECONDS": RAMP_SECONDS}, summary=summary)
+    run.wait_start()
+    run.wait()
+    t_end = time.time()
+    ctx.result.setdefault("k6_process", {})["overload"] = run.usage()
+    over = summary_numbers(summary, "over", OVERLOAD_SECONDS - SETTLE_SECONDS)
+    rec = summary_numbers(summary, "recover", OVERLOAD_SECONDS - SETTLE_SECONDS)
+    t_over = run.start + RAMP_SECONDS
+    t0, t1 = t_over + OVERLOAD_SECONDS + SETTLE_SECONDS, t_over + 2 * OVERLOAD_SECONDS
+    # At 1.5x, slow sessions use up k6's virtual users on purpose; that says nothing about
+    # recovery. What matters is whether k6 dropped sessions while the stack recovered.
+    check_run(ctx, run, rec, t0, t1, check_vus=False)
+    dropped = counter_delta(prom, f'k6_dropped_iterations_total{{run_id="{ctx.run_id}",test="overload"}}', t0, t1)
+    rec["dropped_sessions"] = int(dropped)
+    ratio = dropped / (rec["sessions"] + dropped) if (rec["sessions"] + dropped) else 0.0
+    if ratio >= DROP_MAX and latency_ok(rec):
+        rec["passed"], rec["fail_reasons"] = False, ["invalid: k6 dropped sessions during recovery"]
+        raise RunInvalid(f"k6 dropped {ratio * 100:.1f}% of sessions while the stack was recovering with "
+                         f"fast responses: the load generator was the limit. Rerun with a higher --max-vus")
+    rec["recovered"] = not verdict(rec)
+    result["overload"] = {"over": over, "recover": rec,
+                          "nginx_check": check_nginx_count(ctx, prom, "overload", run, summary, t_end)}
+    log(f"  at 1.5x: {fmt(over)}")
+    log(f"  back at 1x: {fmt(rec)} -> {'recovered' if rec['recovered'] else 'did NOT recover'}")
+
+
+def check_mac_ports(max_vus):
+    """Each virtual user holds a connection, and each needs its own port on the Mac."""
+    if sys.platform != "darwin":
+        return
+    try:
+        lo, hi = (int(subprocess.run(["sysctl", "-n", f"net.inet.ip.portrange.{k}"], capture_output=True,
+                                     text=True, check=True).stdout) for k in ("first", "last"))
+    except (OSError, ValueError, subprocess.CalledProcessError):
+        return
+    ports = hi - lo + 1
+    if max_vus > ports * 0.9:
+        fail(f"--max-vus {max_vus} needs up to {max_vus} connections, but the Mac has only {ports} ports "
+             f"for them ({lo}-{hi}). Run harness/bin/mac-setup (after every reboot)")
+
+
+MAC_COMPRESSED_GROWTH_GB = 2.0  # more than this during a run: the Mac was short of memory
+
+
+def mac_compressed_gb(prom, t=None, over=None):
+    q = 'node_memory_compressed_bytes{job="mac"}'
+    v = prom.scalar(f"max_over_time({q}[{over}])" if over else q, t)
+    return v / 1e9 if v is not None else None
+
+
+def check_mac_memory(ctx, prom, r, t1):
+    """macOS compresses memory when it runs short, which costs CPU and slows k6 down.
+
+    With too many virtual users (about 250 KB each), k6 itself becomes the bottleneck and its
+    latencies include its own delays. Recorded per step; a warning, since macOS memory is noisy.
+    """
+    if ctx.mac_compressed_start is None:
+        return
+    peak = mac_compressed_gb(prom, t1, f"{max(10, int(t1 - ctx.run_started))}s")
+    if peak is None:
+        return
+    growth = peak - ctx.mac_compressed_start
+    r.setdefault("server", {})["mac_compressed_growth_gb"] = round(growth, 2)
+    if growth > MAC_COMPRESSED_GROWTH_GB and not getattr(ctx, "warned_memory", False):
+        ctx.warned_memory = True
+        warn(ctx.result, f"the Mac compressed {growth:.1f} GB more memory during the run: it was short of "
+                         "memory, so k6 may have slowed itself down. Lower --max-vus or close other apps, and "
+                         "don't trust latencies from this point on")
+
+
+def warn(result, msg):
+    result.setdefault("warnings", []).append(msg)
+    log(f"WARNING: {msg}")
+
+
+def calibration_reference():
+    """The normal calibration time, from harness/calibration-reference (fixed on purpose).
+
+    A median of recent runs would drift: a slow afternoon drags it up and hides the slow runs.
+    """
+    try:
+        with open(os.path.join(HARNESS, "calibration-reference")) as f:
+            for line in f:
+                line = line.split("#", 1)[0].strip()
+                if line:
+                    return float(line)
+    except (OSError, ValueError):
+        return None
+    return None
+
+
+def quick_start_rate(stack, phase):
+    """80% of the rate the stack's latest complete full run confirmed, or None."""
+    runs = sorted(glob.glob(os.path.join(REPO, "results", stack, phase, "*", "result.json")))
+    for path in reversed(runs):
+        if path.split(os.sep)[-2].endswith("-quick"):
+            continue
+        try:
+            with open(path) as f:
+                r = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if r.get("status") == "complete" and r.get("result"):
+            return max(1, round(r["result"]["rate"] * 0.8))
+    return None
+
+
+def quick(args, ctx, prom, result):
+    """Tuning mode: a few 1-minute steps around the known limit. Returns the highest passing step."""
+    start = args.quick_from or quick_start_rate(args.stack, args.phase)
+    if not start:
+        fail(f"no complete full run of {args.stack}/{args.phase} to start from: run the full protocol "
+             "once, or pass --quick-from <sessions/s>")
+    rates = [round(start * 1.08 ** i) for i in range(QUICK_STEPS)]
+    result["ramp"] = {"coarse": [], "fine": []}
+    steps = ramp(ctx, prom, rates, "ramp-quick", result["ramp"]["coarse"], ramp_up=RAMP_SECONDS)
+    passing = [s for s in steps if s["passed"]]
+    if not passing:
+        result["result"] = None
+        result["status"] = "complete"
+        save(ctx, result)
+        fail(f"the first step ({rates[0]} sessions/s) already failed; rerun with a lower --quick-from. "
+             f"Results saved in {os.path.relpath(ctx.out, REPO)}")
+    best = passing[-1]
+    if len(passing) == len(rates):
+        log(f"Every step passed up to {rates[-1]} sessions/s: rerun with a higher --quick-from")
+    result["result"] = best
+    if args.overload:
+        overload(ctx, prom, result, best["rate"])
+    return best
+
+
+# ---------------------------------------------------------------- trust checks
+
+def db_counts(ctx):
+    """Row counts, and whether every post's like_count matches its rows in likes."""
+    sql = ("SELECT (SELECT count(*) FROM posts), (SELECT count(*) FROM likes), "
+           "(SELECT coalesce(sum(like_count), 0) FROM posts), "
+           "(SELECT count(*) FROM posts p LEFT JOIN (SELECT post_id, count(*) AS n FROM likes GROUP BY post_id) l "
+           "ON l.post_id = p.id WHERE p.like_count <> coalesce(l.n, 0))")
+    env = dict(os.environ, BASE_URL=ctx.base_url, PROM_URL=ctx.prom_url)
+    try:
+        out = subprocess.run(
+            ["bash", "-c", 'source "$1/bin/common.sh"; '
+             'bench exec -i bench-postgres-1 psql -U bench -d app -X -A -t -q -F " " -c "$2"', "_", HARNESS, sql],
+            env=env, capture_output=True, text=True, timeout=180)
+        posts, likes, like_sum, mismatched = map(int, out.stdout.split())
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+    return {"posts": posts, "likes": likes, "like_count_sum": like_sum, "posts_with_wrong_like_count": mismatched}
+
+
+def k6_write_totals(ctx):
+    """Writes k6 sent and got a success for, over every load test of this run (k6/load.js counters)."""
+    names = ("bench_posts_sent", "bench_posts_ok", "bench_likes_sent", "bench_likes_ok")
+    totals = dict.fromkeys(names, 0)
+    # A load test without a summary (k6 killed) would leave its writes uncounted
+    logs = [p for p in glob.glob(os.path.join(ctx.out, "k6-*.log")) if not p.endswith("k6-contract.log")]
+    totals["missing_summaries"] = [os.path.basename(p) for p in logs
+                                   if not os.path.exists(p[:-4] + "-summary.json")]
+    for path in glob.glob(os.path.join(ctx.out, "k6-*-summary.json")):
+        with open(path) as f:
+            m = json.load(f)["metrics"]
+        for n in names:
+            totals[n] += int(m.get(n, {}).get("values", {}).get("count", 0))
+    return totals
+
+
+def data_check(ctx, result):
+    """Did the server really do the writes it acknowledged? A stack that answered 201 or 204
+    without storing the write would look faster than it is.
+
+    Posts: every acknowledged post is stored, and no more were stored than k6 sent (a request
+    k6 gave up on may still have been stored). Likes: each post's like_count matches its rows,
+    and new rows match acknowledged likes, apart from rare repeats (likes are idempotent).
+    """
+    dc = result.setdefault("data_check", {})
+    dc["after"], dc["k6"] = db_counts(ctx), k6_write_totals(ctx)
+    before, after, k6 = dc.get("before"), dc["after"], dc["k6"]
+    if not before or not after or k6["missing_summaries"]:
+        dc["ok"] = None
+        warn(result, "data check skipped: " + ("could not read the database counts" if not before or not after
+             else f"k6 wrote no summary for {', '.join(k6['missing_summaries'])}, so its writes are unknown"))
+        return
+    new_posts, new_likes = after["posts"] - before["posts"], after["likes"] - before["likes"]
+    dc.update(new_posts=new_posts, new_likes=new_likes)
+    problems = []
+    if not k6["bench_posts_ok"] <= new_posts <= k6["bench_posts_sent"]:
+        problems.append(f"{new_posts} new posts in the database, but k6 got 201 for {k6['bench_posts_ok']} "
+                        f"and sent {k6['bench_posts_sent']}")
+    if after["posts_with_wrong_like_count"] or after["like_count_sum"] != after["likes"]:
+        problems.append(f"{after['posts_with_wrong_like_count']} posts have a like_count that doesn't match "
+                        f"their likes (total {after['like_count_sum']} vs {after['likes']} rows)")
+    if new_likes > k6["bench_likes_sent"] or new_likes < k6["bench_likes_ok"] * (1 - LIKE_REPEAT_MAX):
+        problems.append(f"{new_likes} new likes in the database, but k6 got 204 for {k6['bench_likes_ok']} "
+                        f"and sent {k6['bench_likes_sent']}")
+    dc["ok"], dc["problems"] = not problems, problems
+    if problems:
+        warn(result, "DATA CHECK FAILED, the server didn't store what it acknowledged: " + "; ".join(problems))
+    else:
+        log(f"Data check: {new_posts} posts and {new_likes} likes stored for {k6['bench_posts_ok']} and "
+            f"{k6['bench_likes_ok']} acknowledged; like counts consistent")
+
+
+def tree_hash(path):
+    """sha256 over every file under path (names and contents), skipping build output."""
+    h = hashlib.sha256()
+    if os.path.isfile(path):
+        files = [path]
+    else:
+        files = []
+        for root, dirs, names in os.walk(path):
+            dirs[:] = sorted(d for d in dirs if d not in ("node_modules", "dist", "__pycache__", ".git"))
+            files += [os.path.join(root, n) for n in sorted(names) if n != ".run-info"]
+    for f in files:
+        h.update(os.path.relpath(f, path).encode() + b"\0")
+        with open(f, "rb") as fh:
+            h.update(hashlib.sha256(fh.read()).digest())
+    return h.hexdigest() if files else None
+
+
+def fingerprint(ctx):
+    """Exactly which code and config ran, so anyone can check a result against the repo."""
+    def git(*args):
+        return subprocess.run(["git", "-C", REPO, *args], capture_output=True, text=True).stdout.rstrip()
+    stack_src = os.environ.get("STACK_SRC")
+    stack_dir = stack_src or next((d for d in (os.path.join(REPO, "stacks", ctx.stack),
+                                               os.path.join(HARNESS, ctx.stack)) if os.path.isdir(d)), None)
+    fp = {"harness_commit": git("rev-parse", "HEAD"),
+          "harness_uncommitted": git("status", "--porcelain", "--", "harness", "k6", "contract").splitlines(),
+          "stack_ref": os.environ.get("STACK_REF"),
+          "stack_commit": os.environ.get("STACK_COMMIT") or git("rev-parse", "HEAD"),
+          "stack_uncommitted": [] if stack_src else
+              git("status", "--porcelain", "--", os.path.relpath(stack_dir or "", REPO)).splitlines(),
+          "stack_files_sha256": tree_hash(stack_dir) if stack_dir else None,
+          "files_sha256": {p: tree_hash(os.path.join(REPO, p)) for p in FINGERPRINT_PATHS}}
+    dirty = fp["harness_uncommitted"] + fp["stack_uncommitted"]
+    if dirty:
+        warn(ctx.result, f"uncommitted changes ({', '.join(x[3:] for x in dirty[:5])}"
+                         f"{'...' if len(dirty) > 5 else ''}): this run can't be reproduced from a commit")
+    return fp
+
+
+def build_checks(res):
+    """Every validity check with its measured value, so a reader can see why a result counts."""
+    c = res.get("result") or {}
+    srv = c.get("server", {})
+    rows = []
+
+    def row(name, value, limit, ok):
+        rows.append({"check": name, "value": value, "limit": limit, "ok": ok})
+
+    pct = lambda v: f"{v * 100:.0f}%"
+    v = srv.get("mac_cpu_max")
+    row("Mac CPU, peak (k6 runs there)", pct(v) if v is not None else "-", f"< {pct(MAC_CPU_MAX)}",
+        None if v is None else v < MAC_CPU_MAX)
+    v = srv.get("mac_compressed_growth_gb")
+    row("Mac memory compressed during the run", f"{max(0.0, v):.1f} GB" if v is not None else "-",
+        f"< {MAC_COMPRESSED_GROWTH_GB:.0f} GB", None if v is None else v <= MAC_COMPRESSED_GROWTH_GB)
+    k = c.get("k6_process") or (res.get("k6_process") or {}).get("ramp-quick")
+    row("k6 process, peak", f"{k['cpu_peak_cores']} cores, {k['rss_peak_mb']} MB" if k else "-", "for reference", None)
+    dropped = c.get("dropped_sessions_whole_run", c.get("dropped_sessions"))
+    if dropped is not None and c.get("sessions") is not None:
+        ratio = dropped / max(1, c["sessions"] + dropped)
+        row("Sessions k6 couldn't start (dropped)", f"{dropped:,} ({ratio * 100:.2f}%)", f"< {pct(DROP_MAX)}", ratio < DROP_MAX)
+    for key, name in (("dial_errors", "Connections k6 couldn't open"), ("vus_short_warnings", "k6 ran out of virtual users")):
+        if key in c:
+            row(name, str(c[key]), "0", c[key] == 0)
+    slept = res.get("mac_slept_seconds", 0)
+    row("Mac asleep during the run", f"{slept:.0f} s", "0 s", slept == 0)
+    cal, ref = res.get("calibration_seconds"), calibration_reference()
+    if cal and ref:
+        row("Core speed (calibration)", f"{cal:.2f} s ({(cal / ref - 1) * 100:+.1f}% vs {ref:.2f} s)",
+            f"< +{(CALIBRATION_TOLERANCE - 1) * 100:.0f}%", cal <= ref * CALIBRATION_TOLERANCE)
+    for part, n in (("result", c.get("nginx_check")), ("overload", (res.get("overload") or {}).get("nginx_check"))):
+        if n and n.get("ok") is not None:
+            row(f"Nginx vs k6 request count ({'confirm' if part == 'result' else 'overload'})",
+                f"{n['nginx_requests']:,} vs {n['k6_requests']:,} ({n['difference'] * 100:+.2f}%)",
+                f"within {pct(NGINX_MISMATCH_MAX)}", n["ok"])
+    dc = res.get("data_check") or {}
+    if "ok" in dc:
+        k6w = dc.get("k6") or {}
+        n = lambda v: f"{v:,}" if isinstance(v, int) else "-"
+        value = (f"{n(dc.get('new_posts'))} posts stored for {n(k6w.get('bench_posts_ok'))} acknowledged, "
+                 f"{n(dc.get('new_likes'))} likes for {n(k6w.get('bench_likes_ok'))}")
+        row("Writes stored (data check)", value, "all acknowledged writes stored, like counts consistent", dc["ok"])
+    fp = res.get("fingerprint")
+    if fp:
+        dirty = fp["harness_uncommitted"] + fp["stack_uncommitted"]
+        row("Code fingerprint", f"harness {fp['harness_commit'][:10]}, stack {(fp['stack_commit'] or '')[:10]}"
+            + (f" ({fp['stack_ref']})" if fp.get("stack_ref") else "") + (", uncommitted changes" if dirty else ""),
+            "everything committed", not dirty)
+    return rows
+
+
+def save(ctx, result):
+    result["mac_slept_seconds"] = round(sum(gap for _, _, gap in ctx.sleeps), 1)
+    result["checks"] = build_checks(result)
     result["finished"] = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
     with open(os.path.join(ctx.out, "result.json"), "w") as f:
         json.dump(result, f, indent=2)
     write_summary(ctx, result)
-    if confirmed:
-        log(f"RESULT {args.stack} / {args.phase}: {confirmed['rps']:.0f} req/s sustained "
-            f"({confirmed['rate']} sessions/s, about {confirmed['concurrent_users'] or 0:.0f} concurrent users), "
-            f"p95 {confirmed['p95_s'] * 1000:.0f} ms, p99 {confirmed['p99_s'] * 1000:.0f} ms")
-    else:
-        log(f"RESULT {args.stack} / {args.phase}: no rate passed the 5-minute confirm")
-    log(f"Saved {os.path.relpath(ctx.out, REPO)}. Let the Mac cool down 5 minutes before the next run.")
-
 
 def write_summary(ctx, res):
     ms = lambda v: f"{v * 1000:.0f}" if v is not None else "-"
     pct = lambda v: f"{v * 100:.2f}%" if v is not None else "-"
-    lines = [f"# {res['stack']} / {res['phase']}", "",
+    title = f"# {res['stack']} / {res['phase']}" + (" (quick run, for tuning only)" if res.get("mode") == "quick" else "")
+    lines = [title, "",
              f"Run `{res['run_id']}`, {res['started']} to {res['finished']}", ""]
+    if res.get("status") == "aborted":
+        lines += [f"**Aborted, not a valid result:** {res['abort_reason']}", ""]
+    for w in res.get("warnings", []):
+        lines += [f"**Warning:** {w}", ""]
     c = res.get("result")
     if c:
         lines += ["## Result", "",
@@ -483,13 +1032,20 @@ def write_summary(ctx, res):
             lines += [f"The Mac running k6 peaked at {s['mac_cpu_max'] * 100:.0f}% CPU.{note}", ""]
     else:
         lines += ["## Result", "", "No rate passed the 5-minute confirm.", ""]
+    if res.get("checks"):
+        mark = {True: "ok", False: "**FAIL**", None: "-"}
+        lines += ["## Validity checks", "",
+                  "The evidence that the server, not the environment, set this result.", "",
+                  "| Check | Measured | Limit | |", "| --- | --- | --- | --- |"]
+        lines += [f"| {x['check']} | {x['value']} | {x['limit']} | {mark[x['ok']]} |" for x in res["checks"]]
+        lines.append("")
     lines += ["## Ramp", "", "| Step | Sessions/s | Req/s | p95 | p99 | Errors | Server CPU | Verdict |",
               "| --- | --- | --- | --- | --- | --- | --- | --- |"]
     for kind in ("coarse", "fine"):
-        for i, s in enumerate(res["ramp"][kind]):
+        for i, s in enumerate(res.get("ramp", {}).get(kind, [])):
             cpu = s["server"]["vm_cpu_avg"]
             cpu_txt = f"{cpu * 100:.0f}%" if cpu is not None else "-"
-            outcome = "pass" if s["passed"] else "fail: " + ", ".join(s["fail_reasons"])
+            outcome = "pass" if s.get("passed") else "fail: " + ", ".join(s.get("fail_reasons", ["not judged"]))
             lines.append(f"| {kind} {i + 1} | {s['rate']} | {s['rps']:.0f} | {ms(s['p95_s'])} ms | "
                          f"{ms(s['p99_s'])} ms | {pct(s['error_rate'])} | {cpu_txt} | {outcome} |")
     o = res.get("overload")

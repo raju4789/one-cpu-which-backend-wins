@@ -31,6 +31,11 @@ if ! grep -q 'containerd-snapshotter: false' "$cfg"; then
   colima start --profile "$BENCH_PROFILE"
 fi
 
+# Connection tracking (used by Docker's port forwarding) keeps every connection,
+# and closed ones for 2 minutes. The default 65,536 is too few for the cache
+# phases, where k6 holds up to 40,000 connections. Resets when the VM restarts.
+colima ssh --profile "$BENCH_PROFILE" -- sudo sysctl -qw net.netfilter.nf_conntrack_max=262144
+
 log "Starting monitor VM: 2 vCPU, 2 GB"
 start_vm "$MONITOR_PROFILE" --cpu 2 --memory 2 --disk 20
 
@@ -38,7 +43,8 @@ bench_ip="$(colima_ip "$BENCH_PROFILE")"
 monitor_ip="$(colima_ip "$MONITOR_PROFILE")"
 
 log "Starting Prometheus and Grafana"
-monitor compose -f "$HARNESS_DIR/monitoring/compose.yaml" up -d
+# Recreated every time so config changes (prometheus.yml, dashboards) always apply.
+monitor compose -f "$HARNESS_DIR/monitoring/compose.yaml" up -d --force-recreate
 
 log "Bench VM: $bench_ip   Load goes to http://$bench_ip:8080"
 log "Grafana: http://localhost:3000   Prometheus: http://$monitor_ip:9090"

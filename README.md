@@ -15,16 +15,21 @@ This project measures it, with every config, script and raw result public.
 | Contract: API and database schema | Done |
 | Harness: VMs, Postgres, Nginx, monitoring | Done, verified end to end with a dummy app |
 | Load test, contract test and runner | Done, verified with the dummy app |
-| Node.js, Spring Boot, Rails | Not started |
+| Node.js | Tested and tuned, final results in [`stacks/node`](stacks/node/README.md#final-results). Post coming |
+| Spring Boot, Rails | Not started |
+
+## Blog series
+
+1. [How far can a backend go on 1 CPU and 2 GB RAM?](https://medium.com/@narasimha4789/how-far-can-a-backend-go-on-1-cpu-and-2-gb-ram-c60d09710b59) Why this project exists
+2. [My benchmark was lying. Here's how I caught it](https://medium.com/@narasimha4789/my-benchmark-was-lying-heres-how-i-caught-it-33f79d6c7703) How the test is kept fair and honest
+3. Node.js: coming soon
+4. Spring Boot: coming soon
+5. Rails: coming soon
+6. Head-to-head comparison: coming soon
 
 ## Results
 
-Results are added here as each blog post is published.
-
-1. Node.js: coming soon
-2. Spring Boot: coming soon
-3. Rails: coming soon
-4. Head-to-head comparison: coming soon
+Results are added here as each stack is tested.
 
 ## How it works
 
@@ -42,7 +47,7 @@ Headline metric: max sustained requests per second within those limits.
 
 Every stack gets the same hardware, database, API and load script.
 Each is written the way production teams write it and tuned to best practice.
-Laptop noise is controlled with a calibration check, interleaved runs and medians of three.
+Every run records a CPU calibration. The final comparison will interleave the stacks and report the median of three runs.
 Full rules: [docs/rules.md](docs/rules.md)
 
 ## Run it yourself
@@ -66,7 +71,7 @@ harness/bin/smoke                # 30 s of light load, watch it at http://localh
 | [`harness/`](harness) | The test environment and the scripts that run it |
 | [`k6/`](k6) | The load test and the contract test |
 | [`results/`](results) | Raw output of every benchmark run |
-| [`docs/`](docs) | The fairness rules |
+| [`docs/`](docs) | The fairness rules, the [tuning plan](docs/tuning-plan.md) every stack follows, and [lessons learned](docs/lessons-learned.md) from running the benchmark |
 
 Added as the project moves on: `stacks/`, with one folder per stack.
 

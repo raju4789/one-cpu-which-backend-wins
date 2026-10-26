@@ -2,6 +2,8 @@
 
 These rules keep the comparison fair. A result only counts if it follows all of them.
 
+Every stack must also implement the same API contract: the same endpoints, the feed in one query, and likes counted exactly once even under heavy load. Correctness is part of fairness: a stack that cut those corners would look faster while giving wrong answers. The full list is in [contract/README.md](../contract/README.md), and the [contract test](../k6/README.md#contract-test) checks it before every run.
+
 ## Locked for every stack
 
 1. **Hardware:** one Colima VM with 1 vCPU and 2 GB RAM. Nginx, the app and Postgres all run inside it.
@@ -38,9 +40,11 @@ The goal is to measure the stack, not the laptop. Anything outside the app that 
 
 macOS can't pin a VM to specific cores, so the VM may land on fast or efficiency cores. We can't remove that noise, so we spread it evenly and detect it.
 
-1. **Interleaved order.** Runs go Node, Spring, Rails, Node, Spring, Rails, and so on, never three Node runs in a row. Any drift during a session hits every stack equally.
-2. **Calibration check.** Before each run, a fixed CPU benchmark runs inside the VM. If it's more than 5% off the session baseline, the run is discarded.
-3. **Three runs, report the median**, and show the spread.
+1. **Calibration check.** Before each run, a fixed CPU benchmark runs inside the VM and its score is saved with the results. In the final comparison, a run more than 5% off the session baseline is discarded.
+2. **Interleaved order** (final comparison). Runs go Node, Spring, Rails, Node, Spring, Rails, and so on, never three Node runs in a row. Any drift during a session hits every stack equally.
+3. **Three runs, report the median** (final comparison), and show the spread.
+
+Status: the calibration runs and is recorded today. The automatic discard, the interleaving and the three runs come with the comparison runner, before the final post.
 
 ### Recorded with every result
 

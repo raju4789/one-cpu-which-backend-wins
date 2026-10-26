@@ -33,6 +33,8 @@ services:
       FEED_CACHE: ${FEED_CACHE:-off}   # "app" in the app-cache phase, otherwise "off"
     expose:
       - "8080"
+    ports:
+      - "9464:9464"   # the stack's Prometheus metrics, if it exposes them (contract rule 6)
     depends_on:
       - postgres
 
@@ -43,7 +45,7 @@ services:
       - ./nginx/modes/${NGINX_MODE:-proxy}:/etc/nginx/mode:ro
       - nginx-logs:/var/log/nginx      # a real file, not the image's stdout symlink
     ulimits:
-      nofile: { soft: 65535, hard: 65535 }
+      nofile: { soft: 131072, hard: 131072 }
     ports:
       - "8080:80"
     depends_on:

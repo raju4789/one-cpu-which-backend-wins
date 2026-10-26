@@ -1,0 +1,18 @@
+# Node's final full runs: untuned vs tuned, then the two cache phases on the
+# tuned version. Run with: harness/bin/batch harness/batches/node-final.txt
+# About 9 to 10 hours. Before starting: raise the Mac firewall limits (harness
+# Before starting: harness/bin/mac-setup (after any reboot), plug the Mac in,
+# lid open, nothing else running.
+#
+# node-untuned is the Node code before tuning, node-tuned after it. The cache
+# phases get up to 20,000 virtual users: near the Nginx-cache limit (about
+# 3,500 sessions/s) about 15,000 are busy at once, as each session lasts about
+# 4 s. 40,000 needed about 10 GB on the Mac and slowed k6 down; 16,000 made it
+# compress only 0.4 GB more memory.
+repeat 3
+cooldown 600
+# label            ref            stack  phase
+node-untuned       node-untuned   node   none
+node-tuned         node-tuned     node   none
+node-tuned-app     node-tuned     node   app     --max-vus 20000
+node-tuned-nginx   node-tuned     node   nginx   --max-vus 20000

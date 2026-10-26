@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Raises the limits outside the stack that a fast stack runs into. Run it once
+# after every reboot of the Mac (the settings don't survive one), with your
+# password. It changes nothing in the VMs' CPU or memory, only how many
+# connections can be open at once, the same for every stack.
+#
+# On the Mac (the load generator's side):
+#   - pf, the macOS firewall the VMs' network turns on, tracks every connection
+#     to the VMs. Its table holds 10,000 by default, and it shortens its timers
+#     from 6,000 ("adaptive timeouts"), so it forgets connections mid-handshake.
+#     Raised to 400,000, with the adaptive thresholds scaled to match.
+#   - Outgoing ports: each k6 connection needs its own. macOS has 16,384
+#     (49152-65535); the range now starts at 10000, about 55,500 ports.
+# In the bench VM (shared harness, same for every stack):
+#   - Connection tracking, used by Docker's port forwarding: 65,536 -> 262,144.
+# See "Network" in harness/README.md for the story behind each.
+source "$(dirname "$0")/common.sh"
+
+log "Mac: pf state table and adaptive timeouts (asks for your password)"
+printf 'set limit states 400000\nset timeout { adaptive.start 240000, adaptive.end 480000 }\n' \
+  | sudo pfctl -O -f - 2>&1 | grep -v -e ALTQ -e "^$" -e "Use of -f option" -e "flushing of rules" -e "pf.conf for further" -e "main ruleset added by the system" || true
+# (pfctl warns that -f can flush the system's rules; with -O only options are loaded, the rules stay.)
+
+log "Mac: outgoing port range"
+sudo sysctl -qw net.inet.ip.portrange.first=10000
+
+if colima status --profile "$BENCH_PROFILE" >/dev/null 2>&1; then
+  log "Bench VM: connection tracking table"
+  colima ssh --profile "$BENCH_PROFILE" -- sudo sysctl -qw net.netfilter.nf_conntrack_max=262144
+else
+  log "Bench VM not running: harness/bin/vm-up sets its connection tracking table when it starts"
+fi
+
+log "Now:"
+sudo pfctl -s memory 2>/dev/null | grep "^states"
+sudo pfctl -s timeouts 2>/dev/null | grep adaptive
+echo "ports              $(sysctl -n net.inet.ip.portrange.first)-$(sysctl -n net.inet.ip.portrange.last)"
+echo "files per process  $(sysctl -n kern.maxfilesperproc)"
+colima status --profile "$BENCH_PROFILE" >/dev/null 2>&1 && \
+  echo "VM conntrack max   $(colima ssh --profile "$BENCH_PROFILE" -- cat /proc/sys/net/netfilter/nf_conntrack_max)"

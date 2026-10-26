@@ -360,7 +360,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(k6_vus{stack=~\"$stack\", phase=~\"$phase\"})",
+          "expr": "max(max_over_time(k6_vus{stack=~\"$stack\", phase=~\"$phase\"}[10s]))",
           "legendFormat": "Virtual users",
           "format": "time_series",
           "instant": false,
@@ -463,7 +463,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             },
@@ -574,7 +574,7 @@
             "lineWidth": 2,
             "fillOpacity": 10,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "normal"
             }
@@ -629,7 +629,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             },
@@ -700,7 +700,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             },
@@ -771,7 +771,7 @@
             "lineWidth": 2,
             "fillOpacity": 10,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "normal"
             }
@@ -826,7 +826,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             }
@@ -851,7 +851,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(k6_vus{stack=~\"$stack\", phase=~\"$phase\"})",
+          "expr": "max(max_over_time(k6_vus{stack=~\"$stack\", phase=~\"$phase\"}[10s]))",
           "legendFormat": "VUs",
           "format": "time_series",
           "instant": false,
@@ -894,7 +894,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             },
@@ -979,7 +979,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             },
@@ -1062,7 +1062,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             }
@@ -1117,7 +1117,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             }
@@ -1185,7 +1185,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             }
@@ -1240,7 +1240,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             }
@@ -1344,7 +1344,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             }
@@ -1411,7 +1411,7 @@
             "lineWidth": 2,
             "fillOpacity": 10,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "normal"
             }
@@ -1466,7 +1466,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             }
@@ -1521,7 +1521,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             }
@@ -1600,7 +1600,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             }
@@ -1655,7 +1655,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             }
@@ -1703,7 +1703,7 @@
     {
       "id": 30,
       "type": "table",
-      "title": "Top queries by total time (last 5 min)",
+      "title": "Top queries by total time (selected time range)",
       "description": "From pg_stat_statements. Look up the text with: SELECT query FROM pg_stat_statements WHERE queryid = <id>;",
       "datasource": {
         "type": "prometheus",
@@ -1784,7 +1784,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "topk(10, sum by (queryid) (increase(pg_stat_statements_seconds_total{datname=\"app\"}[5m])))",
+          "expr": "topk(10, sum by (queryid) (increase(pg_stat_statements_seconds_total{datname=\"app\"}[$__range])))",
           "legendFormat": "",
           "format": "table",
           "instant": true,
@@ -1796,7 +1796,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (queryid) (increase(pg_stat_statements_calls_total{datname=\"app\"}[5m]))",
+          "expr": "sum by (queryid) (increase(pg_stat_statements_calls_total{datname=\"app\"}[$__range]))",
           "legendFormat": "",
           "format": "table",
           "instant": true,
@@ -1807,7 +1807,7 @@
     {
       "id": 31,
       "type": "row",
-      "title": "Load generator: the Mac running k6",
+      "title": "App: measured inside the stack (empty if the stack exposes no metrics)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -1820,8 +1820,8 @@
     {
       "id": 32,
       "type": "timeseries",
-      "title": "Mac CPU busy",
-      "description": "If this goes above 70%, k6 may be slowing the bench VM down. Recorded, not a hard limit.",
+      "title": "Time inside the app, p95 by route",
+      "description": "Compare with k6's p95: the difference is Nginx, the network and queueing before the app",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1829,8 +1829,130 @@
       "gridPos": {
         "x": 0,
         "y": 82,
-        "w": 24,
-        "h": 6
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": 30000,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(app_http_request_duration_seconds_bucket[30s])))",
+          "legendFormat": "{{route}}",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "type": "timeseries",
+      "title": "Database connection pool",
+      "description": "Waiting above zero: requests queue for a connection, the pool is the limit",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 82,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": 30000,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum by (state) (app_db_pool_connections)",
+          "legendFormat": "{{state}}",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(app_db_pool_max)",
+          "legendFormat": "pool max",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "type": "timeseries",
+      "title": "Feed cache hit ratio (app-cache phase)",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 90,
+        "w": 8,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -1839,7 +1961,7 @@
             "lineWidth": 2,
             "fillOpacity": 5,
             "showPoints": "never",
-            "spanNulls": true,
+            "spanNulls": 30000,
             "stacking": {
               "mode": "none"
             }
@@ -1866,8 +1988,470 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
+          "expr": "sum(rate(app_feed_cache_requests_total{result=\"hit\"}[30s])) / sum(rate(app_feed_cache_requests_total[30s]))",
+          "legendFormat": "hit ratio",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "type": "timeseries",
+      "title": "Node.js event loop lag",
+      "description": "How late the event loop runs. On one CPU, rising lag means the process is saturated",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 90,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": 30000,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(nodejs_eventloop_lag_p99_seconds)",
+          "legendFormat": "p99",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(nodejs_eventloop_lag_mean_seconds)",
+          "legendFormat": "mean",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "type": "timeseries",
+      "title": "Node.js heap and GC",
+      "description": "Heap in bytes; GC as the share of each second spent collecting",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 90,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": 30000,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(nodejs_heap_size_used_bytes)",
+          "legendFormat": "heap used",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(nodejs_gc_duration_seconds_sum[30s]))",
+          "legendFormat": "GC seconds per second",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "type": "row",
+      "title": "Load generator and trust checks: is k6 telling the truth?",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 98,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 38,
+      "type": "timeseries",
+      "title": "Mac CPU busy",
+      "description": "If this goes above 70%, k6 may be slowing the bench VM down. Recorded in every run's checks.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 99,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": 30000,
+            "stacking": {
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.7
+              }
+            ]
+          },
+          "max": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
           "expr": "1 - avg(rate(node_cpu_seconds_total{job=\"mac\", mode=\"idle\"}[30s]))",
           "legendFormat": "busy",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "type": "timeseries",
+      "title": "Mac memory pressure",
+      "description": "macOS compresses memory when it runs short, which costs CPU and slows k6. Compressed rising more than 2 GB during a run triggers the runner's memory warning. Thousands of virtual users cost about 250 KB each.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 99,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": 30000,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_memory_compressed_bytes{job=\"mac\"}",
+          "legendFormat": "compressed",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_memory_swap_used_bytes{job=\"mac\"}",
+          "legendFormat": "swap used",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_memory_free_bytes{job=\"mac\"}",
+          "legendFormat": "free",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "type": "timeseries",
+      "title": "Requests / s: Nginx vs k6",
+      "description": "Two independent counts of the same traffic. The lines should lie on top of each other. If they split, one of them is wrong, most likely k6. The runner checks the totals for every confirm and overload test (within 2%). Nginx also counts the exporter's scrape, 0.2 requests/s.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 107,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": 30000,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(nginx_http_requests_total[30s]))",
+          "legendFormat": "Nginx (received)",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(k6_http_reqs_total{stack=~\"$stack\", phase=~\"$phase\"}[30s]))",
+          "legendFormat": "k6 (recorded)",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "type": "timeseries",
+      "title": "k6 virtual users and dropped sessions",
+      "description": "Busy reaching the pool means k6 ran out of virtual users and drops sessions (right axis): it couldn't send the load it should. Expected during the 1.5x overload phase, a problem anywhere else.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 107,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": 30000,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "dropped / s"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(max_over_time(k6_vus{stack=~\"$stack\", phase=~\"$phase\"}[10s]))",
+          "legendFormat": "busy",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(max_over_time(k6_vus_max{stack=~\"$stack\", phase=~\"$phase\"}[10s]))",
+          "legendFormat": "pool",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(k6_dropped_iterations_total{stack=~\"$stack\", phase=~\"$phase\"}[30s])) or vector(0)",
+          "legendFormat": "dropped / s",
           "format": "time_series",
           "instant": false,
           "range": true
