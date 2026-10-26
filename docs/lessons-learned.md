@@ -344,6 +344,35 @@ Tuning added about 7% throughput. The bigger change is consistency: untuned rang
 - Two independent counts of the same thing are the cheapest proof that a measurement is honest.
 - Measure what the load generator really uses. The estimate was 30% low.
 
+## Chapter 15: The clean rerun, and numbers that only look precise
+
+**The run.** The same twelve runs as chapter 13, rerun with every trust check on and nothing edited by hand. All twelve passed all eleven checks. Nginx and k6 agreed to within one request in every test, every acknowledged write was in the database, and the Mac never ran short.
+
+**What we saw.**
+
+| Configuration | Runs (req/s) | Median | Overload recovery |
+| --- | --- | --- | --- |
+| Untuned, no cache | 1,694 / 1,814 / 1,815 | 1,814 | 0 of 3 |
+| Tuned, no cache | 1,815 / 1,817 / 1,817 | 1,817 | 3 of 3 |
+| Tuned, app cache | 4,906 / 4,906 / 4,495 | 4,906 | 1 of 3 |
+| Tuned, Nginx cache | 4,907 / 4,905 / 4,898 | 4,905 | 3 of 3 |
+
+Untuned and tuned now look the same. So do the app cache and the Nginx cache. Chapter 13 said tuning added 7% and Nginx beat the app cache by 9%.
+
+**Why.** The runner can only confirm a rate it tried during the ramp, and those rates are 10% apart. Without a cache, every configuration that held up landed on 1,297 sessions per second (about 1,815 req/s), and every one failed at the next step, 1,427. With a cache, it was 3,503 (about 4,905 req/s) and then 3,795. So "1,815" really means "somewhere between 1,297 and 1,427 sessions per second", and differences inside that 10% band are invisible. Last night's 7% and 9% gaps came from a few runs landing one step lower, not from a faster configuration.
+
+**What the runs do show.**
+
+- **Reliability.** Over both batches, tuned Node reached 1,297 in 6 of 6 runs. Untuned reached it in 4 of 6: twice it tipped into a queue it never drained (chapter 8) and confirmed one step lower. The Nginx cache reached 3,503 in 6 of 6, the app cache in 3 of 6.
+- **Behaviour at the limit.** At 3,503 sessions per second, the Nginx cache answered with p95 17 to 28 ms. The app cache took 64 to 238 ms, close to the 300 ms limit.
+- **Recovery from overload.** Tuned: 3 of 3. Untuned: 0 of 3. Nginx cache: 3 of 3. App cache: 1 of 3.
+
+**Lessons.**
+
+- Know your measurement's resolution before comparing numbers. A result that is one of a few fixed steps can't show a difference smaller than the step.
+- A median of discrete steps hides how often each step was reached. Report the band and how often it was reached, not a precise-looking number.
+- A clean rerun can overturn a conclusion. Last night's numbers were valid; reading them as precise was the mistake.
+
 ## Ideas worth understanding
 
 **Virtual users vs requests per second.** Requests per second is what the server actually handles, so it's the fair way to compare servers. The number of virtual users depends on how long the pretend people pause. At 577 sessions per second, k6 sent about 810 requests per second while about 2,300 virtual users were busy, most of them "reading". Make the pauses twice as long and you get twice the users for the same server work.
@@ -371,3 +400,4 @@ Tuning added about 7% throughput. The bigger change is consistency: untuned rang
 15. **Do your checks look at the right time window?** A warning from one phase of a test must not fail a different phase.
 16. **Does a second, independent source agree?** The server's request count against the load generator's, the database against acknowledged writes.
 17. **Can someone else check the result?** Record which code ran, and commit the raw results before anyone can touch them.
+18. **What is your measurement's resolution?** A difference smaller than the gap between tested rates isn't a difference.
