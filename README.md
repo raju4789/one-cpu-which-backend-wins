@@ -15,7 +15,8 @@ This project measures it, with every config, script and raw result public.
 | Contract: API and database schema | Done |
 | Harness: VMs, Postgres, Nginx, monitoring | Done, verified end to end with a dummy app |
 | Load test, contract test and runner | Done, verified with the dummy app |
-| Node.js, Spring Boot, Rails | Not started |
+| Node.js | Tested and tuned, final results in [`stacks/node`](stacks/node/README.md#final-results). Post coming |
+| Spring Boot, Rails | Not started |
 
 ## Blog series
 

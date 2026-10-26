@@ -6,11 +6,11 @@ The same process for Node, Spring Boot and Rails, so the comparison stays fair. 
 
 | Stack | Tuning | Result |
 | --- | --- | --- |
-| Node | **Finished** 25 October 2026, tagged `node-tuned` | See below. Final full runs pending (step 6) |
+| Node | **Finished** 25 October 2026, tagged `node-tuned`. Final runs 26 October | Same throughput as untuned within the 10% resolution; reliable where untuned wasn't. See step 6 |
 | Spring Boot | Not started | |
 | Rails | Not started | |
 
-**Node, in short.** Kept: load shedding (at most 10 + 300 requests using or waiting for a database connection, then 503) and named prepared statements. Dropped: a hand-written feed query (4% cheaper, not worth leaving the ORM), a connection pool of 4 (Postgres no cheaper, requests waited longer in Node). Skipped: likes in one SQL statement (likes were 2% of Postgres's time). In quick runs the passing rate went from 1,221 to 1,318 sessions/s, about +8% and one step, still to be confirmed by full runs; the bigger change is that Node now recovers from overload with no errors, where before it never did.
+**Node, in short.** Kept: load shedding (at most 10 + 300 requests using or waiting for a database connection, then 503) and named prepared statements. Dropped: a hand-written feed query (4% cheaper, not worth leaving the ORM), a connection pool of 4 (Postgres no cheaper, requests waited longer in Node). Skipped: likes in one SQL statement (likes were 2% of Postgres's time). Quick runs suggested about +8% (one step). The final full runs didn't confirm it: tuned and untuned both held 1,297 sessions/s and failed at 1,427, so any gain is under the 10% resolution. What tuning did buy is reliability: tuned reached that rate in 6 of 6 full runs and recovered from overload every time; untuned reached it in 4 of 6 and never recovered.
 
 We stopped because the step 5 signals agreed: the last two changes each brought less than 10%, there was no obvious wasted work left (garbage collection about 3% of the core), and most of the core went to work every stack must do, Postgres running the feed query and Nginx. Not because ideas ran out: what remained was either tiny (Node's memory settings) or would make Node atypical (dropping the ORM), which isn't a fair comparison. Details: the tuning log in [`stacks/node/README.md`](../stacks/node/README.md#tuning-log) and [chapters 9 to 11 of the lessons](lessons-learned.md).
 
@@ -84,6 +84,19 @@ There's also a time limit: about one day of tuning per stack, the same for all t
 Three full runs of the final tuned version, 10 minutes apart. Report the median with its range, next to the untuned baseline, so readers see what tuning bought.
 
 **Rerun the untuned baseline too, in the same batch.** A before-and-after comparison is only fair if nothing else changed in between. Step 1 changed the shared Postgres settings after Node's first baseline was measured, so the untuned version gets three new full runs on the current harness. Tag the untuned and tuned code (for Node: `node-untuned`, `node-tuned`) and run both, plus the cache phases on the tuned version, with `harness/bin/batch`, interleaved, ideally overnight. Stacks tuned after the Postgres change don't need this.
+
+**Read the result at its resolution.** The runner confirms only rates it tried, about 10% apart, so a result is a band: "held this rate, failed the next". Two configurations in the same band are equal as far as this test can tell. Report how often each run reached the band, and recovery from overload, next to the median. The stopping rule's 10% bar (step 5) matches this: a smaller gain can't be measured anyway.
+
+**Done for Node** (`results/batches/20261026-094626`, 26 October 2026; every run passed all 11 validity checks, raw results committed unedited):
+
+| Configuration | Runs (req/s) | Median | Highest rate held | Recovered from overload | p95 at the limit |
+| --- | --- | --- | --- | --- | --- |
+| Untuned, no cache | 1,694 / 1,814 / 1,815 | 1,814 | 1,297 sessions/s in 2 of 3 | 0 of 3 | 16 to 83 ms |
+| Tuned, no cache | 1,815 / 1,817 / 1,817 | 1,817 | 1,297 sessions/s in 3 of 3 | 3 of 3 | 17 to 54 ms |
+| Tuned, app cache | 4,906 / 4,906 / 4,495 | 4,906 | 3,503 sessions/s in 2 of 3 | 1 of 3 | 23 to 238 ms |
+| Tuned, Nginx cache | 4,907 / 4,905 / 4,898 | 4,905 | 3,503 sessions/s in 3 of 3 | 3 of 3 | 17 to 28 ms |
+
+Tuning didn't move the ceiling measurably: both versions held 1,297 sessions/s (about 1,815 req/s) and failed at 1,427. It made Node dependable: across this batch and the one before (corrected by hand, so not published), tuned reached 1,297 in 6 of 6 runs and untuned in 4 of 6, and only tuned recovered from overload. With a cache, both cache types held 3,503 sessions/s and failed at 3,795, so Nginx isn't measurably faster than the app cache. It is steadier: 6 of 6 runs at that rate against 3 of 6, much lower latency, and recovery every time. The writes (30% of requests) set the limit once reads are cached. Lessons, [chapter 15](lessons-learned.md).
 
 ## Candidates for Node, as planned, and what happened
 
