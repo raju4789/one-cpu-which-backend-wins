@@ -1,0 +1,142 @@
+==> Run node-app-20261026-112829, results in results/node/app/20261026-112829
+==> Stopping anything already running
+==> Starting Postgres
+ Network bench_default  Creating
+ Network bench_default  Created
+ Container bench-postgres-1  Creating
+ Container bench-postgres-1  Created
+ Container bench-postgres-1  Starting
+ Container bench-postgres-1  Started
+==> Waiting for the seed (the first run on a new VM takes a few minutes)
+==> Resetting database from app_template
+==> Starting node (phase: app, FEED_CACHE=app, nginx: proxy)
+#1 [internal] load local bake definitions
+#1 reading from stdin 648B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.67kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+#3 DONE 0.8s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 91B done
+#4 DONE 0.0s
+
+#5 [build  1/10] FROM docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 971B done
+#6 DONE 0.0s
+
+#7 [build  8/10] COPY src ./src
+#7 CACHED
+
+#8 [stage-1 3/5] COPY --from=build /app/package.json ./
+#8 CACHED
+
+#9 [stage-1 2/5] WORKDIR /app
+#9 CACHED
+
+#10 [build  5/10] RUN npm ci --no-audit --no-fund
+#10 CACHED
+
+#11 [build  7/10] COPY prisma ./prisma
+#11 CACHED
+
+#12 [build  6/10] COPY tsconfig.json prisma.config.ts ./
+#12 CACHED
+
+#13 [build  2/10] RUN apk add --no-cache openssl
+#13 CACHED
+
+#14 [stage-1 4/5] COPY --from=build /app/node_modules ./node_modules
+#14 CACHED
+
+#15 [build  3/10] WORKDIR /app
+#15 CACHED
+
+#16 [build  9/10] COPY test ./test
+#16 CACHED
+
+#17 [build 10/10] RUN DATABASE_URL=postgres://build/none npm run build  && npm test  && npm prune --omit=dev --no-audit --no-fund  && chmod -R a+rX package.json dist node_modules
+#17 CACHED
+
+#18 [build  4/10] COPY package.json package-lock.json ./
+#18 CACHED
+
+#19 [stage-1 5/5] COPY --from=build /app/dist ./dist
+#19 CACHED
+
+#20 exporting to image
+#20 exporting layers done
+#20 writing image sha256:24d96175c9736c52c1d09bac8d98b2c5859cac503cb97665e662cff42dda39f8 done
+#20 naming to docker.io/one-cpu/node:local done
+#20 DONE 0.0s
+
+#21 resolving provenance for metadata file
+#21 DONE 0.0s
+ one-cpu/node:local  Built
+ Container bench-cadvisor-1  Creating
+ Container bench-postgres-1  Running
+ Container bench-app-1  Creating
+ Container bench-postgres-exporter-1  Creating
+ Container bench-postgres-exporter-1  Created
+ Container bench-cadvisor-1  Created
+ Container bench-app-1  Created
+ Container bench-nginx-1  Creating
+ Container bench-nginx-1  Created
+ Container bench-nginx-exporter-1  Creating
+ Container bench-nginx-exporter-1  Created
+ Container bench-app-1  Starting
+ Container bench-postgres-exporter-1  Starting
+ Container bench-cadvisor-1  Starting
+ Container bench-cadvisor-1  Started
+ Container bench-app-1  Started
+ Container bench-nginx-1  Starting
+ Container bench-postgres-exporter-1  Started
+ Container bench-nginx-1  Started
+ Container bench-nginx-exporter-1  Starting
+ Container bench-nginx-exporter-1  Started
+==> Waiting for http://192.168.64.3:8080/health
+==> Ready: node, phase app
+==> Contract test
+==> Idle baseline (30 s)
+==> calibration_seconds=5.46   (runs: 5.45 5.46 5.50)
+==> Warm-up: 20 sessions/s for 120 s
+==>   29 req/s, p95 8 ms, p99 15 ms, errors 0.00%
+==> ramp-coarse: 19 steps of 60 s, rates 10, 15, 22, 34, 51, 76, 114, 171, 256, 384, 577, 865, 1297, 1946, 2919, 4379, 6568, 9853, 14779 sessions/s
+==>   step 1/19 @ 10 sessions/s: 14 req/s, p95 7 ms, p99 11 ms, errors 0.00%, server CPU 6% -> PASS
+==>   step 2/19 @ 15 sessions/s: 21 req/s, p95 7 ms, p99 9 ms, errors 0.00%, server CPU 7% -> PASS
+==>   step 3/19 @ 22 sessions/s: 31 req/s, p95 7 ms, p99 10 ms, errors 0.00%, server CPU 10% -> PASS
+==>   step 4/19 @ 34 sessions/s: 48 req/s, p95 7 ms, p99 11 ms, errors 0.00%, server CPU 12% -> PASS
+==>   step 5/19 @ 51 sessions/s: 72 req/s, p95 7 ms, p99 12 ms, errors 0.00%, server CPU 15% -> PASS
+==>   step 6/19 @ 76 sessions/s: 105 req/s, p95 7 ms, p99 11 ms, errors 0.00%, server CPU 22% -> PASS
+==>   step 7/19 @ 114 sessions/s: 160 req/s, p95 8 ms, p99 13 ms, errors 0.00%, server CPU 29% -> PASS
+==>   step 8/19 @ 171 sessions/s: 238 req/s, p95 9 ms, p99 15 ms, errors 0.00%, server CPU 38% -> PASS
+==>   step 9/19 @ 256 sessions/s: 358 req/s, p95 8 ms, p99 14 ms, errors 0.00%, server CPU 42% -> PASS
+==>   step 10/19 @ 384 sessions/s: 538 req/s, p95 7 ms, p99 12 ms, errors 0.00%, server CPU 43% -> PASS
+==>   step 11/19 @ 577 sessions/s: 808 req/s, p95 6 ms, p99 11 ms, errors 0.00%, server CPU 43% -> PASS
+==>   step 12/19 @ 865 sessions/s: 1211 req/s, p95 5 ms, p99 10 ms, errors 0.00%, server CPU 47% -> PASS
+==>   step 13/19 @ 1297 sessions/s: 1815 req/s, p95 4 ms, p99 8 ms, errors 0.00%, server CPU 47% -> PASS
+==>   step 14/19 @ 1946 sessions/s: 2725 req/s, p95 3 ms, p99 9 ms, errors 0.00%, server CPU 54% -> PASS
+==>   step 15/19 @ 2919 sessions/s: 4087 req/s, p95 7 ms, p99 29 ms, errors 0.00%, server CPU 68% -> PASS
+==>   step 16/19 @ 4379 sessions/s: 4411 req/s, p95 10163 ms, p99 19243 ms, errors 8.33%, server CPU 93% -> FAIL (p95 10163 ms, p99 19243 ms, errors 8.3%, k6 dropped 26.8% of sessions)
+==> Cool-down 120 s before the fine ramp
+==> ramp-fine: 4 steps of 60 s, rates 3211, 3503, 3795, 4087 sessions/s
+==>   step 1/4 @ 3211 sessions/s: 4491 req/s, p95 11 ms, p99 45 ms, errors 0.00%, server CPU 86% -> PASS
+==>   step 2/4 @ 3503 sessions/s: 4905 req/s, p95 102 ms, p99 188 ms, errors 0.02%, server CPU 95% -> PASS
+==>   step 3/4 @ 3795 sessions/s: 5299 req/s, p95 787 ms, p99 2195 ms, errors 5.52%, server CPU 92% -> FAIL (p95 787 ms, p99 2195 ms, errors 5.5%)
+==> Cool-down 120 s, then confirm 3503 sessions/s for 300 s after a 45 s ramp-up
+==>   Nginx counted 1581161 requests, k6 1581162 (-0.00%)
+==>   4906 req/s, p95 238 ms, p99 456 ms, errors 0.89% -> CONFIRMED
+==> Cool-down 120 s, then overload: 45 s ramp-up, 2 min at 1.5x, 2 min back at 3503 sessions/s
+==>   Nginx counted 1222507 requests, k6 1222507 (+0.00%)
+==>   at 1.5x: 4196 req/s, p95 10572 ms, p99 28884 ms, errors 7.91%
+==>   back at 1x: 4904 req/s, p95 807 ms, p99 3139 ms, errors 3.65% -> did NOT recover
+==> Data check: 310408 posts and 932108 likes stored for 310192 and 931802 acknowledged; like counts consistent
+==> RESULT node / app: 4906 req/s sustained (3503 sessions/s, about 14286 concurrent users), p95 238 ms, p99 456 ms
+==> Saved results/node/app/20261026-112829. Let the Mac cool down 5 minutes before the next run.

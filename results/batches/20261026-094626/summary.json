@@ -1,0 +1,1118 @@
+{
+  "plan": {
+    "repeat": 3,
+    "cooldown": 600,
+    "configs": [
+      {
+        "label": "node-untuned",
+        "ref": "node-untuned",
+        "stack": "node",
+        "phase": "none",
+        "extra": [],
+        "commit": "43614a0612242eef780d6be3106469a179eef997"
+      },
+      {
+        "label": "node-tuned",
+        "ref": "node-tuned",
+        "stack": "node",
+        "phase": "none",
+        "extra": [],
+        "commit": "814f326280d3bfb828dc3c3e30a36781cc4d03e3"
+      },
+      {
+        "label": "node-tuned-app",
+        "ref": "node-tuned",
+        "stack": "node",
+        "phase": "app",
+        "extra": [
+          "--max-vus",
+          "20000"
+        ],
+        "commit": "814f326280d3bfb828dc3c3e30a36781cc4d03e3"
+      },
+      {
+        "label": "node-tuned-nginx",
+        "ref": "node-tuned",
+        "stack": "node",
+        "phase": "nginx",
+        "extra": [
+          "--max-vus",
+          "20000"
+        ],
+        "commit": "814f326280d3bfb828dc3c3e30a36781cc4d03e3"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "label": "node-untuned",
+      "ref": "node-untuned",
+      "commit": "43614a0612",
+      "exit_code": 0,
+      "minutes": 37.5,
+      "results": "results/node/none/20261026-094627",
+      "status": "complete",
+      "rps": 1694,
+      "rate": 1211,
+      "p95_ms": 16,
+      "p99_ms": 49,
+      "calibration_s": 5.55,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "15%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.86 cores, 3135 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.55 s (+1.1% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "546,295 vs 546,295 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "458,154 vs 458,155 (-0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "121,986 posts stored for 121,578 acknowledged, 290,173 likes for 290,181",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 7a3f606049, stack 43614a0612 (node-untuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 44.6,
+      "results": "results/node/none/20261026-103354",
+      "status": "complete",
+      "rps": 1815,
+      "rate": 1297,
+      "p95_ms": 23,
+      "p99_ms": 69,
+      "calibration_s": 5.49,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "19%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.85 cores, 3328 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.49 s (+0.0% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "585,324 vs 585,324 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "560,273 vs 560,274 (-0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "161,966 posts stored for 161,925 acknowledged, 460,307 likes for 460,241",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 7a3f606049, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned-app",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 39.6,
+      "results": "results/node/app/20261026-112829",
+      "status": "complete",
+      "rps": 4906,
+      "rate": 3503,
+      "p95_ms": 238,
+      "p99_ms": 456,
+      "calibration_s": 5.46,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "23%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "1.75 cores, 7355 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.46 s (-0.5% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "1,581,161 vs 1,581,162 (-0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "1,222,507 vs 1,222,507 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "310,408 posts stored for 310,192 acknowledged, 932,108 likes for 931,802",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 7a3f606049, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned-nginx",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 39.7,
+      "results": "results/node/nginx/20261026-121808",
+      "status": "complete",
+      "rps": 4907,
+      "rate": 3503,
+      "p95_ms": 17,
+      "p99_ms": 62,
+      "calibration_s": 5.45,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "24%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "2.04 cores, 7342 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.45 s (-0.7% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "1,581,554 vs 1,581,554 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "1,496,164 vs 1,496,164 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "325,499 posts stored for 325,434 acknowledged, 954,425 likes for 954,998",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 7a3f606049, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-untuned",
+      "ref": "node-untuned",
+      "commit": "43614a0612",
+      "exit_code": 0,
+      "minutes": 35.5,
+      "results": "results/node/none/20261026-130749",
+      "status": "complete",
+      "rps": 1814,
+      "rate": 1297,
+      "p95_ms": 83,
+      "p99_ms": 203,
+      "calibration_s": 5.46,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "20%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.91 cores, 3307 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.46 s (-0.5% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "585,212 vs 585,213 (-0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "469,355 vs 469,354 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "116,377 posts stored for 115,600 acknowledged, 212,653 likes for 212,663",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 7a3f606049, stack 43614a0612 (node-untuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 44.6,
+      "results": "results/node/none/20261026-135322",
+      "status": "complete",
+      "rps": 1817,
+      "rate": 1297,
+      "p95_ms": 54,
+      "p99_ms": 141,
+      "calibration_s": 5.44,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "26%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.9 cores, 3335 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.44 s (-0.9% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "585,758 vs 585,758 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "560,716 vs 560,716 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "161,969 posts stored for 161,926 acknowledged, 458,527 likes for 458,471",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 7a3f606049, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned-app",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 39.6,
+      "results": "results/node/app/20261026-144756",
+      "status": "complete",
+      "rps": 4906,
+      "rate": 3503,
+      "p95_ms": 64,
+      "p99_ms": 180,
+      "calibration_s": 5.45,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "23%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.1 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "2.02 cores, 7333 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.45 s (-0.7% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "1,581,319 vs 1,581,319 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "1,236,513 vs 1,236,514 (-0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "323,083 posts stored for 322,840 acknowledged, 964,595 likes for 964,136",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 7a3f606049, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned-nginx",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 39.7,
+      "results": "results/node/nginx/20261026-153734",
+      "status": "complete",
+      "rps": 4905,
+      "rate": 3503,
+      "p95_ms": 19,
+      "p99_ms": 107,
+      "calibration_s": 5.45,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "23%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.2 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "1.9 cores, 7342 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.45 s (-0.7% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "1,581,095 vs 1,581,095 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "1,494,985 vs 1,494,985 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "324,327 posts stored for 324,185 acknowledged, 947,383 likes for 947,656",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 7a3f606049, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-untuned",
+      "ref": "node-untuned",
+      "commit": "43614a0612",
+      "exit_code": 0,
+      "minutes": 35.6,
+      "results": "results/node/none/20261026-162716",
+      "status": "complete",
+      "rps": 1815,
+      "rate": 1297,
+      "p95_ms": 48,
+      "p99_ms": 89,
+      "calibration_s": 5.48,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "19%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.92 cores, 3320 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.48 s (-0.2% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "585,456 vs 585,456 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "473,873 vs 473,874 (-0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "116,632 posts stored for 115,750 acknowledged, 213,289 likes for 213,295",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 7a3f606049, stack 43614a0612 (node-untuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 35.5,
+      "results": "results/node/none/20261026-171249",
+      "status": "complete",
+      "rps": 1817,
+      "rate": 1297,
+      "p95_ms": 17,
+      "p99_ms": 52,
+      "calibration_s": 5.46,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "18%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.93 cores, 3336 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.46 s (-0.5% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "585,465 vs 585,466 (-0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "560,407 vs 560,407 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "110,220 posts stored for 110,181 acknowledged, 308,827 likes for 308,746",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 7a3f606049, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned-app",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 38.6,
+      "results": "results/node/app/20261026-175821",
+      "status": "complete",
+      "rps": 4495,
+      "rate": 3211,
+      "p95_ms": 23,
+      "p99_ms": 138,
+      "calibration_s": 5.47,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "28%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.2 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "2.04 cores, 7273 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.47 s (-0.4% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "1,448,896 vs 1,448,896 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "1,115,535 vs 1,115,536 (-0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "285,885 posts stored for 285,684 acknowledged, 859,434 likes for 859,091",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 7a3f606049, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned-nginx",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 39.7,
+      "results": "results/node/nginx/20261026-184659",
+      "status": "complete",
+      "rps": 4898,
+      "rate": 3503,
+      "p95_ms": 28,
+      "p99_ms": 190,
+      "calibration_s": 5.44,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "29%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "1.93 cores, 7353 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.44 s (-0.9% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "1,579,395 vs 1,579,395 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "1,497,337 vs 1,497,338 (-0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "324,650 posts stored for 324,523 acknowledged, 948,868 likes for 949,288",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 7a3f606049, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    }
+  ],
+  "started": "2026-10-26T09:46:26+01:00",
+  "finished": "2026-10-26T19:26:40+01:00"
+}
