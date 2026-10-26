@@ -39,7 +39,13 @@ def thresholds_line(values):
     return {"mode": "absolute", "steps": steps}
 
 
-def ts(title, exprs, unit, x, w, h=8, desc="", lines=None, maxv=None, stack=False):
+def right_axis(series, unit):
+    """Override: draw series (by legend name) on a right-hand axis with its own unit."""
+    return {"matcher": {"id": "byName", "options": series},
+            "properties": [{"id": "custom.axisPlacement", "value": "right"}, {"id": "unit", "value": unit}]}
+
+
+def ts(title, exprs, unit, x, w, h=8, desc="", lines=None, maxv=None, stack=False, overrides=None):
     custom = {"lineWidth": 2, "fillOpacity": 10 if stack else 5, "showPoints": "never",
               "spanNulls": True, "stacking": {"mode": "normal" if stack else "none"}}
     defaults = {"unit": unit, "custom": custom}
@@ -51,7 +57,7 @@ def ts(title, exprs, unit, x, w, h=8, desc="", lines=None, maxv=None, stack=Fals
         defaults["min"] = 0
     return {"id": next_id(), "type": "timeseries", "title": title, "description": desc,
             "datasource": DS, "gridPos": {"x": x, "y": _y, "w": w, "h": h},
-            "fieldConfig": {"defaults": defaults, "overrides": []},
+            "fieldConfig": {"defaults": defaults, "overrides": overrides or []},
             "options": {"legend": {"displayMode": "list", "placement": "bottom"},
                         "tooltip": {"mode": "multi", "sort": "desc"}},
             "targets": targets(exprs)}
@@ -199,12 +205,32 @@ add(ts("Feed cache hit ratio (app-cache phase)",
        "none", 16, 8, desc="Heap in bytes; GC as the share of each second spent collecting"))
 
 # ---------------------------------------------------------------- mac
-row("Load generator: the Mac running k6")
+row("Load generator and trust checks: is k6 telling the truth?")
 add(ts("Mac CPU busy",
        [(f'1 - avg(rate(node_cpu_seconds_total{{job="mac", mode="idle"}}[{WIN}]))', "busy")],
-       "percentunit", 0, 24, h=6, maxv=1,
-       desc="If this goes above 70%, k6 may be slowing the bench VM down. Recorded, not a hard limit."),
-    h=6)
+       "percentunit", 0, 12, maxv=1, lines=[0.7],
+       desc="If this goes above 70%, k6 may be slowing the bench VM down. Recorded in every run's checks."),
+    ts("Mac memory pressure",
+       [('node_memory_compressed_bytes{job="mac"}', "compressed"),
+        ('node_memory_swap_used_bytes{job="mac"}', "swap used"),
+        ('node_memory_free_bytes{job="mac"}', "free")],
+       "bytes", 12, 12,
+       desc="macOS compresses memory when it runs short, which costs CPU and slows k6. Compressed rising more "
+            "than 2 GB during a run triggers the runner's memory warning. Thousands of virtual users cost "
+            "about 250 KB each."))
+add(ts("Requests / s: Nginx vs k6",
+       [(f"sum(rate(nginx_http_requests_total[{WIN}]))", "Nginx (received)"),
+        (f"sum(rate(k6_http_reqs_total{{{K6}}}[{WIN}]))", "k6 (recorded)")],
+       "reqps", 0, 12,
+       desc="Two independent counts of the same traffic. The lines should lie on top of each other. If they "
+            "split, one of them is wrong, most likely k6. The runner checks the totals for every confirm and "
+            "overload test (within 2%). Nginx also counts the exporter's scrape, 0.2 requests/s."),
+    ts("k6 virtual users and dropped sessions",
+       [(f"sum(k6_vus{{{K6}}})", "busy"), (f"sum(k6_vus_max{{{K6}}})", "pool"),
+        (f"sum(rate(k6_dropped_iterations_total{{{K6}}}[{WIN}])) or vector(0)", "dropped / s")],
+       "none", 12, 12, overrides=[right_axis("dropped / s", "short")],
+       desc="Busy reaching the pool means k6 ran out of virtual users and drops sessions (right axis): it "
+            "couldn't send the load it should. Expected during the 1.5x overload phase, a problem anywhere else."))
 
 dashboard = {
     "uid": "bench", "title": "one-cpu-which-backend-wins", "tags": ["bench"],

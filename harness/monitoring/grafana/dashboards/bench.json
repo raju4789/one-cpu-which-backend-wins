@@ -2133,7 +2133,7 @@
     {
       "id": 37,
       "type": "row",
-      "title": "Load generator: the Mac running k6",
+      "title": "Load generator and trust checks: is k6 telling the truth?",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -2147,7 +2147,7 @@
       "id": 38,
       "type": "timeseries",
       "title": "Mac CPU busy",
-      "description": "If this goes above 70%, k6 may be slowing the bench VM down. Recorded, not a hard limit.",
+      "description": "If this goes above 70%, k6 may be slowing the bench VM down. Recorded in every run's checks.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2155,8 +2155,8 @@
       "gridPos": {
         "x": 0,
         "y": 99,
-        "w": 24,
-        "h": 6
+        "w": 12,
+        "h": 8
       },
       "fieldConfig": {
         "defaults": {
@@ -2168,7 +2168,23 @@
             "spanNulls": true,
             "stacking": {
               "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "line"
             }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "transparent",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.7
+              }
+            ]
           },
           "max": 1,
           "min": 0
@@ -2194,6 +2210,248 @@
           },
           "expr": "1 - avg(rate(node_cpu_seconds_total{job=\"mac\", mode=\"idle\"}[30s]))",
           "legendFormat": "busy",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "type": "timeseries",
+      "title": "Mac memory pressure",
+      "description": "macOS compresses memory when it runs short, which costs CPU and slows k6. Compressed rising more than 2 GB during a run triggers the runner's memory warning. Thousands of virtual users cost about 250 KB each.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 99,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_memory_compressed_bytes{job=\"mac\"}",
+          "legendFormat": "compressed",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_memory_swap_used_bytes{job=\"mac\"}",
+          "legendFormat": "swap used",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "node_memory_free_bytes{job=\"mac\"}",
+          "legendFormat": "free",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "type": "timeseries",
+      "title": "Requests / s: Nginx vs k6",
+      "description": "Two independent counts of the same traffic. The lines should lie on top of each other. If they split, one of them is wrong, most likely k6. The runner checks the totals for every confirm and overload test (within 2%). Nginx also counts the exporter's scrape, 0.2 requests/s.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 107,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(nginx_http_requests_total[30s]))",
+          "legendFormat": "Nginx (received)",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(k6_http_reqs_total{stack=~\"$stack\", phase=~\"$phase\"}[30s]))",
+          "legendFormat": "k6 (recorded)",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 41,
+      "type": "timeseries",
+      "title": "k6 virtual users and dropped sessions",
+      "description": "Busy reaching the pool means k6 ran out of virtual users and drops sessions (right axis): it couldn't send the load it should. Expected during the 1.5x overload phase, a problem anywhere else.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 107,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": true,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "dropped / s"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(k6_vus{stack=~\"$stack\", phase=~\"$phase\"})",
+          "legendFormat": "busy",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(k6_vus_max{stack=~\"$stack\", phase=~\"$phase\"})",
+          "legendFormat": "pool",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(k6_dropped_iterations_total{stack=~\"$stack\", phase=~\"$phase\"}[30s])) or vector(0)",
+          "legendFormat": "dropped / s",
           "format": "time_series",
           "instant": false,
           "range": true

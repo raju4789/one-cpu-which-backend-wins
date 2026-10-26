@@ -19,11 +19,18 @@ configuration per round, so slow drift on the Mac during the night affects
 every configuration alike. A failed run is recorded and the batch carries on.
 
 Results: each run in results/<stack>/<phase>/ as usual, plus
-results/batches/<timestamp>/ with every run's log and summary.md: all runs
-and the median per configuration. Uses only the Python standard library.
+results/batches/<timestamp>/ with every run's log and summary.md: all runs,
+the median per configuration and every run's validity checks.
+
+Trust: the batch refuses to start with uncommitted changes to the harness, k6
+or the contract (--allow-dirty overrides), so every run maps to a commit. When
+it finishes, it writes SHA256SUMS for every result file and commits the raw
+results (--no-commit to skip), so nobody can quietly change them later.
+Uses only the Python standard library.
 """
 import argparse
 import datetime
+import hashlib
 import json
 import os
 import re
@@ -106,7 +113,7 @@ def export_stack(config, root):
 def run_one(config, stack_src, log_path):
     """One full bin/run, its output shown and saved. Returns what the summary needs."""
     cmd = [RUNNER, config["stack"], config["phase"], *config["extra"]]
-    env = dict(os.environ, STACK_SRC=stack_src)
+    env = dict(os.environ, STACK_SRC=stack_src, STACK_REF=config["ref"], STACK_COMMIT=config["commit"])
     started = time.time()
     out_dir = None
     with open(log_path, "w") as logf:
@@ -125,7 +132,8 @@ def run_one(config, stack_src, log_path):
 
 def fill_from_result(entry):
     """Status and numbers for a summary row, from the run's result.json."""
-    entry.update(status="failed", rps=None, rate=None, p95_ms=None, p99_ms=None, calibration_s=None, warnings=[])
+    entry.update(status="failed", rps=None, rate=None, p95_ms=None, p99_ms=None, calibration_s=None, warnings=[],
+                 checks=[])
     out_dir = entry.get("results")
     result_path = os.path.join(REPO, out_dir, "result.json") if out_dir else None
     if result_path and os.path.exists(result_path):
@@ -138,6 +146,9 @@ def fill_from_result(entry):
             entry["warnings"].append(f"aborted: {r['abort_reason']}")
         if r.get("overload_invalid"):
             entry["warnings"].append(f"overload test not valid: {r['overload_invalid']}")
+        entry["checks"] = r.get("checks", [])
+        if (r.get("data_check") or {}).get("ok") is False:
+            entry["status"] = "data check failed"  # the server lost writes: its number doesn't count
         c = r.get("result")
         if c and entry["status"] == "complete":
             entry.update(rps=round(c["rps"]), rate=c["rate"], p95_ms=round(c["p95_s"] * 1000),
@@ -173,6 +184,19 @@ def write_summary(batch_dir, plan, entries, started, finished=None):
         lines.append(f"| {i} | {e['label']} | {e['status']} | {val(e['rps'])} | {val(e['rate'])} | "
                      f"{val(e['p95_ms'], ' ms')} | {val(e['p99_ms'], ' ms')} | {val(e['calibration_s'], ' s')} | "
                      f"{e['minutes']} | `{e['results'] or '-'}` |")
+    lines += ["", "## Validity checks per run", "",
+              "Each run's summary.md has the full table with every measured value.", "",
+              "| # | Configuration | Checks passed | Failed | Mac CPU peak | Nginx vs k6 | Writes stored |",
+              "| --- | --- | --- | --- | --- | --- | --- |"]
+    for i, e in enumerate(entries, 1):
+        checks = e.get("checks") or []
+        judged = [x for x in checks if x["ok"] is not None]
+        failed = [x["check"] for x in judged if not x["ok"]]
+        value = lambda prefix: next((f"{x['value']}" + (" FAIL" if x["ok"] is False else "")
+                                     for x in checks if x["check"].startswith(prefix)), "-")
+        lines.append(f"| {i} | {e['label']} | {len(judged) - len(failed)} of {len(judged)} | "
+                     f"{', '.join(failed) or '-'} | {value('Mac CPU')} | {value('Nginx vs k6 request count (confirm)')} | "
+                     f"{'ok' if any(x['check'].startswith('Writes') and x['ok'] for x in checks) else value('Writes')} |")
     warned = [(i, w) for i, e in enumerate(entries, 1) for w in e["warnings"]]
     if warned:
         lines += ["", "## Warnings", ""] + [f"- Run {i}: {w}" for i, w in warned]
@@ -180,10 +204,42 @@ def write_summary(batch_dir, plan, entries, started, finished=None):
         f.write("\n".join(lines) + "\n")
 
 
+def write_checksums(batch_dir, paths):
+    """SHA256SUMS: one line per result file, so any later edit to a result shows."""
+    lines = []
+    for top in paths:
+        for root, dirs, names in os.walk(top):
+            dirs.sort()
+            for n in sorted(names):
+                f = os.path.join(root, n)
+                if n == "SHA256SUMS" and root == batch_dir:
+                    continue
+                with open(f, "rb") as fh:
+                    lines.append(f"{hashlib.sha256(fh.read()).hexdigest()}  {os.path.relpath(f, REPO)}")
+    with open(os.path.join(batch_dir, "SHA256SUMS"), "w") as f:
+        f.write("\n".join(lines) + "\n")
+    log(f"Checksums: {os.path.relpath(os.path.join(batch_dir, 'SHA256SUMS'), REPO)} "
+        f"(check with: shasum -a 256 -c {os.path.relpath(os.path.join(batch_dir, 'SHA256SUMS'), REPO)})")
+
+
+def commit_results(stamp, paths):
+    """Commits only this batch's result folders, straight away, before anyone could touch them."""
+    rel = [os.path.relpath(p, REPO) for p in paths]
+    try:
+        git("add", "--", *rel)
+        git("commit", "-q", "-m", f"Results: batch {stamp}, raw and unedited", "--", *rel)
+        log(f"Committed the results as {git('rev-parse', '--short', 'HEAD')}. Push when you're ready")
+    except subprocess.CalledProcessError as e:
+        log(f"Could not commit the results ({(e.stderr or '').strip()}). Commit them by hand: git add {' '.join(rel)}")
+
+
 def main():
     ap = argparse.ArgumentParser(description="Run a list of full benchmark runs unattended.")
     ap.add_argument("plan", nargs="?", help="plan file, e.g. harness/batches/node-final.txt")
     ap.add_argument("--dry-run", action="store_true", help="show the order and commits, run nothing")
+    ap.add_argument("--allow-dirty", action="store_true",
+                    help="start even with uncommitted changes to harness/, k6/ or contract/")
+    ap.add_argument("--no-commit", action="store_true", help="don't commit the results when the batch ends")
     ap.add_argument("--resummarize", metavar="BATCH_DIR",
                     help="rebuild BATCH_DIR/summary.md from its runs' result.json files, run nothing")
     args = ap.parse_args()
@@ -208,6 +264,10 @@ def main():
     for i, c in enumerate(order, 1):
         extra = f" {' '.join(c['extra'])}" if c["extra"] else ""
         log(f"  {i:2}. {c['label']}: {c['stack']} {c['phase']}{extra} at {c['ref']} ({c['commit'][:10]})")
+    dirty = git("status", "--porcelain", "--", "harness", "k6", "contract")
+    if dirty and not args.allow_dirty:
+        fail("uncommitted changes in the harness, k6 or the contract:\n" + dirty +
+             "\nCommit them first, so every run maps to a commit (or pass --allow-dirty)")
     if args.dry_run:
         return
 
@@ -238,6 +298,10 @@ def main():
             log("Interrupted: the summary covers the runs that finished")
     finished = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
     write_summary(batch_dir, plan, entries, started, finished)
+    paths = [batch_dir] + [os.path.join(REPO, e["results"]) for e in entries if e.get("results")]
+    write_checksums(batch_dir, paths)
+    if not args.no_commit:
+        commit_results(stamp, paths)
     log(f"Done: {os.path.relpath(os.path.join(batch_dir, 'summary.md'), REPO)}")
 
 

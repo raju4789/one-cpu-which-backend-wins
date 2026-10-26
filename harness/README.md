@@ -112,6 +112,21 @@ The runner also stops a run it can't trust, and says why:
 
 The partial results are saved, marked aborted. They are not a result: fix the cause and rerun.
 
+### Trust checks: so a result can be checked, not trusted
+
+Every run's `summary.md` has a **Validity checks** table: each check with its measured value, its limit and ok or FAIL. The batch summary repeats the essentials per run.
+
+| Check | What it catches |
+| --- | --- |
+| Mac CPU and memory, k6's own CPU and memory | The load generator struggling. k6's process is sampled every 5 s |
+| Dropped sessions, failed connections, out of virtual users | k6 not sending the load it should have |
+| Mac asleep, core speed (calibration) | A paused or slowed environment |
+| **Nginx vs k6 request count** | Nginx counts every request it receives, independently of k6. For every confirm and overload test the totals must agree within 2%, or k6 is misreporting |
+| **Data check** | After the run, the database is compared with what k6 was told: every post that got a `201` is stored and no more than k6 sent, every post's `like_count` matches its rows, and new likes match the `204`s apart from rare repeats. A stack can't look faster by acknowledging writes it never did. A run that fails this doesn't count towards a batch median |
+| **Code fingerprint** | The harness commit, the stack's commit and tag, sha256 hashes of k6, the contract, the harness config and the stack's files, plus every image's ID (`env.json`). Uncommitted changes are flagged |
+
+`bin/batch` refuses to start with uncommitted changes to `harness/`, `k6/` or `contract/` (`--allow-dirty` overrides). When it finishes it writes `SHA256SUMS` for every result file and commits the raw results straight away (`--no-commit` skips that). Anyone can check nothing changed since with `shasum -a 256 -c results/batches/<timestamp>/SHA256SUMS`.
+
 ## What's where
 
 Everything below is **locked**: changing it for one stack invalidates the comparison. To add or tune a stack, you only touch `stacks/<name>/`.
@@ -153,7 +168,7 @@ Everything is on one dashboard at http://localhost:3000. Filter by stack and pha
 | Nginx | Requests handled, active and idle connections |
 | Postgres | Transactions, connections, cache hit ratio, rows, locks, deadlocks, size, top queries |
 | App | Measured inside the stack: time per route, database pool, feed cache hits, runtime (event loop, heap, GC). Empty for stacks without metrics |
-| Load generator | The Mac's CPU, to show k6 had headroom |
+| Load generator and trust checks | The Mac's CPU and memory pressure, Nginx's request rate against k6's (the lines should overlap), and k6's busy virtual users against its pool, with dropped sessions |
 
 Percentiles come from k6 native histograms, so p95 and p99 are exact across all endpoints, not averaged. The dashboard is generated: edit `monitoring/grafana/build_dashboard.py`, then run it.
 

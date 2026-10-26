@@ -20,15 +20,25 @@
 // Every request is tagged with "step": the step index in a ramp, "steady",
 // "over" or "recover", or "settle" during the first SETTLE_SECONDS after a
 // rate change. Results only use the tagged, settled parts.
+//
+// Four counters record the writes k6 sent and the ones the server acknowledged
+// (201 for a post, 204 for a like). After the run, bin/run compares them with
+// the database: a stack can't look faster by acknowledging writes it never
+// stored. They only count; the load itself is unchanged.
 import http from "k6/http";
 import { sleep } from "k6";
 import exec from "k6/execution";
+import { Counter } from "k6/metrics";
 
 const BASE = __ENV.BASE_URL || "http://localhost:8080";
 const MODE = __ENV.MODE || "constant";
 const STEP = Number(__ENV.STEP_SECONDS || 60);
 const SETTLE = Number(__ENV.SETTLE_SECONDS || 10);
 const MAX_VUS = Number(__ENV.MAX_VUS || 10000);
+const postsSent = new Counter("bench_posts_sent");
+const postsOk = new Counter("bench_posts_ok");
+const likesSent = new Counter("bench_likes_sent");
+const likesOk = new Counter("bench_likes_ok");
 const LIKE_SHARE = 0.3;
 const POST_SHARE = 0.1;
 // VUs are created up front for the highest rate: creating them mid-test is
@@ -147,17 +157,21 @@ export default function (data) {
     try { posts = feed.json("posts") || []; } catch (e) { posts = []; }
     if (posts.length > 0) {
       const id = posts[Math.floor(Math.random() * posts.length)].id;
-      http.post(`${BASE}/posts/${id}/like`, null, {
+      likesSent.add(1);
+      const like = http.post(`${BASE}/posts/${id}/like`, null, {
         headers: { "X-User-Id": user }, responseType: "none", tags: { name: "POST /posts/:id/like" },
       });
+      if (like.status === 204) likesOk.add(1);
     }
   }
 
   if (Math.random() < POST_SHARE) {
-    http.post(`${BASE}/posts`, JSON.stringify({ body: `Load test post from user ${user} at ${Date.now()}` }), {
+    postsSent.add(1);
+    const post = http.post(`${BASE}/posts`, JSON.stringify({ body: `Load test post from user ${user} at ${Date.now()}` }), {
       headers: { "Content-Type": "application/json", "X-User-Id": user },
       responseType: "none", tags: { name: "POST /posts" },
     });
+    if (post.status === 201) postsOk.add(1);
   }
 
   think();
