@@ -322,6 +322,28 @@ Tuning added about 7% throughput. The bigger change is consistency: untuned rang
 - A warning printed once tells you when something started, not how long it lasted. Judge by counters over the window you care about.
 - Keep what was measured correctly. One bad phase doesn't erase a good one that came before it, as long as each phase is checked on its own.
 
+## Chapter 14: Making results checkable, and an apostrophe that broke a script
+
+**Why.** A sceptical reader shouldn't have to trust the runner. So every run now shows the evidence behind each check: the Mac's CPU and memory, k6's own CPU and memory, dropped sessions, failed connections, sleep and core speed. Three new checks: Nginx's request count against k6's, the database against the writes k6 was told succeeded, and a fingerprint of exactly which code ran. The batch refuses to start with uncommitted changes and commits its raw results when it ends.
+
+**First attempt: a run that tested nothing.** The first check run started 12 minutes before the new code was committed. The runner loads its code once at the start, so it ran the old version. Only the k6 script, which is read fresh for every test, had the new counters in its last test. The Mac also compressed 2.3 to 3.7 GB of extra memory during that run, against 0.8 GB the night before: the Claude app, a JetBrains tool in the background and Cursor were taking about 5 GB. Its numbers were thrown away.
+
+**Second attempt: a syntax error on the Mac only.** The run stopped at the environment report. A comment I had added contained an apostrophe ("the stack's image") inside a `$( ... )` block. macOS ships bash 3.2, which reads that apostrophe as the start of a quote. The newer bash I tested with doesn't, so it passed my tests and failed on the Mac. Moving the comment out fixed it.
+
+**Third attempt: clean.** With the other apps closed and the run started from Terminal:
+
+- Nginx counted 1,501,592 requests in the overload test, and k6 recorded 1,501,592. Every request k6 sent reached the server.
+- 209,550 posts were acknowledged and 209,550 stored. 608,021 likes were acknowledged and 607,499 stored: the 522 missing are repeat likes (the same user liking the same post twice), 0.09%, as estimated. Every post's like count matched its likes.
+- The Mac's compressed memory didn't grow. k6 itself peaked at 7.5 GB with 20,000 virtual users, more than the 5 GB estimated, so the Mac needs to be otherwise quiet for the cache runs.
+- The highest passing step was 4,929 requests per second, in line with the night before (4,903). The morning's worse result was the busy Mac, not the server.
+
+**Lessons.**
+
+- Test on the machine that will run the code. An old shell or tool version on it can break what passed elsewhere.
+- Check that a test run actually used the new code before reading anything into it.
+- Two independent counts of the same thing are the cheapest proof that a measurement is honest.
+- Measure what the load generator really uses. The estimate was 30% low.
+
 ## Ideas worth understanding
 
 **Virtual users vs requests per second.** Requests per second is what the server actually handles, so it's the fair way to compare servers. The number of virtual users depends on how long the pretend people pause. At 577 sessions per second, k6 sent about 810 requests per second while about 2,300 virtual users were busy, most of them "reading". Make the pauses twice as long and you get twice the users for the same server work.
@@ -347,3 +369,5 @@ Tuning added about 7% throughput. The bigger change is consistency: untuned rang
 13. **Did the test build up to its rate, or start cold at it?** A cold start at a high rate tests the start, not the steady state.
 14. **Does the server's own count match what the load generator recorded?** If the server says it served far more, the load generator is the problem.
 15. **Do your checks look at the right time window?** A warning from one phase of a test must not fail a different phase.
+16. **Does a second, independent source agree?** The server's request count against the load generator's, the database against acknowledged writes.
+17. **Can someone else check the result?** Record which code ran, and commit the raw results before anyone can touch them.
