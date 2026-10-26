@@ -119,9 +119,14 @@ def run_one(config, stack_src, log_path):
                 out_dir = m.group(1)
         code = proc.wait()
     entry = {"label": config["label"], "ref": config["ref"], "commit": config["commit"][:10],
-             "exit_code": code, "minutes": round((time.time() - started) / 60, 1), "results": out_dir,
-             "status": "failed", "rps": None, "rate": None, "p95_ms": None, "p99_ms": None,
-             "calibration_s": None, "warnings": []}
+             "exit_code": code, "minutes": round((time.time() - started) / 60, 1), "results": out_dir}
+    return fill_from_result(entry)
+
+
+def fill_from_result(entry):
+    """Status and numbers for a summary row, from the run's result.json."""
+    entry.update(status="failed", rps=None, rate=None, p95_ms=None, p99_ms=None, calibration_s=None, warnings=[])
+    out_dir = entry.get("results")
     result_path = os.path.join(REPO, out_dir, "result.json") if out_dir else None
     if result_path and os.path.exists(result_path):
         with open(result_path) as f:
@@ -131,6 +136,8 @@ def run_one(config, stack_src, log_path):
         entry["warnings"] = r.get("warnings", [])
         if r.get("abort_reason"):
             entry["warnings"].append(f"aborted: {r['abort_reason']}")
+        if r.get("overload_invalid"):
+            entry["warnings"].append(f"overload test not valid: {r['overload_invalid']}")
         c = r.get("result")
         if c and entry["status"] == "complete":
             entry.update(rps=round(c["rps"]), rate=c["rate"], p95_ms=round(c["p95_s"] * 1000),
@@ -175,10 +182,21 @@ def write_summary(batch_dir, plan, entries, started, finished=None):
 
 def main():
     ap = argparse.ArgumentParser(description="Run a list of full benchmark runs unattended.")
-    ap.add_argument("plan", help="plan file, e.g. harness/batches/node-final.txt")
+    ap.add_argument("plan", nargs="?", help="plan file, e.g. harness/batches/node-final.txt")
     ap.add_argument("--dry-run", action="store_true", help="show the order and commits, run nothing")
+    ap.add_argument("--resummarize", metavar="BATCH_DIR",
+                    help="rebuild BATCH_DIR/summary.md from its runs' result.json files, run nothing")
     args = ap.parse_args()
+    if args.resummarize:
+        with open(os.path.join(args.resummarize, "summary.json")) as f:
+            saved = json.load(f)
+        entries = [fill_from_result(e) for e in saved["runs"]]
+        write_summary(args.resummarize, saved["plan"], entries, saved["started"], saved.get("finished"))
+        log(f"Rebuilt {os.path.join(args.resummarize, 'summary.md')}")
+        return
 
+    if not args.plan:
+        ap.error("a plan file is required")
     plan = read_plan(args.plan)
     for c in plan["configs"]:
         resolve(c)

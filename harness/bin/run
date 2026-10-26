@@ -285,15 +285,19 @@ def check_connections(run, r, t0, t1):
             f"see Network in harness/README.md. Details: {run.log_path}")
 
 
-def check_run(ctx, run, r, t0, t1):
-    """Stops the run if anything outside the stack limited this window."""
+def check_run(ctx, run, r, t0, t1, check_vus=True):
+    """Stops the run if anything outside the stack limited this window.
+
+    check_vus: judge k6's "Insufficient VUs" warning. k6 logs it once per test, so it only
+    says something about the window it falls in. The overload test checks drops instead.
+    """
     check_connections(run, r, t0, t1)
     reason = None
     if ctx.sleeps:
         start, _, gap = ctx.sleeps[0]
         reason = (f"the Mac slept for {gap:.0f} s at {time.strftime('%H:%M:%S', time.localtime(start))}, "
                   "which pauses the VMs and k6. Keep it awake and plugged in, lid open")
-    elif any(t <= t1 + 1 for t in run.vus_short) and latency_ok(r):
+    elif check_vus and any(t0 - 1 <= t <= t1 + 1 for t in run.vus_short) and latency_ok(r):
         # With latency already failing, slow sessions drained the pool: a normal fail for the stack
         reason = (f"k6 ran out of virtual users (--max-vus {ctx.max_vus}), so it could not start every "
                   f"session: the load generator was the limit. Rerun with --max-vus {ctx.max_vus * 2}")
@@ -595,11 +599,11 @@ def protocol(args, ctx, prom, result, bin_dir):
 
     # 9. Overload and recovery
     if confirmed and not args.skip_overload:
-        overload(ctx, result, confirmed["rate"])
+        overload(ctx, prom, result, confirmed["rate"])
     return confirmed
 
 
-def overload(ctx, result, rate):
+def overload(ctx, prom, result, rate):
     """Ramp up to rate, 2 minutes at 1.5x it, then 2 minutes back at it: does the stack recover?"""
     log(f"Cool-down {COOLDOWN} s, then overload: {RAMP_SECONDS} s ramp-up, 2 min at 1.5x, "
         f"2 min back at {rate} sessions/s")
@@ -612,7 +616,17 @@ def overload(ctx, result, rate):
     over = summary_numbers(summary, "over", OVERLOAD_SECONDS - SETTLE_SECONDS)
     rec = summary_numbers(summary, "recover", OVERLOAD_SECONDS - SETTLE_SECONDS)
     t_over = run.start + RAMP_SECONDS
-    check_run(ctx, run, rec, t_over + OVERLOAD_SECONDS, t_over + 2 * OVERLOAD_SECONDS)
+    t0, t1 = t_over + OVERLOAD_SECONDS + SETTLE_SECONDS, t_over + 2 * OVERLOAD_SECONDS
+    # At 1.5x, slow sessions use up k6's virtual users on purpose; that says nothing about
+    # recovery. What matters is whether k6 dropped sessions while the stack recovered.
+    check_run(ctx, run, rec, t0, t1, check_vus=False)
+    dropped = counter_delta(prom, f'k6_dropped_iterations_total{{run_id="{ctx.run_id}",test="overload"}}', t0, t1)
+    rec["dropped_sessions"] = int(dropped)
+    ratio = dropped / (rec["sessions"] + dropped) if (rec["sessions"] + dropped) else 0.0
+    if ratio >= DROP_MAX and latency_ok(rec):
+        rec["passed"], rec["fail_reasons"] = False, ["invalid: k6 dropped sessions during recovery"]
+        raise RunInvalid(f"k6 dropped {ratio * 100:.1f}% of sessions while the stack was recovering with "
+                         f"fast responses: the load generator was the limit. Rerun with a higher --max-vus")
     rec["recovered"] = not verdict(rec)
     result["overload"] = {"over": over, "recover": rec}
     log(f"  at 1.5x: {fmt(over)}")
@@ -721,7 +735,7 @@ def quick(args, ctx, prom, result):
         log(f"Every step passed up to {rates[-1]} sessions/s: rerun with a higher --quick-from")
     result["result"] = best
     if args.overload:
-        overload(ctx, result, best["rate"])
+        overload(ctx, prom, result, best["rate"])
     return best
 
 

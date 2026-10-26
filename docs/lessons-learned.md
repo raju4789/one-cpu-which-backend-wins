@@ -293,6 +293,35 @@ The server had a problem too. k6 hands out its users in turn, so the first pass 
 - When the server says it served far more than the client says it received, suspect the client.
 - Check the load generator's memory as well as its CPU. Memory pressure shows up as CPU first.
 
+## Chapter 13: The overnight batch, and a check that blamed the wrong moment
+
+**The plan.** Twelve full runs overnight: four configurations (untuned, tuned, app cache, Nginx cache), three runs each, interleaved so slow drift on the Mac hit every configuration alike.
+
+**What we saw.** Six of the twelve runs ended "aborted: k6 ran out of virtual users". All six had already passed their 5-minute confirm. They all stopped in the overload test that comes after it.
+
+**Why.** The overload test pushes 1.5 times the confirmed rate for 2 minutes, then drops back to the confirmed rate for 2 minutes to see if the server recovers. During the 1.5x part, running short of virtual users is expected: the server is overloaded on purpose, sessions take longer, and more of them are open at once. k6 prints "Insufficient VUs" only once per test, at the moment it first happens. The runner saw that warning and judged it against the recovery part, where it would mean k6 couldn't send the load. So it threw out valid runs. The bug was in our check, not in the server or the Mac.
+
+**What we changed.** The virtual-user check now only counts warnings inside the time window being judged. For the recovery part of the overload test, the runner ignores the one-time warning and instead counts the sessions k6 actually dropped during recovery. Only if that is 1% or more, while latency looks fine, is the overload test invalid. We tested the fix with fake data for three cases: a shortage during the 1.5x part (fine), a shortage before the window (fine), a shortage inside the window (invalid).
+
+**Rescuing the results.** The confirm numbers in those six runs were measured and checked before the overload test began, so they stand. Each run was marked complete with a note that its overload test is invalid and why. The batch script got a `--resummarize` option to rebuild the summary from the corrected files.
+
+**The results (median of 3, requests per second).**
+
+| Configuration | Median | Range |
+| --- | --- | --- |
+| Untuned, no cache | 1,698 | 1,212 to 1,817 |
+| Tuned, no cache | 1,815 | 1,812 to 1,816 |
+| Tuned, app cache | 4,496 | 4,089 to 4,497 |
+| Tuned, Nginx cache | 4,903 | 4,901 to 4,904 |
+
+Tuning added about 7% throughput. The bigger change is consistency: untuned ranged over 600 requests per second, tuned over 4. Untuned never recovered from overload in the two tests that ran; tuned recovered all three times. The Nginx cache beats the app cache by about 9%. The 4,089 app-cache run is suspect: the Mac compressed 3.2 GB of extra memory early in that run. All three Nginx overload tests were lost to the bug, so they need a rerun.
+
+**Lessons.**
+
+- A check is code too, and it can be wrong. When good runs fail a check, suspect the check before the system.
+- A warning printed once tells you when something started, not how long it lasted. Judge by counters over the window you care about.
+- Keep what was measured correctly. One bad phase doesn't erase a good one that came before it, as long as each phase is checked on its own.
+
 ## Ideas worth understanding
 
 **Virtual users vs requests per second.** Requests per second is what the server actually handles, so it's the fair way to compare servers. The number of virtual users depends on how long the pretend people pause. At 577 sessions per second, k6 sent about 810 requests per second while about 2,300 virtual users were busy, most of them "reading". Make the pauses twice as long and you get twice the users for the same server work.
@@ -317,3 +346,4 @@ The server had a problem too. k6 hands out its users in turn, so the first pass 
 12. **Is the machine quiet, and was its processor at normal speed?** Measure it every run against a fixed reference, not against recent runs, which drift.
 13. **Did the test build up to its rate, or start cold at it?** A cold start at a high rate tests the start, not the steady state.
 14. **Does the server's own count match what the load generator recorded?** If the server says it served far more, the load generator is the problem.
+15. **Do your checks look at the right time window?** A warning from one phase of a test must not fail a different phase.
