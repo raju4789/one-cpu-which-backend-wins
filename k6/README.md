@@ -69,7 +69,7 @@ Every request is tagged with its step. The first 10 seconds after each rate chan
 - `404` for a missing post, `400` for a missing or unknown user
 - Likes are atomic: 50 users liking one post at the same moment, twice, give exactly 50
 
-The feed may be up to 2.5 seconds stale in the cache phases, as the contract allows. Set `PHASE` to match the running phase.
+In the cache phases the contract allows the feed to be up to 2 seconds stale. The test waits up to 2.5 seconds for a new post to appear, the extra half second covering its own polling and request time. Set `PHASE` to match the running phase.
 
 ```sh
 PHASE=none k6 run k6/contract.js
