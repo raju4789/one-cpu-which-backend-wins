@@ -8,6 +8,15 @@ from pathlib import Path
 DS = {"type": "prometheus", "uid": "prometheus"}
 K6 = 'stack=~"$stack", phase=~"$phase"'
 WIN = "30s"  # k6 pushes every 5 s; 30 s windows keep the lines readable
+# Join gaps up to this long (ms), so cool-downs between tests show as gaps, not as
+# straight lines drawn across them.
+SPAN_GAPS_MS = 30000
+# k6 gauges such as k6_vus get no stale marker when a test ends, so Prometheus keeps
+# returning the last value for 5 minutes and sum() adds finished tests to the running
+# one. Only samples from the last 10 s (k6 pushes every 5 s) count as current, and max()
+# rather than sum(), since only one test runs at a time and two can overlap for seconds.
+def k6_gauge(metric):
+    return f"max(max_over_time({metric}{{{K6}}}[10s]))"
 
 panels = []
 _id = 0
@@ -47,7 +56,7 @@ def right_axis(series, unit):
 
 def ts(title, exprs, unit, x, w, h=8, desc="", lines=None, maxv=None, stack=False, overrides=None):
     custom = {"lineWidth": 2, "fillOpacity": 10 if stack else 5, "showPoints": "never",
-              "spanNulls": True, "stacking": {"mode": "normal" if stack else "none"}}
+              "spanNulls": SPAN_GAPS_MS, "stacking": {"mode": "normal" if stack else "none"}}
     defaults = {"unit": unit, "custom": custom}
     if lines:
         custom["thresholdsStyle"] = {"mode": "line"}
@@ -99,7 +108,7 @@ add(stat("Requests / s", reqs, "reqps", 0, decimals=0),
     stat("p95 latency", q(0.95), "s", 4, red_above=0.3),
     stat("p99 latency", q(0.99), "s", 8, red_above=1),
     stat("Error rate", f"({errs} or vector(0)) / {reqs}", "percentunit", 12, red_above=0.01, decimals=2),
-    stat("Virtual users", f"sum(k6_vus{{{K6}}})", "none", 16),
+    stat("Virtual users", k6_gauge("k6_vus"), "none", 16),
     stat("Server CPU (1 core)", vm_cpu, "percentunit", 20, red_above=0.9),
     h=4)
 
@@ -117,7 +126,7 @@ add(ts("p95 latency by endpoint", [(q(0.95, "name"), "{{name}}")], "s", 0, 12, l
        "percentunit", 12, 12, desc="Red line: pass criteria, errors < 1%", lines=[0.01]))
 add(ts("Responses by status code", [(f"sum by (status) (rate(k6_http_reqs_total{{{K6}}}[{WIN}]))", "{{status}}")],
        "reqps", 0, 12, stack=True),
-    ts("Virtual users", [(f"sum(k6_vus{{{K6}}})", "VUs")], "none", 12, 12))
+    ts("Virtual users", [(k6_gauge("k6_vus"), "VUs")], "none", 12, 12))
 
 # ---------------------------------------------------------------- server
 row("Server: the 1 vCPU, 2 GB bench VM")
@@ -167,7 +176,7 @@ add(ts("Rows / s",
        [(f'sum(increase(pg_stat_database_deadlocks{{datname="app"}}[1m]))', "deadlocks / min"),
         ('sum(pg_database_size_bytes{datname="app"}) / 1e9', "size (GB)")],
        "none", 16, 8))
-top = {"id": next_id(), "type": "table", "title": "Top queries by total time (last 5 min)",
+top = {"id": next_id(), "type": "table", "title": "Top queries by total time (selected time range)",
        "description": "From pg_stat_statements. Look up the text with: "
                       "SELECT query FROM pg_stat_statements WHERE queryid = <id>;",
        "datasource": DS, "gridPos": {"x": 0, "y": _y, "w": 24, "h": 8},
@@ -180,8 +189,8 @@ top = {"id": next_id(), "type": "table", "title": "Top queries by total time (la
        "transformations": [{"id": "merge"}, {"id": "organize", "options": {
            "excludeByName": {"Time": True}, "renameByName": {"queryid": "query id"}}}],
        "targets": targets([
-           ('topk(10, sum by (queryid) (increase(pg_stat_statements_seconds_total{datname="app"}[5m])))', ""),
-           ('sum by (queryid) (increase(pg_stat_statements_calls_total{datname="app"}[5m]))', "")],
+           ('topk(10, sum by (queryid) (increase(pg_stat_statements_seconds_total{datname="app"}[$__range])))', ""),
+           ('sum by (queryid) (increase(pg_stat_statements_calls_total{datname="app"}[$__range]))', "")],
            fmt="table", instant=True)}
 add(top)
 
@@ -226,7 +235,7 @@ add(ts("Requests / s: Nginx vs k6",
             "split, one of them is wrong, most likely k6. The runner checks the totals for every confirm and "
             "overload test (within 2%). Nginx also counts the exporter's scrape, 0.2 requests/s."),
     ts("k6 virtual users and dropped sessions",
-       [(f"sum(k6_vus{{{K6}}})", "busy"), (f"sum(k6_vus_max{{{K6}}})", "pool"),
+       [(k6_gauge("k6_vus"), "busy"), (k6_gauge("k6_vus_max"), "pool"),
         (f"sum(rate(k6_dropped_iterations_total{{{K6}}}[{WIN}])) or vector(0)", "dropped / s")],
        "none", 12, 12, overrides=[right_axis("dropped / s", "short")],
        desc="Busy reaching the pool means k6 ran out of virtual users and drops sessions (right axis): it "

@@ -166,7 +166,7 @@ Everything is on one dashboard at http://localhost:3000. Filter by stack and pha
 | Load (k6) | p50, p90, p95, p99, RPS and errors per endpoint, status codes, VUs |
 | Server | CPU, memory, network and disk writes per container, against the 1 core and 2 GB |
 | Nginx | Requests handled, active and idle connections |
-| Postgres | Transactions, connections, cache hit ratio, rows, locks, deadlocks, size, top queries |
+| Postgres | Transactions, connections, cache hit ratio, rows, locks, deadlocks, size, top queries over the selected time range |
 | App | Measured inside the stack: time per route, database pool, feed cache hits, runtime (event loop, heap, GC). Empty for stacks without metrics |
 | Load generator and trust checks | The Mac's CPU and memory pressure, Nginx's request rate against k6's (the lines should overlap), and k6's busy virtual users against its pool, with dropped sessions |
 
