@@ -11,7 +11,7 @@ The contract API in Ruby on Rails, built the way a production team would build i
 | Logs | Rails's logger to stdout, warnings and errors only |
 | Metrics | Prometheus format on port 9464 |
 
-**Status:** passes [the contract test](../../k6/README.md#contract-test) in the no-cache phase (31 of 31 checks, 27 October 2026). App-cache and Nginx-cache phases pending.
+**Status:** passes [the contract test](../../k6/README.md#contract-test) in all three phases (31 of 31 checks each, 27 October 2026). The untuned version is tagged `rails-untuned`. Verified at runtime: YJIT on (`ruby_yjit_enabled 1`), pool of 3.
 
 ## Why these defaults
 
