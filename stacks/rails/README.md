@@ -1,0 +1,111 @@
+# Rails stack
+
+The contract API in Ruby on Rails, built the way a production team would build it, and sized for one CPU and 2 GB.
+
+| Layer | Choice |
+| --- | --- |
+| Runtime | Ruby 3.4.12, YJIT on (a Rails default), jemalloc |
+| Web framework | Rails 8.1, API-only |
+| Web server | Puma, one process, 3 threads (Rails's defaults) |
+| Data access | ActiveRecord with the `pg` adapter |
+| Logs | Rails's logger to stdout, warnings and errors only |
+| Metrics | Prometheus format on port 9464 |
+
+**Status:** built, not yet checked against [the contract test](../../k6/README.md#contract-test).
+
+## Why these defaults
+
+The untuned version is what `rails new --api` gives you, close to what Catawiki runs in production (Ruby 3.4.12, Rails 8.1, Puma in single mode, jemalloc, no GC tuning). Two differences, both deliberate:
+
+- **3 Puma threads, not 5.** Three is Rails's default since 7.2. Five, Catawiki's setting, is a tuning candidate.
+- **API-only.** The app only serves JSON, so it skips cookie, session and browser middleware, as a new API service would.
+
+jemalloc and YJIT are in the baseline, not tuning steps: Rails's generated Dockerfile installs jemalloc, and `config.load_defaults` 7.2 or later turns YJIT on. Production runs both.
+
+## Layout
+
+```
+app/
+├── controllers/   health, feed, posts, likes; errors in application_controller.rb
+├── models/        User, Post (the feed query), Like (atomic, idempotent likes)
+└── lib/
+    ├── feed.rb           GET /feed's JSON, from the cache when FEED_CACHE=app
+    ├── feed_cache.rb     the 1-second cache, single flight (plain Ruby, unit tested)
+    ├── database_errors.rb  foreign key violation -> 400 or 404 (unit tested)
+    ├── request_ids.rb    X-User-Id and post id parsing (unit tested)
+    ├── api_error.rb      errors with the contract's status codes
+    └── app_metrics.rb    Prometheus metrics and their HTTP server
+config/
+├── puma.rb        threads, port, keep-alive, waits for the database at startup
+├── database.yml   pool, statement timeout
+├── application.rb, environments/production.rb
+└── initializers/app_setup.rb  request timing, metrics server
+bin/pin            one-time: pins the Ruby image and writes Gemfile.lock
+test/              unit tests (minitest), no database needed
+```
+
+## How the contract rules are met
+
+| Rule | How |
+| --- | --- |
+| Feed in one query | `eager_load(:user)`: ActiveRecord joins users in the same SQL statement. `includes` would run a second query for the authors |
+| Atomic, idempotent likes | One transaction: `INSERT ... ON CONFLICT DO NOTHING` on `likes` (`Like.insert`), then `UPDATE posts SET like_count = COALESCE(like_count, 0) + 1` only if a row was inserted (`update_counters`) |
+| Unknown user is 400, missing post is 404 | For likes, no lookup query: the insert's foreign key violation names the constraint, which says which reference was missing. For new posts, Rails's default `belongs_to` check looks the user up, which also loads the author for the response |
+| Validation | Ids must be positive integers up to 2^63 - 1. The body must be a string of 1 to 280 characters (model validations) |
+| Errors as `{ "error": "..." }` | `rescue_from` in `ApplicationController`, and a catch-all route for 404s |
+| `/health` means ready | Puma only loads the app after a connection to Postgres succeeds |
+| `FEED_CACHE=app` | The serialized feed is cached for 1 second. Threads arriving while it reloads wait for that one query (single flight), so expiry never causes a stampede |
+
+## Production practices
+
+- **Rails's defaults, unless there's a reason.** Where this differs from `rails new --api`, the file says why: plain HTTP behind Nginx (no `force_ssl`), logs at `warn`, no Solid Queue, Solid Cache, Kamal or Thruster (nothing here uses them, and Nginx is already the proxy).
+- **Keep-alive longer than Nginx's.** Puma keeps idle connections 75 s, longer than Nginx keeps its upstream connections, so Puma never closes one Nginx is about to reuse.
+- **Graceful shutdown.** Puma is PID 1: on `SIGTERM` it stops accepting, finishes in-flight requests, then exits.
+- **Waits for the database at startup** (up to 30 tries, 1 s apart) instead of crashing if Postgres is a moment late.
+- **Limits.** Queries are cancelled after 5 s (`statement_timeout`). A request waits at most 5 s for a database connection (ActiveRecord's default `checkout_timeout`), the same as untuned Node.
+- **Prepared statements**, ActiveRecord's default with Postgres.
+- **Multi-stage image**, like Rails's generated Dockerfile: gems are compiled in the build stage; the runtime stage has no compilers and runs as an unprivileged user.
+- **Exact versions** in `Gemfile.lock`, and the Ruby image pinned by digest.
+- **Tests in the build.** The image build runs the unit tests and loads every file the way production does (`zeitwerk:check`), so a broken image is never built. The full behaviour against Postgres is checked by the contract test.
+
+## Observability
+
+**Logs.** Rails's logger to stdout. In benchmark runs the level is `warn`, the same rule for every stack: Nginx keeps the access log. At boot it logs one line with Ruby and Rails versions, threads, pool size and whether YJIT is on. Set `LOG_LEVEL=info` to see more.
+
+**Metrics** on `:9464/metrics`:
+
+| Metric | What it shows |
+| --- | --- |
+| `app_http_request_duration_seconds` | Time inside the app per route |
+| `app_db_pool_connections{state}` | Connections in use, idle, and requests waiting for one |
+| `app_feed_cache_requests_total{result}` | Hits and misses in the app-cache phase |
+| `ruby_gc_count`, `ruby_gc_time_seconds` | Garbage collections and the time spent in them |
+| `ruby_heap_live_slots` | Live objects on the heap |
+| `ruby_yjit_enabled` | 1 if YJIT is on |
+
+The `app_*` names are shared with the other stacks, so Grafana shows them side by side.
+
+## Configuration
+
+| Variable | Default | Set by |
+| --- | --- | --- |
+| `PORT` | 8080 | harness |
+| `DATABASE_URL` | | harness |
+| `FEED_CACHE` | `off` | harness, per phase |
+| `RAILS_MAX_THREADS` | 3 | tuning: Puma threads and the pool size |
+| `WEB_CONCURRENCY` | unset (one process) | tuning: Puma workers |
+| `DB_STATEMENT_TIMEOUT_MS` | 5000 | |
+| `METRICS_PORT` | 9464 | |
+| `LOG_LEVEL` | `warn` | |
+
+## First-time setup
+
+The Gemfile.lock and the Ruby image's digest are written once, on the Mac, by `bin/pin`. It pulls `ruby:3.4.12-slim` into the bench VM and resolves the gems inside it. Commit both files after.
+
+```sh
+stacks/rails/bin/pin
+```
+
+## Tuning log
+
+Follows the [tuning plan](../../docs/tuning-plan.md). Not started.
