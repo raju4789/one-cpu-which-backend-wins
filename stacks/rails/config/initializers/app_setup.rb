@@ -10,12 +10,5 @@ Rails.application.config.after_initialize do
   end
 
   Feed.cache # built now, once, rather than by the first two requests at the same time
-
-  # Only in the Puma process (config/puma.rb sets this), not in rails runner or the build.
-  if ENV["METRICS_SERVER"] == "on"
-    AppMetrics.start_server(Integer(ENV.fetch("METRICS_PORT", 9464)))
-    Rails.logger.warn("booted: yjit=#{AppMetrics.yjit_enabled?} threads=#{ENV.fetch('RAILS_MAX_THREADS', 3)} " \
-                      "db_pool=#{AppMetrics.pool_max} " \
-                      "feed_cache=#{Rails.configuration.x.feed_cache} ruby=#{RUBY_VERSION} rails=#{Rails.version}")
-  end
 end
+# The metrics server and the boot log line start in config.ru, after startup.

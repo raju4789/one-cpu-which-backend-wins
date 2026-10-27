@@ -11,7 +11,7 @@ The contract API in Ruby on Rails, built the way a production team would build i
 | Logs | Rails's logger to stdout, warnings and errors only |
 | Metrics | Prometheus format on port 9464 |
 
-**Status:** built, not yet checked against [the contract test](../../k6/README.md#contract-test).
+**Status:** passes [the contract test](../../k6/README.md#contract-test) in the no-cache phase (31 of 31 checks, 27 October 2026). App-cache and Nginx-cache phases pending.
 
 ## Why these defaults
 
@@ -39,7 +39,8 @@ config/
 ├── puma.rb        threads, port, keep-alive, waits for the database at startup
 ├── database.yml   pool, statement timeout
 ├── application.rb, environments/production.rb
-└── initializers/app_setup.rb  request timing, metrics server
+└── initializers/app_setup.rb  request timing
+config.ru          starts the metrics server and logs the boot line, after startup
 bin/pin            one-time: pins the Ruby image and writes Gemfile.lock
 test/              unit tests (minitest), no database needed
 ```

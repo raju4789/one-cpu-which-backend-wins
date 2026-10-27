@@ -5,7 +5,7 @@
 # run doesn't need Docker Hub.
 
 # ---- base: what both stages share
-FROM ruby:3.4.12-slim@sha256:PIN_WITH_BIN_PIN AS base
+FROM ruby:3.4.12-slim@sha256:dd852d6dd55f5d283839e940aeb0394bb5f5a4f51295a4eee545f732c46d1b41 AS base
 WORKDIR /rails
 # libjemalloc2: a memory allocator that fragments far less than glibc's with
 # many threads, so Ruby's memory stays flat. Rails's generated Dockerfile uses it

@@ -16,10 +16,6 @@ persistent_timeout 75
 
 pidfile ENV["PIDFILE"] if ENV["PIDFILE"]
 
-# The metrics server only runs in the server process, not in rails runner or
-# the build's checks (config/initializers/metrics.rb).
-ENV["METRICS_SERVER"] ||= "on"
-
 # Only start once the database answers, so /health means "ready", which is
 # what bin/up waits for. Waits up to 30 s if Postgres is a moment late.
 if ENV["DATABASE_URL"]
