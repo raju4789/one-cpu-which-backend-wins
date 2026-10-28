@@ -118,6 +118,11 @@ Decided when we build them, with the same rule and process. Starting points alre
 1. **Puma threads, 3 to 5.** Rails's default is 3; Catawiki runs 5. More threads help only while requests wait on Postgres; on one core they also compete for the CPU and Ruby's global lock.
 2. **Puma workers.** One process by default. On one core a second process mostly competes for it, but it sidesteps Ruby's global lock, so it's measured, not assumed.
 3. **GC settings** (`RUBY_GC_*`), only if the dashboards show garbage collection costing real time.
+4. **Load shedding**, added after the baseline: untuned Rails never recovered from overload, the same trap as untuned Node. The production Rails pattern is the proxy stamping each request with `X-Request-Start` and the [rack-timeout](https://github.com/zombocom/rack-timeout) gem answering 503 for requests that queued too long (Heroku's router sets the header for every app).
+
+**One exception to "only the stack's folder changes"** (decided 28 October 2026). Rails can't shed load without knowing how long a request queued, and that queue sits in Puma, before Rails sees the request, so only the proxy can say. Node didn't need this: its queue is inside Node's own code, where it can count it. So the shared Nginx config now sends `X-Request-Start`, one header, as a production Nginx in front of Rails would. Every stack receives it; Node and Spring Boot ignore it, so it changes no other result. Node's numbers were measured before it was added.
+
+**Change 1, Puma threads 3 to 5: dropped** (28 October). No throughput gain, and one step lower than 3 threads at the same core speed.
 
 ## Time budget per stack
 

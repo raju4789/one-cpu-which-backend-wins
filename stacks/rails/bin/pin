@@ -4,22 +4,34 @@
 #   2. resolves the gems and writes Gemfile.lock, inside that same image
 # Both need the internet (Docker Hub, rubygems.org); later builds don't.
 # Rerun only to move to a new Ruby or gem versions, then commit both files.
+#   bin/pin --lock-only   after changing the Gemfile: keeps the pinned image,
+#                         and adds or updates only what the Gemfile change needs
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source ../../harness/bin/common.sh
 
 tag="$(cat .ruby-version)-slim"
-log "Pulling ruby:$tag into the bench VM"
-bench pull --quiet "ruby:$tag" >/dev/null
-digest="$(bench image inspect -f '{{index .RepoDigests 0}}' "ruby:$tag")"
-digest="${digest#*@}"
-[ -n "$digest" ] || fail "no digest for ruby:$tag"
-perl -pi -e "s|^FROM ruby:\S+ AS base|FROM ruby:$tag\@$digest AS base|" Dockerfile
-log "Dockerfile: FROM ruby:$tag@$digest"
+if [ "${1:-}" = "--lock-only" ]; then
+  digest="$(sed -nE 's|^FROM ruby:[^@]+@(sha256:[0-9a-f]+) AS base|\1|p' Dockerfile)"
+  [ -n "$digest" ] || fail "no pinned digest in the Dockerfile; run bin/pin without --lock-only first"
+  log "Keeping the pinned image ruby:$tag@$digest"
+  files="Gemfile Gemfile.lock .ruby-version"
+else
+  log "Pulling ruby:$tag into the bench VM"
+  bench pull --quiet "ruby:$tag" >/dev/null
+  digest="$(bench image inspect -f '{{index .RepoDigests 0}}' "ruby:$tag")"
+  digest="${digest#*@}"
+  [ -n "$digest" ] || fail "no digest for ruby:$tag"
+  perl -pi -e "s|^FROM ruby:\S+ AS base|FROM ruby:$tag\@$digest AS base|" Dockerfile
+  log "Dockerfile: FROM ruby:$tag@$digest"
+  files="Gemfile .ruby-version"
+fi
 
 log "Resolving gems (bundle lock) inside ruby:$tag"
-tar -cf - Gemfile .ruby-version |
+# With the current Gemfile.lock as input, bundle lock keeps every version it can
+# and only resolves what changed; without it, it resolves everything afresh.
+tar -cf - $files |
   bench run --rm -i -e BUNDLE_SILENCE_ROOT_WARNING=1 "ruby:$tag@$digest" \
     sh -c 'mkdir -p /app && cd /app && tar -xf - && bundle lock >&2 && cat Gemfile.lock' > Gemfile.lock.new
 mv Gemfile.lock.new Gemfile.lock
-log "Wrote Gemfile.lock: $(grep -E '^    (rails|puma|pg|prometheus-client) \(' Gemfile.lock | xargs)"
+log "Wrote Gemfile.lock: $(grep -E '^    (rails|puma|pg|prometheus-client|rack-timeout) \(' Gemfile.lock | xargs)"

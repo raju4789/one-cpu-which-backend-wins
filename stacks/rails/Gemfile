@@ -8,3 +8,6 @@ gem "puma", ">= 6.0"
 gem "bootsnap", require: false
 # Prometheus metrics on port 9464 (config/initializers/metrics.rb).
 gem "prometheus-client", "~> 4.2"
+# Load shedding: answers 503 for requests that queued too long (config/application.rb).
+# Required without its Railtie, so the settings are explicit in one place.
+gem "rack-timeout", "~> 0.7", require: "rack/timeout/base"
