@@ -41,6 +41,15 @@ RUN bundle exec ruby -Itest -e 'Dir["./test/**/*_test.rb"].sort.each { |f| requi
 
 # ---- runtime: gems and app only, as an unprivileged user
 FROM base
+# GC (tuning change 4). Under load Ruby ran about 33 minor collections a second,
+# nearly all because the heap had no free slot for a new object: its heap is
+# small, so a few hundred objects per request use the free slots up fast. Keep
+# more of the heap free after each collection (Ruby's defaults: 0.20, 0.40,
+# 0.65), so collections run several times less often, for some 20 to 40 MB
+# more memory. Here, not in base, so the gem layers stay cached.
+ENV RUBY_GC_HEAP_FREE_SLOTS_MIN_RATIO=0.40 \
+    RUBY_GC_HEAP_FREE_SLOTS_GOAL_RATIO=0.60 \
+    RUBY_GC_HEAP_FREE_SLOTS_MAX_RATIO=0.80
 COPY --from=build /usr/local/bundle /usr/local/bundle
 COPY --from=build /rails /rails
 RUN groupadd --system --gid 1000 rails \
