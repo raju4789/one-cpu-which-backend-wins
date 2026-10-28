@@ -2134,7 +2134,7 @@
       "id": 37,
       "type": "timeseries",
       "title": "Ruby garbage collection",
-      "description": "Share of each second Ruby spends collecting garbage (left), and how often it runs (right). A large share is time not spent on requests: the case for tuning RUBY_GC_* settings",
+      "description": "Share of each second Ruby spends collecting garbage (left), and how often each kind runs (right): minor collections scan only young objects, major ones the whole heap. A large share is time not spent on requests: the case for tuning RUBY_GC_* settings",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -2162,7 +2162,23 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "collections / s"
+              "options": "minor / s"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "major / s"
             },
             "properties": [
               {
@@ -2206,8 +2222,20 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum(rate(ruby_gc_count[30s]))",
-          "legendFormat": "collections / s",
+          "expr": "sum(rate(ruby_gc_minor_count[30s]))",
+          "legendFormat": "minor / s",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(ruby_gc_major_count[30s]))",
+          "legendFormat": "major / s",
           "format": "time_series",
           "instant": false,
           "range": true

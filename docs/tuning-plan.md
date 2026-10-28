@@ -124,7 +124,7 @@ Decided when we build them, with the same rule and process. Starting points alre
 
 **Change 1, Puma threads 3 to 5: dropped** (28 October). No throughput gain, and one step lower than 3 threads at the same core speed.
 
-**Recovery from overload: not fixed so far.** Load shedding with rack-timeout was dropped, and a Puma queue cap was ruled out from Puma's source (tuning log). The diagnostic found the cause: Puma's listen queue overflowing, so connections retry after 1 s (tuning log). Puma workers, change 3, target exactly that. If nothing recovers at Rails's own limit, the post says so plainly, and reports a diagnostic: whether Rails recovers when the load drops back below its limit (`bin/run --recover-at`), so readers see whether it's stuck or just slow to dig out.
+**Recovery from overload: not fixed so far.** Load shedding with rack-timeout was dropped, and a Puma queue cap was ruled out from Puma's source (tuning log). The diagnostic found the cause: Puma's listen queue overflowing, so connections retry after 1 s (tuning log). Puma workers, change 3, targeted exactly that and were dropped: 20% less throughput, and the queue still overflowed. If nothing recovers at Rails's own limit, the post says so plainly, and reports a diagnostic: whether Rails recovers when the load drops back below its limit (`bin/run --recover-at`), so readers see whether it's stuck or just slow to dig out.
 
 ## Time budget per stack
 

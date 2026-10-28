@@ -214,10 +214,12 @@ add(ts("Feed cache hit ratio (app-cache phase)",
        "none", 16, 8, desc="Heap in bytes; GC as the share of each second spent collecting"))
 add(ts("Ruby garbage collection",
        [(f"sum(rate(ruby_gc_time_seconds[{WIN}]))", "GC seconds per second"),
-        (f"sum(rate(ruby_gc_count[{WIN}]))", "collections / s")],
-       "percentunit", 0, 8, overrides=[right_axis("collections / s", "short")],
-       desc="Share of each second Ruby spends collecting garbage (left), and how often it runs (right). "
-            "A large share is time not spent on requests: the case for tuning RUBY_GC_* settings"),
+        (f"sum(rate(ruby_gc_minor_count[{WIN}]))", "minor / s"),
+        (f"sum(rate(ruby_gc_major_count[{WIN}]))", "major / s")],
+       "percentunit", 0, 8, overrides=[right_axis("minor / s", "short"), right_axis("major / s", "short")],
+       desc="Share of each second Ruby spends collecting garbage (left), and how often each kind runs "
+            "(right): minor collections scan only young objects, major ones the whole heap. A large share "
+            "is time not spent on requests: the case for tuning RUBY_GC_* settings"),
     ts("Ruby heap: live objects", [("sum(ruby_heap_live_slots)", "live objects")], "short", 8, 8,
        desc="Objects alive on the Ruby heap. Steady under constant load is healthy; a climb that never "
             "levels off is a leak"),

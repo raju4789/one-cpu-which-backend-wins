@@ -7,7 +7,7 @@ module AppServer
     return if worker && worker != 0
 
     AppMetrics.start_server(Integer(ENV.fetch("METRICS_PORT", 9464)))
-    Rails.logger.warn("booted: yjit=#{AppMetrics.yjit_enabled?} workers=#{ENV.fetch('WEB_CONCURRENCY', 2)} " \
+    Rails.logger.warn("booted: yjit=#{AppMetrics.yjit_enabled?} workers=#{ENV.fetch('WEB_CONCURRENCY', 0)} " \
                       "threads=#{ENV.fetch('RAILS_MAX_THREADS', 3)} db_pool=#{AppMetrics.pool_max} " \
                       "feed_cache=#{Rails.configuration.x.feed_cache} metrics=#{worker ? 'worker 0' : 'the process'} " \
                       "ruby=#{RUBY_VERSION} rails=#{Rails.version}")

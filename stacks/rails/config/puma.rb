@@ -7,15 +7,10 @@
 threads_count = ENV.fetch("RAILS_MAX_THREADS", 3)
 threads threads_count, threads_count
 
-# Workers: 2 processes (tuning change 3; Rails's default is one). On one core
-# they share the CPU, but each has its own accept loop and its own global lock,
-# and the operating system switches between processes far more often than Ruby
-# switches threads. In one process, Puma's accept loop waits its turn for the
-# lock behind busy request threads, so under load new connections overflowed
-# the listen queue and Nginx retried them a second later (README, tuning log).
-# With workers, Puma loads the app once and forks it (preload_app, its default
-# then), so the workers share memory.
-worker_count = Integer(ENV.fetch("WEB_CONCURRENCY", 2))
+# Workers: none, Rails's default: one process. 2 workers were tried and dropped
+# (README, tuning log): about 20% less throughput, as two processes compete for
+# one core, and the listen queue still overflowed. WEB_CONCURRENCY sets them.
+worker_count = Integer(ENV.fetch("WEB_CONCURRENCY", 0))
 workers worker_count
 if worker_count.positive?
   before_worker_boot { |index| AppServer.started(worker: index) }
