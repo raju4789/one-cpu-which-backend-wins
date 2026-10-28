@@ -93,7 +93,7 @@ The `app_*` names are shared with the other stacks, so Grafana shows them side b
 | `PORT` | 8080 | harness |
 | `DATABASE_URL` | | harness |
 | `FEED_CACHE` | `off` | harness, per phase |
-| `RAILS_MAX_THREADS` | 5 (untuned: 3) | tuning: Puma threads and the pool size |
+| `RAILS_MAX_THREADS` | 3 | tuning: Puma threads and the pool size (5 tried, dropped) |
 | `WEB_CONCURRENCY` | unset (one process) | tuning: Puma workers |
 | `DB_STATEMENT_TIMEOUT_MS` | 5000 | |
 | `METRICS_PORT` | 9464 | |
@@ -117,4 +117,4 @@ Follows the [tuning plan](../../docs/tuning-plan.md): one production-grade chang
 
 | Date | Change | Why | Quick run before | Quick run after | Kept? |
 | --- | --- | --- | --- | --- | --- |
-| 28 Oct | Puma threads and pool 3 → 5 (`RAILS_MAX_THREADS`) | Catawiki's setting. More threads help only while requests wait on Postgres (27% of the core); on one core they also compete for the CPU and Ruby's global lock | 1,141 req/s (814 sessions/s); no recovery after overload | pending | |
+| 28 Oct | Puma threads and pool 3 → 5 (`RAILS_MAX_THREADS`) | Catawiki's setting. More threads help only while requests wait on Postgres (27% of the core); on one core they also compete for the CPU and Ruby's global lock | 1,141 req/s (814 sessions/s); no recovery after overload. Calibration 4% slow, so rerun at normal speed (`20261028-062914-quick`): passed 879 sessions/s (1,230 req/s, p95 240 ms), failed 949 | Passed 814 (1,141 req/s), failed 879 on p95 975 ms; the same CPU split at every step (Rails 48%, Postgres 28% at 814). Overload at 814 sessions/s: back at 1x p95 1,017 ms, 2.1% errors, not recovered | Dropped, back to 3: no throughput gain, and a step lower than 3 threads at the same core speed. The core is full at the limit, so more threads only add contention. Overload can't be compared: each run tests at its own passing rate |
