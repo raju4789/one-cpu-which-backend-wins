@@ -93,7 +93,7 @@ The `app_*` names are shared with the other stacks, so Grafana shows them side b
 | `PORT` | 8080 | harness |
 | `DATABASE_URL` | | harness |
 | `FEED_CACHE` | `off` | harness, per phase |
-| `RAILS_MAX_THREADS` | 3 | tuning: Puma threads and the pool size |
+| `RAILS_MAX_THREADS` | 5 (untuned: 3) | tuning: Puma threads and the pool size |
 | `WEB_CONCURRENCY` | unset (one process) | tuning: Puma workers |
 | `DB_STATEMENT_TIMEOUT_MS` | 5000 | |
 | `METRICS_PORT` | 9464 | |
@@ -109,4 +109,12 @@ stacks/rails/bin/pin
 
 ## Tuning log
 
-Follows the [tuning plan](../../docs/tuning-plan.md). Not started.
+Follows the [tuning plan](../../docs/tuning-plan.md): one production-grade change at a time, a quick run for each, kept only on a clear win.
+
+**Untuned baseline, no-cache phase** (one full run, 27 October 2026, tag `rails-untuned`): **1,133 req/s** (808 sessions/s), p95 13 ms, p99 49 ms. Failed the next step, 865 sessions/s, on latency alone: p95 1,170 ms with no errors, as requests queued for Puma's 3 threads. Rails used 49% of the core, Postgres 27%, Nginx 5% (Node: Postgres 40 to 46%, Node about 30%). Didn't recover from overload: at 1.5x requests waited until k6's 60 s timeout, and back at 1x p95 stayed at 33 s with 5.7% errors. Calibration 3% slow. Run `results/rails/none/20261027-195146`.
+
+**Quick baseline** (`results/rails/none/20261027-203227-quick`): passed 814 sessions/s (1,141 req/s, p95 38 ms), failed 879 (p95 1,372 ms); no recovery after overload (p95 36 s back at 1x). Calibration 4% slow.
+
+| Date | Change | Why | Quick run before | Quick run after | Kept? |
+| --- | --- | --- | --- | --- | --- |
+| 28 Oct | Puma threads and pool 3 → 5 (`RAILS_MAX_THREADS`) | Catawiki's setting. More threads help only while requests wait on Postgres (27% of the core); on one core they also compete for the CPU and Ruby's global lock | 1,141 req/s (814 sessions/s); no recovery after overload | pending | |

@@ -8,7 +8,7 @@ The same process for Node, Spring Boot and Rails, so the comparison stays fair. 
 | --- | --- | --- |
 | Node | **Finished** 25 October 2026, tagged `node-tuned`. Final runs 26 October | Same throughput as untuned within the 10% resolution; reliable where untuned wasn't. See step 6 |
 | Spring Boot | Not started | |
-| Rails | Built 27 October 2026, passes the contract test, tagged `rails-untuned` | Baseline next |
+| Rails | Tuning started 28 October 2026 (untuned tagged `rails-untuned`) | Untuned: 1,133 req/s, no recovery after overload. See the [tuning log](../stacks/rails/README.md#tuning-log) |
 
 **Node, in short.** Kept: load shedding (at most 10 + 300 requests using or waiting for a database connection, then 503) and named prepared statements. Dropped: a hand-written feed query (4% cheaper, not worth leaving the ORM), a connection pool of 4 (Postgres no cheaper, requests waited longer in Node). Skipped: likes in one SQL statement (likes were 2% of Postgres's time). Quick runs suggested about +8% (one step). The final full runs didn't confirm it: tuned and untuned both held 1,297 sessions/s and failed at 1,427, so any gain is under the 10% resolution. What tuning did buy is reliability: tuned reached that rate in 6 of 6 full runs and recovered from overload every time; untuned reached it in 4 of 6 and never recovered.
 

@@ -1,11 +1,11 @@
 # Rails 8.1's generated puma.rb, with the port the harness uses and two
 # production settings explained below.
 #
-# Threads: Rails's default of 3. Each request holds a thread until it is done,
-# including while it waits on Postgres, so a few threads keep the core busy
-# while others wait. Workers: none. Puma reads WEB_CONCURRENCY for that; unset,
+# Threads: 5 (tuning change 1; Rails's default is 3, Catawiki runs 5). Each
+# request holds a thread until it is done, including while it waits on
+# Postgres, so a few threads keep the core busy while others wait. Workers: none. Puma reads WEB_CONCURRENCY for that; unset,
 # it runs one process, and on one core more processes would compete for it.
-threads_count = ENV.fetch("RAILS_MAX_THREADS", 3)
+threads_count = ENV.fetch("RAILS_MAX_THREADS", 5)
 threads threads_count, threads_count
 
 port ENV.fetch("PORT", 8080)
