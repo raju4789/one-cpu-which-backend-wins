@@ -529,6 +529,9 @@ def main():
     ap.add_argument("--quick-from", type=int,
                     help="--quick: first rate in sessions/s (default: 80%% of the latest full result)")
     ap.add_argument("--overload", action="store_true", help="--quick: also run the overload test")
+    ap.add_argument("--recover-at", type=int, default=100, metavar="PCT",
+                    help="overload test: recover at PCT%% of the rate instead of 100%% (a diagnostic: "
+                         "does the stack recover once it has spare capacity? Not comparable with normal runs)")
     ap.add_argument("--no-up", action="store_true",
                     help="use whatever is already running: no bin/up, calibrate or env-report")
     args = ap.parse_args()
@@ -688,18 +691,27 @@ def protocol(args, ctx, prom, result, bin_dir):
 
     # 9. Overload and recovery
     if confirmed and not args.skip_overload:
-        overload(ctx, prom, result, confirmed["rate"])
+        overload(ctx, prom, result, confirmed["rate"], args.recover_at)
     return confirmed
 
 
-def overload(ctx, prom, result, rate):
-    """Ramp up to rate, 2 minutes at 1.5x it, then 2 minutes back at it: does the stack recover?"""
+def overload(ctx, prom, result, rate, recover_pct=100):
+    """Ramp up to rate, 2 minutes at 1.5x it, then 2 minutes back at it: does the stack recover?
+
+    recover_pct below 100 recovers at that share of the rate instead: a diagnostic for a stack
+    that doesn't recover at its own limit, to see whether it does with spare capacity.
+    """
+    recover_rate = max(1, round(rate * recover_pct / 100))
     log(f"Cool-down {COOLDOWN} s, then overload: {RAMP_SECONDS} s ramp-up, 2 min at 1.5x, "
-        f"2 min back at {rate} sessions/s")
+        f"2 min back at {recover_rate} sessions/s" + (f" ({recover_pct}% of {rate}, diagnostic)" if recover_pct != 100 else ""))
+    if recover_pct != 100:
+        warn(result, f"overload recovery tested at {recover_pct}% of the rate ({recover_rate} sessions/s), not at "
+                     "the rate itself: a diagnostic, not comparable with normal overload results")
     time.sleep(COOLDOWN)
     summary = os.path.join(ctx.out, "k6-overload-summary.json")
     run = K6Run(ctx, os.path.join(K6_DIR, "load.js"), "overload",
-                {"MODE": "overload", "RATE": rate, "RAMP_SECONDS": RAMP_SECONDS}, summary=summary)
+                {"MODE": "overload", "RATE": rate, "RECOVER_RATE": recover_rate, "RAMP_SECONDS": RAMP_SECONDS},
+                summary=summary)
     run.wait_start()
     run.wait()
     t_end = time.time()
@@ -719,10 +731,11 @@ def overload(ctx, prom, result, rate):
         raise RunInvalid(f"k6 dropped {ratio * 100:.1f}% of sessions while the stack was recovering with "
                          f"fast responses: the load generator was the limit. Rerun with a higher --max-vus")
     rec["recovered"] = not verdict(rec)
-    result["overload"] = {"over": over, "recover": rec,
+    result["overload"] = {"over": over, "recover": rec, "rate": rate, "recover_rate": recover_rate,
                           "nginx_check": check_nginx_count(ctx, prom, "overload", run, summary, t_end)}
     log(f"  at 1.5x: {fmt(over)}")
-    log(f"  back at 1x: {fmt(rec)} -> {'recovered' if rec['recovered'] else 'did NOT recover'}")
+    back = "1x" if recover_pct == 100 else f"{recover_pct}% ({recover_rate} sessions/s)"
+    log(f"  back at {back}: {fmt(rec)} -> {'recovered' if rec['recovered'] else 'did NOT recover'}")
 
 
 def check_mac_ports(max_vus):
@@ -827,7 +840,7 @@ def quick(args, ctx, prom, result):
         log(f"Every step passed up to {rates[-1]} sessions/s: rerun with a higher --quick-from")
     result["result"] = best
     if args.overload:
-        overload(ctx, prom, result, best["rate"])
+        overload(ctx, prom, result, best["rate"], args.recover_at)
     return best
 
 
@@ -1052,7 +1065,7 @@ def write_summary(ctx, res):
     if o:
         lines += ["", "## Overload", "", "| Part | Req/s | p95 | p99 | Errors |", "| --- | --- | --- | --- | --- |",
                   f"| 1.5x | {o['over']['rps']:.0f} | {ms(o['over']['p95_s'])} ms | {ms(o['over']['p99_s'])} ms | {pct(o['over']['error_rate'])} |",
-                  f"| back at 1x | {o['recover']['rps']:.0f} | {ms(o['recover']['p95_s'])} ms | {ms(o['recover']['p99_s'])} ms | {pct(o['recover']['error_rate'])} |",
+                  f"| back at {'1x' if o.get('recover_rate', o.get('rate')) == o.get('rate') else str(o['recover_rate']) + ' sessions/s'} | {o['recover']['rps']:.0f} | {ms(o['recover']['p95_s'])} ms | {ms(o['recover']['p99_s'])} ms | {pct(o['recover']['error_rate'])} |",
                   "", "Recovered." if o["recover"]["recovered"] else "Did not recover within 2 minutes."]
     i = res.get("idle")
     if i:

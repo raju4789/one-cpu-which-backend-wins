@@ -16,6 +16,7 @@
 //   MODE=ramp     RATES=<r1,r2,...>                 one STEP_SECONDS step per rate
 //   RAMP_SECONDS=<s>  constant, ramp and overload: build up from 0 to the first rate first (tagged settle)
 //   MODE=overload RATE=<sessions/s>                 2 min at 1.5x RATE, then 2 min back at RATE
+//                 RECOVER_RATE=<sessions/s>       optional: recover at this rate instead (a diagnostic)
 //
 // Every request is tagged with "step": the step index in a ramp, "steady",
 // "over" or "recover", or "settle" during the first SETTLE_SECONDS after a
@@ -53,6 +54,9 @@ const SESSION_SECONDS = 7; // generous session length for VU pre-allocation (avg
 const RATE = Math.max(1, Math.round(Number(__ENV.RATE || 10)));
 const RATES = (__ENV.RATES || "10").split(",").map((r) => Math.max(1, Math.round(Number(r))));
 const OVER = Math.round(RATE * 1.5);
+// The overload test's last phase. Normally RATE: does the stack recover at the rate it held?
+// bin/run --recover-at sets it lower, to see whether the stack recovers once it has spare capacity.
+const RECOVER = Math.max(1, Math.round(Number(__ENV.RECOVER_RATE || RATE)));
 const PHASE_SECONDS = Number(__ENV.OVERLOAD_SECONDS || 120); // overload: length of "over" and "recover"
 // constant and overload: build up from 0 to RATE over this long first, so the
 // test starts on a warm server instead of a cold-start queue. Tagged "settle".
@@ -79,7 +83,7 @@ function scenario() {
       stages: [
         ...rampStage(),
         { target: OVER, duration: "5s" }, { target: OVER, duration: `${PHASE_SECONDS - 5}s` },
-        { target: RATE, duration: "5s" }, { target: RATE, duration: `${PHASE_SECONDS - 5}s` },
+        { target: RECOVER, duration: "5s" }, { target: RECOVER, duration: `${PHASE_SECONDS - 5}s` },
       ] };
   }
   const vus = preAllocate(RATE);

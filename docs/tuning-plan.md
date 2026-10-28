@@ -124,6 +124,8 @@ Decided when we build them, with the same rule and process. Starting points alre
 
 **Change 1, Puma threads 3 to 5: dropped** (28 October). No throughput gain, and one step lower than 3 threads at the same core speed.
 
+**Recovery from overload: not fixed so far.** Load shedding with rack-timeout was dropped, and a Puma queue cap was ruled out from Puma's source (tuning log). If nothing recovers at Rails's own limit, the post says so plainly, and reports a diagnostic: whether Rails recovers when the load drops back below its limit (`bin/run --recover-at`), so readers see whether it's stuck or just slow to dig out.
+
 ## Time budget per stack
 
 - Shared Postgres settings (once, before the first stack): about 1 hour
