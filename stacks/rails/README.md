@@ -6,7 +6,7 @@ The contract API in Ruby on Rails, built the way a production team would build i
 | --- | --- |
 | Runtime | Ruby 3.4.12, YJIT on (a Rails default), jemalloc |
 | Web framework | Rails 8.1, API-only |
-| Web server | Puma, one process, 3 threads (Rails's defaults) |
+| Web server | Puma, 2 workers of 3 threads (untuned: one process, Rails's default) |
 | Data access | ActiveRecord with the `pg` adapter |
 | Logs | Rails's logger to stdout, warnings and errors only |
 | Metrics | Prometheus format on port 9464 |
@@ -40,7 +40,7 @@ config/
 ├── database.yml   pool, statement timeout
 ├── application.rb, environments/production.rb
 └── initializers/app_setup.rb  request timing
-config.ru          starts the metrics server and logs the boot line, after startup
+lib/app_server.rb  (app/lib) starts the metrics server and logs the boot line, once Puma has started
 bin/pin            one-time: pins the Ruby image and writes Gemfile.lock
 test/              unit tests (minitest), no database needed
 ```
@@ -94,7 +94,7 @@ The `app_*` names are shared with the other stacks, so Grafana shows them side b
 | `DATABASE_URL` | | harness |
 | `FEED_CACHE` | `off` | harness, per phase |
 | `RAILS_MAX_THREADS` | 3 | tuning: Puma threads and the pool size (5 tried, dropped) |
-| `WEB_CONCURRENCY` | unset (one process) | tuning: Puma workers |
+| `WEB_CONCURRENCY` | 2 (untuned: one process) | tuning: Puma workers |
 | `DB_STATEMENT_TIMEOUT_MS` | 5000 | |
 | `METRICS_PORT` | 9464 | |
 | `LOG_LEVEL` | `warn` | |
@@ -120,3 +120,5 @@ Follows the [tuning plan](../../docs/tuning-plan.md): one production-grade chang
 | 28 Oct | Puma threads and pool 3 → 5 (`RAILS_MAX_THREADS`) | Catawiki's setting. More threads help only while requests wait on Postgres (27% of the core); on one core they also compete for the CPU and Ruby's global lock | 1,141 req/s (814 sessions/s); no recovery after overload. Calibration 4% slow, so rerun at normal speed (`20261028-062914-quick`): passed 879 sessions/s (1,230 req/s, p95 240 ms), failed 949 | Passed 814 (1,141 req/s), failed 879 on p95 975 ms; the same CPU split at every step (Rails 48%, Postgres 28% at 814). Overload at 814 sessions/s: back at 1x p95 1,017 ms, 2.1% errors, not recovered | Dropped, back to 3: no throughput gain, and a step lower than 3 threads at the same core speed. The core is full at the limit, so more threads only add contention. Overload can't be compared: each run tests at its own passing rate |
 | 28 Oct | Load shedding: [rack-timeout](https://github.com/zombocom/rack-timeout) answers 503 with `Retry-After: 1` for requests that waited over 1 s, measured from Nginx's `X-Request-Start` (shared config, see the tuning plan). 15 s service timeout as a backstop | Under overload a queue formed in Puma and never drained: requests waited until k6's 60 s timeout, and the server spent its time on answers nobody would read | Passed 879 sessions/s (1,230 req/s), failed 949; no recovery after overload (p95 33 s back at 1x). Overload failures: 4,557 k6 timeouts, 2,312 502s, 2,492 504s | Passed 879 (1,231 req/s), failed 949: unchanged. Shedding worked (7,536 fast 503s at 1.5x), yet 6,630 requests still hit k6's 60 s timeout, plus 1,702 502s and 614 504s. Back at 1x: 18% errors (13,506 503s), p95 25 s, not recovered (`20261028-071848-quick`) | Dropped, and the Nginx header removed with it. Most of the wait happens before Puma accepts the connection (in the kernel's accept queue and in Nginx), where rack-timeout can't see it: Puma only takes a connection when a thread is free. And a rejected request still pays for Puma and the middleware before rack-timeout, a large share of a request this cheap, so shedding frees little CPU. Node could shed cheaply because its queue was inside its own code and a rejected request skipped the database |
 | 28 Oct | Considered: cap Puma's queue so extra connections are refused fast | The wait happens before Puma takes the connection | | Not built. Puma 8's source shows it accepts every connection it can and queues it internally, so there's no held-back queue to cap. `queue_requests false` also turns off keep-alive, so Nginx would open a connection per request. A smaller listen backlog doesn't refuse on Linux: a full backlog drops new connections silently, and Nginx retries for up to 60 s. Likely cause of the long waits: Puma accepts on one Ruby thread, which takes turns with the request threads for Ruby's global lock and accepts one connection per turn, so with the core full, connections pile up in the operating system's queue | Skipped |
+| 28 Oct | Diagnostic, not a change: after the overload, recover at 70% of the rate (`bin/run --recover-at 70`) | Is Rails stuck after overload, or just without spare capacity to dig out? | | Passed 814 sessions/s, failed 879 (p95 818 ms, no errors). Back at 570 sessions/s: no errors and all the demand served (798 req/s), but p95 1,030 ms and p99 1,083 ms, so still failing. Evidence from the same run: the app's listen queue overflowed **157,145** times (`ListenOverflows` in `/proc/net/netstat`), and in Nginx's log of the last 89,000 requests, 9,137 took Rails 0.9 to 1.3 s against 3,391 between 0.1 and 0.9 s: a spike at Linux's 1 s retry for a dropped connection, not a queue (`20261028-075613-quick`) | The overload trap is Puma accepting connections too slowly, not Rails's speed. Under overload Nginx needs more connections than the 64 it keeps open; the new ones overflow the listen queue and retry 1 s later, which keeps latency up, which keeps Nginx opening connections, even at 70% load |
+| 28 Oct | Puma workers 0 → 2 (`WEB_CONCURRENCY`), 3 threads each, app preloaded | Each process has its own accept loop and global lock, and the OS switches processes far more often than Ruby switches threads, so new connections should be accepted before the queue overflows. Metrics come from worker 0 only (one metrics port) | Passed 879 sessions/s (1,230 req/s), failed 949; no recovery after overload (p95 33 s back at 1x) | pending | |

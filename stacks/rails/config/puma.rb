@@ -1,12 +1,27 @@
 # Rails 8.1's generated puma.rb, with the port the harness uses and two
 # production settings explained below.
 #
-# Threads: Rails's default of 3. Each request holds a thread until it is done,
-# including while it waits on Postgres, so a few threads keep the core busy
-# while others wait. 5 was tried and dropped (README, tuning log). Workers: none. Puma reads WEB_CONCURRENCY for that; unset,
-# it runs one process, and on one core more processes would compete for it.
+# Threads: Rails's default of 3 per process. Each request holds a thread until
+# it is done, including while it waits on Postgres, so a few threads keep the
+# core busy while others wait. 5 was tried and dropped (README, tuning log).
 threads_count = ENV.fetch("RAILS_MAX_THREADS", 3)
 threads threads_count, threads_count
+
+# Workers: 2 processes (tuning change 3; Rails's default is one). On one core
+# they share the CPU, but each has its own accept loop and its own global lock,
+# and the operating system switches between processes far more often than Ruby
+# switches threads. In one process, Puma's accept loop waits its turn for the
+# lock behind busy request threads, so under load new connections overflowed
+# the listen queue and Nginx retried them a second later (README, tuning log).
+# With workers, Puma loads the app once and forks it (preload_app, its default
+# then), so the workers share memory.
+worker_count = Integer(ENV.fetch("WEB_CONCURRENCY", 2))
+workers worker_count
+if worker_count.positive?
+  before_worker_boot { |index| AppServer.started(worker: index) }
+else
+  after_booted { AppServer.started }
+end
 
 port ENV.fetch("PORT", 8080)
 
