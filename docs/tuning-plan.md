@@ -8,7 +8,7 @@ The same process for Node, Spring Boot and Rails, so the comparison stays fair. 
 | --- | --- | --- |
 | Node | **Finished** 25 October 2026, tagged `node-tuned`. Final runs 26 October | Same throughput as untuned within the 10% resolution; reliable where untuned wasn't. See step 6 |
 | Spring Boot | Not started | |
-| Rails | Tuning started 28 October 2026 (untuned tagged `rails-untuned`) | Untuned: 1,133 req/s, no recovery after overload. See the [tuning log](../stacks/rails/README.md#tuning-log) |
+| Rails | **Finished** 28 October 2026 with nothing kept; tagged `rails-untuned` and `rails-tuned` (same request handling) | Untuned: 1,133 req/s, no recovery after overload; no change was a clear win. See the [tuning log](../stacks/rails/README.md#tuning-log) |
 
 **Node, in short.** Kept: load shedding (at most 10 + 300 requests using or waiting for a database connection, then 503) and named prepared statements. Dropped: a hand-written feed query (4% cheaper, not worth leaving the ORM), a connection pool of 4 (Postgres no cheaper, requests waited longer in Node). Skipped: likes in one SQL statement (likes were 2% of Postgres's time). Quick runs suggested about +8% (one step). The final full runs didn't confirm it: tuned and untuned both held 1,297 sessions/s and failed at 1,427, so any gain is under the 10% resolution. What tuning did buy is reliability: tuned reached that rate in 6 of 6 full runs and recovered from overload every time; untuned reached it in 4 of 6 and never recovered.
 
@@ -124,7 +124,9 @@ Decided when we build them, with the same rule and process. Starting points alre
 
 **Change 1, Puma threads 3 to 5: dropped** (28 October). No throughput gain, and one step lower than 3 threads at the same core speed.
 
-**Recovery from overload: not fixed so far.** Load shedding with rack-timeout was dropped, and a Puma queue cap was ruled out from Puma's source (tuning log). The diagnostic found the cause: Puma's listen queue overflowing, so connections retry after 1 s (tuning log). Puma workers, change 3, targeted exactly that and were dropped: 20% less throughput, and the queue still overflowed. If nothing recovers at Rails's own limit, the post says so plainly, and reports a diagnostic: whether Rails recovers when the load drops back below its limit (`bin/run --recover-at`), so readers see whether it's stuck or just slow to dig out.
+**Recovery from overload: not fixed so far.** Load shedding with rack-timeout was dropped, and a Puma queue cap was ruled out from Puma's source (tuning log). The diagnostic found the cause: Puma's listen queue overflowing, so connections retry after 1 s (tuning log). Puma workers, change 3, targeted exactly that and were dropped: 20% less throughput, and the queue still overflowed.
+
+**Change 4, GC free-slot ratios: dropped.** A third as many minor collections, but GC time unchanged at about 5% of the core. With that, Rails tuning stopped with nothing kept: every candidate on the list was tested or ruled out, and none was a clear win. If nothing recovers at Rails's own limit, the post says so plainly, and reports a diagnostic: whether Rails recovers when the load drops back below its limit (`bin/run --recover-at`), so readers see whether it's stuck or just slow to dig out.
 
 ## Time budget per stack
 

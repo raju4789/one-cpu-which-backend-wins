@@ -373,6 +373,29 @@ Untuned and tuned now look the same. So do the app cache and the Nginx cache. Ch
 - A median of discrete steps hides how often each step was reached. Report the band and how often it was reached, not a precise-looking number.
 - A clean rerun can overturn a conclusion. Last night's numbers were valid; reading them as precise was the mistake.
 
+## Chapter 16: Tuning Rails, and a queue nobody could see
+
+**The starting point.** Rails 8.1 at its defaults, one Puma process with 3 threads, held 1,133 requests per second, about 62% of Node. Rails itself used half the core and Postgres a quarter, the reverse of Node. And like untuned Node, it never recovered from overload.
+
+**What we tried, one change at a time.**
+
+1. **Five threads instead of three.** No gain, and one step lower. The first baseline had run on a 4% slower core, which made five threads look better under overload, so we reran the baseline at normal speed before deciding. Lesson: compare runs only when the core ran at the same speed.
+2. **Load shedding with rack-timeout**, Rails's standard tool: answer 503 when a request waited over a second. It needed one header from the shared Nginx, so we bent our own rule for one run, wrote down why, and put it back afterwards. It shed thousands of requests, yet thousands more still waited 60 seconds. It acted too late.
+3. **Capping Puma's queue.** Ruled out by reading Puma's source before building it: there was no held-back queue to cap.
+4. **Two Puma workers.** 20% worse: two processes competing for one core. One worker was even killed for missing its check-in while starved of CPU.
+5. **Garbage collection settings.** A third as many collections, but each did three times the work, so GC time didn't change.
+
+**Finding the queue.** We asked a different question: does Rails recover if the load drops well below its limit? At 70% the errors stopped, but a steady delay of almost exactly one second stayed. One second is how long Linux waits before retrying a dropped connection. Two counters confirmed it: the queue of connections waiting for Puma overflowed 157,145 times in one run, and Nginx's log had a spike of requests at about one second. The waiting happened before Rails ever saw the request, in the operating system's queue, where no Rails setting can reach. Puma accepts connections on one Ruby thread, which takes turns with the busy request threads for Ruby's global lock.
+
+**The result.** Nothing was kept: Rails's defaults were already its best setup on one core. That's a finding, not a failure.
+
+**Lessons.**
+
+- When a fix doesn't work, find out where the time actually goes before trying the next one.
+- A diagnostic that changes one thing (here, the load after the overload) can expose a cause the normal test hides.
+- Read the source of the tool you're tuning. It ruled out one plan in minutes and corrected a dangerous default in another.
+- Stopping with nothing kept is a valid result. Keep only clear wins, and say so plainly.
+
 ## Ideas worth understanding
 
 **Virtual users vs requests per second.** Requests per second is what the server actually handles, so it's the fair way to compare servers. The number of virtual users depends on how long the pretend people pause. At 577 sessions per second, k6 sent about 810 requests per second while about 2,300 virtual users were busy, most of them "reading". Make the pauses twice as long and you get twice the users for the same server work.
@@ -401,3 +424,4 @@ Untuned and tuned now look the same. So do the app cache and the Nginx cache. Ch
 16. **Does a second, independent source agree?** The server's request count against the load generator's, the database against acknowledged writes.
 17. **Can someone else check the result?** Record which code ran, and commit the raw results before anyone can touch them.
 18. **What is your measurement's resolution?** A difference smaller than the gap between tested rates isn't a difference.
+19. **Do you know where the requests wait?** Count drops and retries at every layer, including the operating system's queues, before tuning the app.
