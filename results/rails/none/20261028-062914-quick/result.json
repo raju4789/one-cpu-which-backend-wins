@@ -1,0 +1,525 @@
+{
+  "stack": "rails",
+  "phase": "none",
+  "run_id": "rails-none-20261028-062914",
+  "mode": "quick",
+  "started": "2026-10-28T06:29:14+01:00",
+  "k6": "k6 v2.3.0 (commit/devel, go1.27.1, darwin/arm64)",
+  "criteria": {
+    "p95_s": 0.3,
+    "p99_s": 1.0,
+    "error_rate": 0.01,
+    "dropped": 0.01
+  },
+  "fingerprint": {
+    "harness_commit": "9c6728c7be99b402cd7edef5d8a82d839fbb4f4d",
+    "harness_uncommitted": [],
+    "stack_ref": "rails-untuned",
+    "stack_commit": "28951a3027d27841337e9a0905591e709d5a5959",
+    "stack_uncommitted": [],
+    "stack_files_sha256": "0258972397ddebc06a67b760437c617c4393b3b22bdabb61115c248835853e5d",
+    "files_sha256": {
+      "k6": "467712c6221d9e60c9e7d1f7957262e10eba4bc3b6ea718364c397ea22447201",
+      "contract": "8e2d85d5eb0861ee882ba00d259f8a3a42e1f69ca97bcfca4e0488834f9c42cf",
+      "harness/compose.yaml": "a308d1d30eafbd1ad4e5fc807828da73913d282628f0878acc27d0f6dd7665d8",
+      "harness/nginx": "58cf5aa03f68c04038644d3f3c7ecbd8cf47889c4c12fdf18492bc3a1e8de025",
+      "harness/postgres": "cbccc354689aca0637437660bed92c12b85db39805be6f404a5438bcacbc6be4",
+      "harness/bin": "0975ee5ecd30478d108419b823d6633e25fff606cfbd6bc5b5e9968256ad580e",
+      "harness/calibration-reference": "f522a1060df5f4179eefbd9bc690ba53536a2b40fc650769fd4d8e4513b2a010"
+    }
+  },
+  "contract": "passed",
+  "data_check": {
+    "before": {
+      "posts": 500002,
+      "likes": 2000051,
+      "like_count_sum": 2000051,
+      "posts_with_wrong_like_count": 0
+    },
+    "after": {
+      "posts": 548460,
+      "likes": 2139250,
+      "like_count_sum": 2139250,
+      "posts_with_wrong_like_count": 0
+    },
+    "k6": {
+      "bench_posts_sent": 50549,
+      "bench_posts_ok": 48443,
+      "bench_likes_sent": 146023,
+      "bench_likes_ok": 139174,
+      "missing_summaries": []
+    },
+    "new_posts": 48458,
+    "new_likes": 139199,
+    "ok": true,
+    "problems": []
+  },
+  "idle": {
+    "vm_cpu_avg": 0.03630743428300502,
+    "cpu_avg_by_container": {
+      "bench-postgres-exporter-1": 0.0031832711254765906,
+      "bench-postgres-1": 0.009164260415783115,
+      "bench-app-1": 0.0014907563199897736,
+      "bench-nginx-exporter-1": 0.0006482638348072155,
+      "bench-nginx-1": 5.152352919159028e-05,
+      "bench-cadvisor-1": 0.003477733921943982
+    },
+    "memory_max_mb_by_container": {
+      "bench-postgres-exporter-1": 12.69921875,
+      "bench-postgres-1": 431.98828125,
+      "bench-app-1": 102.515625,
+      "bench-nginx-exporter-1": 11.79296875,
+      "bench-nginx-1": 33.74609375,
+      "bench-cadvisor-1": 34.00390625
+    },
+    "vm_memory_max_mb": 1065.671875,
+    "mac_cpu_max": 0.11692661467665721,
+    "pg_connections_max": 3.0
+  },
+  "calibration_seconds": 5.48,
+  "k6_process": {
+    "warmup": {
+      "cpu_peak_cores": 0.07,
+      "rss_peak_mb": 83
+    },
+    "ramp-quick": {
+      "cpu_peak_cores": 0.87,
+      "rss_peak_mb": 2732
+    },
+    "overload": {
+      "cpu_peak_cores": 0.95,
+      "rss_peak_mb": 3511
+    }
+  },
+  "warmup": {
+    "requests": 1403,
+    "rps": 28.06,
+    "sessions_per_s": 20.0,
+    "concurrent_users": 80.11330155828009,
+    "p50_s": 0.007174000000000001,
+    "p90_s": 0.0105728,
+    "p95_s": 0.012028199999999994,
+    "p99_s": 0.01869904,
+    "max_s": 0.033124,
+    "error_rate": 0,
+    "sessions": 1000,
+    "dropped_sessions_whole_run": 0,
+    "vus_max": 140,
+    "k6_process": {
+      "cpu_peak_cores": 0.07,
+      "rss_peak_mb": 83
+    },
+    "dial_errors": 0,
+    "vus_short_warnings": 0
+  },
+  "ramp": {
+    "coarse": [
+      {
+        "requests": 45135,
+        "rps": 902.7,
+        "sessions_per_s": 646.0,
+        "concurrent_users": 2582.1988469854946,
+        "p50_s": 0.001067998105349032,
+        "p90_s": 0.002075248762920221,
+        "p95_s": 0.0027177695473805403,
+        "p99_s": 0.00855990025833862,
+        "error_rate": 0.0,
+        "sessions": 32300,
+        "rate": 646,
+        "dropped_sessions": 0,
+        "server": {
+          "vm_cpu_avg": 0.5991125736762299,
+          "cpu_avg_by_container": {
+            "bench-postgres-exporter-1": 0.0007602406441890639,
+            "bench-postgres-1": 0.22527998174959293,
+            "bench-app-1": 0.3972326088323197,
+            "bench-nginx-exporter-1": 0.00010869639207173656,
+            "bench-nginx-1": 0.038163666301066115,
+            "bench-cadvisor-1": 0.0007359579862290062
+          },
+          "memory_max_mb_by_container": {
+            "bench-postgres-exporter-1": 12.53515625,
+            "bench-postgres-1": 437.62890625,
+            "bench-app-1": 109.6484375,
+            "bench-nginx-exporter-1": 14.90625,
+            "bench-nginx-1": 48.02734375,
+            "bench-cadvisor-1": 36.13671875
+          },
+          "vm_memory_max_mb": 1088.96484375,
+          "mac_cpu_max": 0.13361308156019103,
+          "pg_connections_max": 3.0,
+          "mac_compressed_growth_gb": -0.0
+        },
+        "dial_errors": 0,
+        "vus_short_warnings": 0,
+        "fail_reasons": [],
+        "passed": true
+      },
+      {
+        "requests": 48931,
+        "rps": 978.62,
+        "sessions_per_s": 698.0,
+        "concurrent_users": 2793.8783122684817,
+        "p50_s": 0.0010640222977889129,
+        "p90_s": 0.0022687013082352213,
+        "p95_s": 0.003064667176316516,
+        "p99_s": 0.015401806865213087,
+        "error_rate": 0.0,
+        "sessions": 34900,
+        "rate": 698,
+        "dropped_sessions": 0,
+        "server": {
+          "vm_cpu_avg": 0.6723223272718455,
+          "cpu_avg_by_container": {
+            "bench-postgres-exporter-1": 0.0007496241687362607,
+            "bench-postgres-1": 0.23591297838754915,
+            "bench-app-1": 0.3956502583067354,
+            "bench-nginx-exporter-1": 0.00011194263668019906,
+            "bench-nginx-1": 0.04076699015382087,
+            "bench-cadvisor-1": 0.0007466472963351758
+          },
+          "memory_max_mb_by_container": {
+            "bench-postgres-exporter-1": 13.21484375,
+            "bench-postgres-1": 441.56640625,
+            "bench-app-1": 110.6953125,
+            "bench-nginx-exporter-1": 15.046875,
+            "bench-nginx-1": 48.46875,
+            "bench-cadvisor-1": 36.6953125
+          },
+          "vm_memory_max_mb": 1090.5625,
+          "mac_cpu_max": 0.1422622022323723,
+          "pg_connections_max": 3.0,
+          "mac_compressed_growth_gb": -0.0
+        },
+        "dial_errors": 0,
+        "vus_short_warnings": 0,
+        "fail_reasons": [],
+        "passed": true
+      },
+      {
+        "requests": 52742,
+        "rps": 1054.84,
+        "sessions_per_s": 753.0,
+        "concurrent_users": 3015.5033354540533,
+        "p50_s": 0.0011260338632370348,
+        "p90_s": 0.0026826556667445822,
+        "p95_s": 0.003841585880559937,
+        "p99_s": 0.014638897399024485,
+        "error_rate": 0.0,
+        "sessions": 37650,
+        "rate": 753,
+        "dropped_sessions": 0,
+        "server": {
+          "vm_cpu_avg": 0.7484685342386134,
+          "cpu_avg_by_container": {
+            "bench-postgres-exporter-1": 0.000830838240258335,
+            "bench-postgres-1": 0.2589708505757616,
+            "bench-app-1": 0.44903206137407087,
+            "bench-nginx-exporter-1": 0.00010955991238443132,
+            "bench-nginx-1": 0.04304083755491163,
+            "bench-cadvisor-1": 0.0007963558996515387
+          },
+          "memory_max_mb_by_container": {
+            "bench-postgres-exporter-1": 13.2265625,
+            "bench-postgres-1": 449.51171875,
+            "bench-app-1": 110.94921875,
+            "bench-nginx-exporter-1": 15.0546875,
+            "bench-nginx-1": 48.14453125,
+            "bench-cadvisor-1": 36.7109375
+          },
+          "vm_memory_max_mb": 1088.30859375,
+          "mac_cpu_max": 0.15008001600391874,
+          "pg_connections_max": 3.0,
+          "mac_compressed_growth_gb": -0.0
+        },
+        "dial_errors": 0,
+        "vus_short_warnings": 0,
+        "fail_reasons": [],
+        "passed": true
+      },
+      {
+        "requests": 56990,
+        "rps": 1139.8,
+        "sessions_per_s": 814.0,
+        "concurrent_users": 3258.8633866711352,
+        "p50_s": 0.001308754895630198,
+        "p90_s": 0.004447139190522453,
+        "p95_s": 0.01519559837909713,
+        "p99_s": 0.0659513155967961,
+        "error_rate": 0.0,
+        "sessions": 40700,
+        "rate": 814,
+        "dropped_sessions": 0,
+        "server": {
+          "vm_cpu_avg": 0.7785086435676847,
+          "cpu_avg_by_container": {
+            "bench-postgres-exporter-1": 0.0007644563484074282,
+            "bench-postgres-1": 0.27399118086011937,
+            "bench-app-1": 0.4657497391010746,
+            "bench-nginx-exporter-1": 0.00011096406724727097,
+            "bench-nginx-1": 0.042671992663543136,
+            "bench-cadvisor-1": 0.0007984661087472194
+          },
+          "memory_max_mb_by_container": {
+            "bench-postgres-exporter-1": 13.234375,
+            "bench-postgres-1": 521.72265625,
+            "bench-app-1": 111.71484375,
+            "bench-nginx-exporter-1": 15.12890625,
+            "bench-nginx-1": 48.30078125,
+            "bench-cadvisor-1": 37.3359375
+          },
+          "vm_memory_max_mb": 1162.12109375,
+          "mac_cpu_max": 0.16082866293014053,
+          "pg_connections_max": 3.0,
+          "mac_compressed_growth_gb": -0.0
+        },
+        "dial_errors": 0,
+        "vus_short_warnings": 0,
+        "fail_reasons": [],
+        "passed": true
+      },
+      {
+        "requests": 61494,
+        "rps": 1229.88,
+        "sessions_per_s": 878.98,
+        "concurrent_users": 3580.6710589465374,
+        "p50_s": 0.002903200455019078,
+        "p90_s": 0.20700788981308152,
+        "p95_s": 0.2399858895063669,
+        "p99_s": 0.3176374271278962,
+        "error_rate": 0.0,
+        "sessions": 43949,
+        "rate": 879,
+        "dropped_sessions": 0,
+        "server": {
+          "vm_cpu_avg": 0.9271346053870331,
+          "cpu_avg_by_container": {
+            "bench-postgres-exporter-1": 0.0008741924261330073,
+            "bench-postgres-1": 0.29423248266934116,
+            "bench-app-1": 0.5113681776422827,
+            "bench-nginx-exporter-1": 0.00011332172729937312,
+            "bench-nginx-1": 0.049160808184296134,
+            "bench-cadvisor-1": 0.0007925542347516652
+          },
+          "memory_max_mb_by_container": {
+            "bench-postgres-exporter-1": 13.125,
+            "bench-postgres-1": 526.16796875,
+            "bench-app-1": 126.81640625,
+            "bench-nginx-exporter-1": 15.34765625,
+            "bench-nginx-1": 53.8203125,
+            "bench-cadvisor-1": 36.94921875
+          },
+          "vm_memory_max_mb": 1185.1953125,
+          "mac_cpu_max": 0.17382832017594474,
+          "pg_connections_max": 3.0,
+          "mac_compressed_growth_gb": -0.0
+        },
+        "dial_errors": 0,
+        "vus_short_warnings": 0,
+        "fail_reasons": [],
+        "passed": true
+      },
+      {
+        "requests": 50220,
+        "rps": 1004.4,
+        "sessions_per_s": 712.8,
+        "concurrent_users": 4268.872884217396,
+        "p50_s": 1.0081739597433799,
+        "p90_s": 1.1276345335054567,
+        "p95_s": 1.1883872773296618,
+        "p99_s": 23.07286096782711,
+        "error_rate": 0.011091198725607328,
+        "sessions": 35640,
+        "rate": 949,
+        "dropped_sessions": 8419,
+        "server": {
+          "vm_cpu_avg": 0.9972109457598164,
+          "cpu_avg_by_container": {
+            "bench-postgres-exporter-1": 0.0008429200219223942,
+            "bench-postgres-1": 0.289281063421691,
+            "bench-app-1": 0.5783886324138521,
+            "bench-nginx-exporter-1": 0.00011928538699995752,
+            "bench-nginx-1": 0.04846422421405001,
+            "bench-cadvisor-1": 0.0007741739191269828
+          },
+          "memory_max_mb_by_container": {
+            "bench-postgres-exporter-1": 13.14453125,
+            "bench-postgres-1": 538.33984375,
+            "bench-app-1": 129.85546875,
+            "bench-nginx-exporter-1": 15.2265625,
+            "bench-nginx-1": 121.453125,
+            "bench-cadvisor-1": 36.95703125
+          },
+          "vm_memory_max_mb": 1241.01953125,
+          "mac_cpu_max": 0.23622217779601407,
+          "pg_connections_max": 3.0,
+          "mac_compressed_growth_gb": -0.0
+        },
+        "dial_errors": 0,
+        "vus_short_warnings": 1,
+        "fail_reasons": [
+          "p95 1188 ms",
+          "p99 23073 ms",
+          "errors 1.1%",
+          "k6 dropped 19.1% of sessions"
+        ],
+        "passed": false
+      }
+    ],
+    "fine": []
+  },
+  "result": {
+    "requests": 61494,
+    "rps": 1229.88,
+    "sessions_per_s": 878.98,
+    "concurrent_users": 3580.6710589465374,
+    "p50_s": 0.002903200455019078,
+    "p90_s": 0.20700788981308152,
+    "p95_s": 0.2399858895063669,
+    "p99_s": 0.3176374271278962,
+    "error_rate": 0.0,
+    "sessions": 43949,
+    "rate": 879,
+    "dropped_sessions": 0,
+    "server": {
+      "vm_cpu_avg": 0.9271346053870331,
+      "cpu_avg_by_container": {
+        "bench-postgres-exporter-1": 0.0008741924261330073,
+        "bench-postgres-1": 0.29423248266934116,
+        "bench-app-1": 0.5113681776422827,
+        "bench-nginx-exporter-1": 0.00011332172729937312,
+        "bench-nginx-1": 0.049160808184296134,
+        "bench-cadvisor-1": 0.0007925542347516652
+      },
+      "memory_max_mb_by_container": {
+        "bench-postgres-exporter-1": 13.125,
+        "bench-postgres-1": 526.16796875,
+        "bench-app-1": 126.81640625,
+        "bench-nginx-exporter-1": 15.34765625,
+        "bench-nginx-1": 53.8203125,
+        "bench-cadvisor-1": 36.94921875
+      },
+      "vm_memory_max_mb": 1185.1953125,
+      "mac_cpu_max": 0.17382832017594474,
+      "pg_connections_max": 3.0,
+      "mac_compressed_growth_gb": -0.0
+    },
+    "dial_errors": 0,
+    "vus_short_warnings": 0,
+    "fail_reasons": [],
+    "passed": true
+  },
+  "overload": {
+    "over": {
+      "requests": 116064,
+      "rps": 1055.1272727272728,
+      "sessions_per_s": 765.6727272727272,
+      "concurrent_users": 8651.63152561537,
+      "p50_s": 1.002196,
+      "p90_s": 1.2055700000000003,
+      "p95_s": 59.99618985,
+      "p99_s": 60.00036437,
+      "max_s": 60.007557,
+      "error_rate": 0.08065377722635787,
+      "sessions": 84224,
+      "dropped_sessions_whole_run": 75271,
+      "vus_max": 9233
+    },
+    "recover": {
+      "requests": 113761,
+      "rps": 1034.1909090909091,
+      "sessions_per_s": 724.8636363636364,
+      "concurrent_users": 6753.649371736122,
+      "p50_s": 1.037749,
+      "p90_s": 1.238963,
+      "p95_s": 32.67495,
+      "p99_s": 60.000343,
+      "max_s": 60.005765,
+      "error_rate": 0.05625829590105572,
+      "sessions": 79735,
+      "dropped_sessions_whole_run": 75271,
+      "vus_max": 9233,
+      "dial_errors": 0,
+      "vus_short_warnings": 0,
+      "dropped_sessions": 12157,
+      "recovered": false
+    },
+    "nginx_check": {
+      "k6_requests": 284227,
+      "nginx_requests": 286659,
+      "difference": 0.0086,
+      "ok": true
+    }
+  },
+  "status": "complete",
+  "mac_slept_seconds": 0,
+  "checks": [
+    {
+      "check": "Mac CPU, peak (k6 runs there)",
+      "value": "17%",
+      "limit": "< 70%",
+      "ok": true
+    },
+    {
+      "check": "Mac memory compressed during the run",
+      "value": "0.0 GB",
+      "limit": "< 2 GB",
+      "ok": true
+    },
+    {
+      "check": "k6 process, peak",
+      "value": "0.87 cores, 2732 MB",
+      "limit": "for reference",
+      "ok": null
+    },
+    {
+      "check": "Sessions k6 couldn't start (dropped)",
+      "value": "0 (0.00%)",
+      "limit": "< 1%",
+      "ok": true
+    },
+    {
+      "check": "Connections k6 couldn't open",
+      "value": "0",
+      "limit": "0",
+      "ok": true
+    },
+    {
+      "check": "k6 ran out of virtual users",
+      "value": "0",
+      "limit": "0",
+      "ok": true
+    },
+    {
+      "check": "Mac asleep during the run",
+      "value": "0 s",
+      "limit": "0 s",
+      "ok": true
+    },
+    {
+      "check": "Core speed (calibration)",
+      "value": "5.48 s (-0.2% vs 5.49 s)",
+      "limit": "< +3%",
+      "ok": true
+    },
+    {
+      "check": "Nginx vs k6 request count (overload)",
+      "value": "286,659 vs 284,227 (+0.86%)",
+      "limit": "within 2%",
+      "ok": true
+    },
+    {
+      "check": "Writes stored (data check)",
+      "value": "48,458 posts stored for 48,443 acknowledged, 139,199 likes for 139,174",
+      "limit": "all acknowledged writes stored, like counts consistent",
+      "ok": true
+    },
+    {
+      "check": "Code fingerprint",
+      "value": "harness 9c6728c7be, stack 28951a3027 (rails-untuned)",
+      "limit": "everything committed",
+      "ok": true
+    }
+  ],
+  "finished": "2026-10-28T06:45:14+01:00"
+}
