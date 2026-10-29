@@ -1807,7 +1807,7 @@
     {
       "id": 31,
       "type": "row",
-      "title": "App: measured inside the stack (empty if the stack exposes no metrics)",
+      "title": "App: measured inside the stack (empty if the stack exposes no metrics; Node.js and Ruby panels each fill for their own stack)",
       "collapsed": false,
       "gridPos": {
         "x": 0,
@@ -2132,19 +2132,243 @@
     },
     {
       "id": 37,
+      "type": "timeseries",
+      "title": "Ruby garbage collection",
+      "description": "Share of each second Ruby spends collecting garbage (left), and how often each kind runs (right): minor collections scan only young objects, major ones the whole heap. A large share is time not spent on requests: the case for tuning RUBY_GC_* settings",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 98,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": 30000,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "minor / s"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "major / s"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "short"
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(ruby_gc_time_seconds[30s]))",
+          "legendFormat": "GC seconds per second",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(ruby_gc_minor_count[30s]))",
+          "legendFormat": "minor / s",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(rate(ruby_gc_major_count[30s]))",
+          "legendFormat": "major / s",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "type": "timeseries",
+      "title": "Ruby heap: live objects",
+      "description": "Objects alive on the Ruby heap. Steady under constant load is healthy; a climb that never levels off is a leak",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 98,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": 30000,
+            "stacking": {
+              "mode": "none"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "sum(ruby_heap_live_slots)",
+          "legendFormat": "live objects",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "type": "timeseries",
+      "title": "Ruby YJIT",
+      "description": "1 when YJIT, Ruby's JIT compiler, is on. Rails turns it on in production by default",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 98,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "showPoints": "never",
+            "spanNulls": 30000,
+            "stacking": {
+              "mode": "none"
+            }
+          },
+          "max": 1,
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "max(ruby_yjit_enabled)",
+          "legendFormat": "YJIT on",
+          "format": "time_series",
+          "instant": false,
+          "range": true
+        }
+      ]
+    },
+    {
+      "id": 40,
       "type": "row",
       "title": "Load generator and trust checks: is k6 telling the truth?",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 98,
+        "y": 106,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 38,
+      "id": 41,
       "type": "timeseries",
       "title": "Mac CPU busy",
       "description": "If this goes above 70%, k6 may be slowing the bench VM down. Recorded in every run's checks.",
@@ -2154,7 +2378,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 99,
+        "y": 107,
         "w": 12,
         "h": 8
       },
@@ -2217,7 +2441,7 @@
       ]
     },
     {
-      "id": 39,
+      "id": 42,
       "type": "timeseries",
       "title": "Mac memory pressure",
       "description": "macOS compresses memory when it runs short, which costs CPU and slows k6. Compressed rising more than 2 GB during a run triggers the runner's memory warning. Thousands of virtual users cost about 250 KB each.",
@@ -2227,7 +2451,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 99,
+        "y": 107,
         "w": 12,
         "h": 8
       },
@@ -2296,7 +2520,7 @@
       ]
     },
     {
-      "id": 40,
+      "id": 43,
       "type": "timeseries",
       "title": "Requests / s: Nginx vs k6",
       "description": "Two independent counts of the same traffic. The lines should lie on top of each other. If they split, one of them is wrong, most likely k6. The runner checks the totals for every confirm and overload test (within 2%). Nginx also counts the exporter's scrape, 0.2 requests/s.",
@@ -2306,7 +2530,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 107,
+        "y": 115,
         "w": 12,
         "h": 8
       },
@@ -2363,7 +2587,7 @@
       ]
     },
     {
-      "id": 41,
+      "id": 44,
       "type": "timeseries",
       "title": "k6 virtual users and dropped sessions",
       "description": "Busy reaching the pool means k6 ran out of virtual users and drops sessions (right axis): it couldn't send the load it should. Expected during the 1.5x overload phase, a problem anywhere else.",
@@ -2373,7 +2597,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 107,
+        "y": 115,
         "w": 12,
         "h": 8
       },

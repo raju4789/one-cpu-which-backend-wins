@@ -1,0 +1,130 @@
+==> Run rails-none-20261028-220727, results in results/rails/none/20261028-220727
+==> Stopping anything already running
+==> Starting Postgres
+ Network bench_default  Creating
+ Network bench_default  Created
+ Container bench-postgres-1  Creating
+ Container bench-postgres-1  Created
+ Container bench-postgres-1  Starting
+ Container bench-postgres-1  Started
+==> Waiting for the seed (the first run on a new VM takes a few minutes)
+==> Resetting database from app_template
+==> Starting rails (phase: none, FEED_CACHE=off, nginx: proxy)
+#1 [internal] load local bake definitions
+#1 reading from stdin 645B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 2.80kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/ruby:3.4.12-slim@sha256:dd852d6dd55f5d283839e940aeb0394bb5f5a4f51295a4eee545f732c46d1b41
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 62B done
+#4 DONE 0.0s
+
+#5 [base 1/3] FROM docker.io/library/ruby:3.4.12-slim@sha256:dd852d6dd55f5d283839e940aeb0394bb5f5a4f51295a4eee545f732c46d1b41
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 1.84kB done
+#6 DONE 0.0s
+
+#7 [stage-2 2/3] COPY --from=build /rails /rails
+#7 CACHED
+
+#8 [build 5/5] RUN bundle exec ruby -Itest -e 'Dir["./test/**/*_test.rb"].sort.each { |f| require f }'  && SECRET_KEY_BASE_DUMMY=1 DATABASE_URL=postgres://build/none bin/rails zeitwerk:check  && bundle exec bootsnap precompile app/  && chmod -R a+rX /rails "/usr/local/bundle"
+#8 CACHED
+
+#9 [build 3/5] RUN bundle install  && rm -rf ~/.bundle/ "/usr/local/bundle"/ruby/*/cache  && bundle exec bootsnap precompile --gemfile
+#9 CACHED
+
+#10 [build 2/5] COPY Gemfile Gemfile.lock .ruby-version ./
+#10 CACHED
+
+#11 [build 4/5] COPY . .
+#11 CACHED
+
+#12 [base 2/3] WORKDIR /rails
+#12 CACHED
+
+#13 [build 1/5] RUN apt-get update -qq  && apt-get install --no-install-recommends -y build-essential libpq-dev libyaml-dev pkg-config  && rm -rf /var/lib/apt/lists /var/cache/apt/archives
+#13 CACHED
+
+#14 [stage-2 1/3] COPY --from=build /usr/local/bundle /usr/local/bundle
+#14 CACHED
+
+#15 [base 3/3] RUN apt-get update -qq  && apt-get install --no-install-recommends -y libjemalloc2 libpq5  && ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so  && rm -rf /var/lib/apt/lists /var/cache/apt/archives
+#15 CACHED
+
+#16 [stage-2 3/3] RUN groupadd --system --gid 1000 rails  && useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash  && mkdir -p tmp/pids log  && chown -R rails:rails tmp log
+#16 CACHED
+
+#17 exporting to image
+#17 exporting layers done
+#17 writing image sha256:c9a1f5353d403bc0d186e4872e58d3c188da76d1d754bbc1e75c58990d4734ac done
+#17 naming to docker.io/one-cpu/rails:local done
+#17 DONE 0.0s
+
+#18 resolving provenance for metadata file
+#18 DONE 0.0s
+ one-cpu/rails:local  Built
+ Container bench-cadvisor-1  Creating
+ Container bench-postgres-1  Running
+ Container bench-app-1  Creating
+ Container bench-postgres-exporter-1  Creating
+ Container bench-postgres-exporter-1  Created
+ Container bench-cadvisor-1  Created
+ Container bench-app-1  Created
+ Container bench-nginx-1  Creating
+ Container bench-nginx-1  Created
+ Container bench-nginx-exporter-1  Creating
+ Container bench-nginx-exporter-1  Created
+ Container bench-cadvisor-1  Starting
+ Container bench-postgres-exporter-1  Starting
+ Container bench-app-1  Starting
+ Container bench-postgres-exporter-1  Started
+ Container bench-app-1  Started
+ Container bench-nginx-1  Starting
+ Container bench-cadvisor-1  Started
+ Container bench-nginx-1  Started
+ Container bench-nginx-exporter-1  Starting
+ Container bench-nginx-exporter-1  Started
+==> Waiting for http://192.168.64.3:8080/health
+==> Ready: rails, phase none
+==> Contract test
+==> Idle baseline (30 s)
+==> calibration_seconds=5.45   (runs: 5.45 5.45 5.47)
+==> Warm-up: 20 sessions/s for 120 s
+==>   28 req/s, p95 11 ms, p99 15 ms, errors 0.00%
+==> ramp-coarse: 19 steps of 60 s, rates 10, 15, 22, 34, 51, 76, 114, 171, 256, 384, 577, 865, 1297, 1946, 2919, 4379, 6568, 9853, 14779 sessions/s
+==>   step 1/19 @ 10 sessions/s: 14 req/s, p95 10 ms, p99 13 ms, errors 0.00%, server CPU 11% -> PASS
+==>   step 2/19 @ 15 sessions/s: 21 req/s, p95 11 ms, p99 15 ms, errors 0.00%, server CPU 15% -> PASS
+==>   step 3/19 @ 22 sessions/s: 30 req/s, p95 11 ms, p99 16 ms, errors 0.00%, server CPU 21% -> PASS
+==>   step 4/19 @ 34 sessions/s: 47 req/s, p95 11 ms, p99 14 ms, errors 0.00%, server CPU 30% -> PASS
+==>   step 5/19 @ 51 sessions/s: 72 req/s, p95 12 ms, p99 15 ms, errors 0.00%, server CPU 39% -> PASS
+==>   step 6/19 @ 76 sessions/s: 106 req/s, p95 10 ms, p99 15 ms, errors 0.00%, server CPU 47% -> PASS
+==>   step 7/19 @ 114 sessions/s: 160 req/s, p95 9 ms, p99 12 ms, errors 0.00%, server CPU 49% -> PASS
+==>   step 8/19 @ 171 sessions/s: 239 req/s, p95 7 ms, p99 11 ms, errors 0.00%, server CPU 54% -> PASS
+==>   step 9/19 @ 256 sessions/s: 357 req/s, p95 5 ms, p99 7 ms, errors 0.00%, server CPU 58% -> PASS
+==>   step 10/19 @ 384 sessions/s: 538 req/s, p95 3 ms, p99 5 ms, errors 0.00%, server CPU 62% -> PASS
+==>   step 11/19 @ 577 sessions/s: 804 req/s, p95 3 ms, p99 5 ms, errors 0.00%, server CPU 58% -> PASS
+==>   step 12/19 @ 865 sessions/s: 1214 req/s, p95 488 ms, p99 544 ms, errors 0.00%, server CPU 86% -> FAIL (p95 488 ms)
+==> Cool-down 120 s before the fine ramp
+==> ramp-fine: 4 steps of 60 s, rates 635, 692, 750, 808 sessions/s
+==>   step 1/4 @ 635 sessions/s: 891 req/s, p95 3 ms, p99 7 ms, errors 0.00%, server CPU 68% -> PASS
+==>   step 2/4 @ 692 sessions/s: 968 req/s, p95 3 ms, p99 20 ms, errors 0.00%, server CPU 70% -> PASS
+==>   step 3/4 @ 750 sessions/s: 1054 req/s, p95 4 ms, p99 14 ms, errors 0.00%, server CPU 73% -> PASS
+==>   step 4/4 @ 808 sessions/s: 1132 req/s, p95 22 ms, p99 98 ms, errors 0.00%, server CPU 85% -> PASS
+==> Cool-down 120 s, then confirm 808 sessions/s for 300 s after a 45 s ramp-up
+==>   Nginx counted 364892 requests, k6 364892 (+0.00%)
+==>   1132 req/s, p95 13 ms, p99 52 ms, errors 0.00% -> CONFIRMED
+==> Cool-down 120 s, then overload: 45 s ramp-up, 2 min at 1.5x, 2 min back at 808 sessions/s
+==>   Nginx counted 263097 requests, k6 260733 (+0.91%)
+==>   at 1.5x: 965 req/s, p95 60000 ms, p99 60000 ms, errors 7.90%
+==>   back at 1x: 953 req/s, p95 32703 ms, p99 60000 ms, errors 6.33% -> did NOT recover
+==> Data check: 76524 posts and 225411 likes stored for 76521 and 225387 acknowledged; like counts consistent
+==> RESULT rails / none: 1132 req/s sustained (808 sessions/s, about 3235 concurrent users), p95 13 ms, p99 52 ms
+==> Saved results/rails/none/20261028-220727. Let the Mac cool down 5 minutes before the next run.
