@@ -1,0 +1,5 @@
+# The Nginx-cache runs again: two of three in batch 20261028-172131 were stopped by
+# the connection check, since fixed (harness/bin/run, check_connections).
+repeat 3
+cooldown 600
+rails-tuned-nginx  rails-tuned   rails  nginx  --max-vus 20000

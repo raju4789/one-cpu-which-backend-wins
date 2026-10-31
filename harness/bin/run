@@ -63,6 +63,8 @@ NGINX_MISMATCH_MAX = 0.02
 # Measured: 0.09% (Nginx cache, 26 Oct). Fewer new rows than this allows means lost writes.
 LIKE_REPEAT_MAX = 0.005
 MAC_CPU_MAX = 0.70
+# Above this average server CPU, k6 connection failures count against the stack (check_connections).
+SERVER_BUSY = 0.75
 # What the fingerprint hashes: everything shared that decides how a run behaves.
 FINGERPRINT_PATHS = ["k6", "contract", "harness/compose.yaml", "harness/nginx", "harness/postgres",
                      "harness/bin", "harness/calibration-reference"]
@@ -317,12 +319,20 @@ def latency_ok(r):
 
 
 def check_connections(run, r, t0, t1):
-    """k6 failing to connect while the server answers fast is the network on the Mac, not the stack.
+    """k6 failing to connect while the server answers fast is usually the network on the Mac.
 
-    A saturated server can also refuse connections, but then its latency fails the step too.
+    Unless the server's core was busy: a saturated core can also be too slow to accept new
+    connections (Nginx shares it), while the requests that do get in are still fast. Seen with
+    Rails at its limit (Rails tuning log, 31 Oct). Then it's a failed test for the stack, not an
+    invalid run: the step fails and the runner moves to a lower rate.
     """
     r["dial_errors"] = sum(1 for t in run.dial_errors if t0 - 1 <= t <= t1 + 1)
-    if r["dial_errors"] and latency_ok(r):
+    cpu = (r.get("server") or {}).get("vm_cpu_avg")
+    if r["dial_errors"] and latency_ok(r) and cpu is not None and cpu >= SERVER_BUSY:
+        r["dial_errors_server_busy"] = True
+        log(f"  k6 could not connect {r['dial_errors']} times with the server at {cpu * 100:.0f}% CPU: "
+            "counted as a failed test, not a Mac problem")
+    elif r["dial_errors"] and latency_ok(r):
         r["passed"], r["fail_reasons"] = False, [f"invalid: k6 could not connect {r['dial_errors']} times"]
         raise RunInvalid(
             f"k6 could not open {r['dial_errors']} connections while the server answered in "
@@ -367,6 +377,8 @@ def watch_sleep(ctx):
 
 def verdict(r, dropped_ratio=0.0):
     reasons = []
+    if r.get("dial_errors_server_busy"):
+        reasons.append(f"k6 could not connect {r['dial_errors']} times, server busy")
     if r["requests"] == 0:
         reasons.append("no requests recorded")
     if r["p95_s"] is not None and r["p95_s"] >= P95_MAX:
@@ -475,6 +487,8 @@ def constant(ctx, test, rate, seconds, settle, ramp=0, prom=None):
     r = summary_numbers(summary, "steady", seconds - settle)
     r["k6_process"] = run.usage()
     ctx.result.setdefault("k6_process", {})[test] = r["k6_process"]
+    if prom:  # check_connections needs the server's CPU
+        r["server"] = server_metrics(prom, start + settle, start + seconds)
     check_run(ctx, run, r, start, start + seconds)
     if prom:
         r["nginx_check"] = check_nginx_count(ctx, prom, test, run, summary, t_end)
