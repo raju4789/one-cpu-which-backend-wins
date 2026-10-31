@@ -18,12 +18,7 @@ else
   after_booted { AppServer.started }
 end
 
-# Listen queue (tuning change 5): room for 4,096 connections waiting for Puma,
-# instead of Puma's default 1,024. Under overload that queue overflowed (157,145
-# times in one run) and each dropped connection retried after Linux's 1 s,
-# keeping latency up. A longer queue lets them wait their turn instead. Linux
-# caps it at net.core.somaxconn, which belongs to the shared VM.
-bind "tcp://0.0.0.0:#{ENV.fetch("PORT", 8080)}?backlog=#{ENV.fetch("PUMA_BACKLOG", 4096)}"
+port ENV.fetch("PORT", 8080)
 
 # Longer than Nginx keeps idle upstream connections (60 s), so Puma never
 # closes a connection Nginx is about to reuse (that race shows up as 502s).
