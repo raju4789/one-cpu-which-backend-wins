@@ -1,0 +1,182 @@
+==> Run node-none-20261025-214259, results in results/node/none/20261025-214259-quick
+==> Stopping anything already running
+==> Starting Postgres
+ Network bench_default  Creating
+ Network bench_default  Created
+ Container bench-postgres-1  Creating
+ Container bench-postgres-1  Created
+ Container bench-postgres-1  Starting
+ Container bench-postgres-1  Started
+==> Waiting for the seed (the first run on a new VM takes a few minutes)
+==> Resetting database from app_template
+==> Starting node (phase: none, FEED_CACHE=off, nginx: proxy)
+#1 [internal] load local bake definitions
+#1 reading from stdin 644B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.67kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+#3 DONE 0.8s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 91B done
+#4 DONE 0.0s
+
+#5 [build  1/10] FROM docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 220.81kB 0.0s done
+#6 DONE 0.0s
+
+#7 [build  2/10] RUN apk add --no-cache openssl
+#7 CACHED
+
+#8 [build  3/10] WORKDIR /app
+#8 CACHED
+
+#9 [build  4/10] COPY package.json package-lock.json ./
+#9 DONE 0.0s
+
+#10 [build  5/10] RUN npm ci --no-audit --no-fund
+#10 1.193 npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+#10 1.484 npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+#10 5.968 
+#10 5.968 added 374 packages in 6s
+#10 5.969 npm warn install-scripts 3 packages have install scripts not yet covered by allowScripts:
+#10 5.969 npm warn install-scripts   @prisma/engines@7.10.1 (postinstall: node scripts/postinstall.js)
+#10 5.969 npm warn install-scripts   prisma@7.10.1 (preinstall: node scripts/preinstall-entry.js)
+#10 5.969 npm warn install-scripts   protobufjs@7.6.6 (postinstall: node scripts/postinstall)
+#10 5.969 npm warn install-scripts
+#10 5.969 npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+#10 5.970 npm notice
+#10 5.970 npm notice New major version of npm available! 11.19.1 -> 12.2.1
+#10 5.970 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+#10 5.970 npm notice To update run: npm install -g npm@12.2.1
+#10 5.970 npm notice
+#10 DONE 6.0s
+
+#11 [build  6/10] COPY tsconfig.json prisma.config.ts ./
+#11 DONE 0.0s
+
+#12 [build  7/10] COPY prisma ./prisma
+#12 DONE 0.0s
+
+#13 [build  8/10] COPY src ./src
+#13 DONE 0.0s
+
+#14 [build  9/10] COPY test ./test
+#14 DONE 0.0s
+
+#15 [build 10/10] RUN DATABASE_URL=postgres://build/none npm run build  && npm test  && npm prune --omit=dev --no-audit --no-fund  && chmod -R a+rX package.json dist node_modules
+#15 0.105 
+#15 0.105 > one-cpu-node@1.0.0 build
+#15 0.105 > prisma generate && tsc -p tsconfig.json
+#15 0.105 
+#15 0.486 Loaded Prisma config from prisma.config.ts.
+#15 0.486 
+#15 0.633 Prisma schema loaded from prisma/schema.prisma.
+#15 0.698 
+#15 0.698 ✔ Generated Prisma Client (7.10.1) to ./src/generated/prisma in 28ms
+#15 0.698 
+#15 2.526 
+#15 2.526 > one-cpu-node@1.0.0 test
+#15 2.526 > node --test test/*.test.mjs
+#15 2.526 
+#15 2.691 ✔ GET /health (32.533932ms)
+#15 2.694 ✔ GET /feed returns the service's JSON as is (0.906942ms)
+#15 2.701 ✔ POST /posts returns 201 with the contract's shape (9.848374ms)
+#15 2.703 ✔ POST /posts with missing X-User-Id is a 400 with an error body (1.952292ms)
+#15 2.706 ✔ POST /posts with non-numeric X-User-Id is a 400 with an error body (3.109427ms)
+#15 2.709 ✔ POST /posts with X-User-Id beyond 2^53 is a 400 with an error body (0.475136ms)
+#15 2.709 ✔ POST /posts with empty body is a 400 with an error body (2.636041ms)
+#15 2.712 ✔ POST /posts with body over 280 characters is a 400 with an error body (0.33752ms)
+#15 2.712 ✔ POST /posts with malformed JSON is a 400 with an error body (2.183444ms)
+#15 2.714 ✔ POST /posts/:id/like returns 204, or the service's 404 (0.772451ms)
+#15 2.715 ✔ unknown routes are a 404 with an error body (1.929919ms)
+#15 2.715 ✔ bodies over the size limit are rejected (0.384767ms)
+#15 2.755 ✔ unknown user is a 400 (0.453721ms)
+#15 2.756 ✔ missing post is a 404 (0.072037ms)
+#15 2.756 ✔ anything else is left alone (becomes a 500) (0.060288ms)
+#15 2.800 ✔ concurrent requests during a reload share one load (single flight) (20.644729ms)
+#15 2.847 ✔ an expired entry is reloaded (45.46836ms)
+#15 2.848 ✔ a failed load is not cached (0.634959ms)
+#15 2.849 ✔ hits and misses are reported (1.090514ms)
+#15 2.854 ℹ tests 19
+#15 2.854 ℹ suites 0
+#15 2.854 ℹ pass 19
+#15 2.855 ℹ fail 0
+#15 2.855 ℹ cancelled 0
+#15 2.855 ℹ skipped 0
+#15 2.855 ℹ todo 0
+#15 2.855 ℹ duration_ms 311.235299
+#15 3.206 
+#15 3.206 up to date in 315ms
+#15 3.207 npm warn install-scripts 3 packages have install scripts not yet covered by allowScripts:
+#15 3.207 npm warn install-scripts   @prisma/engines@7.10.1 (postinstall: node scripts/postinstall.js)
+#15 3.207 npm warn install-scripts   prisma@7.10.1 (preinstall: node scripts/preinstall-entry.js)
+#15 3.207 npm warn install-scripts   protobufjs@7.6.6 (postinstall: node scripts/postinstall)
+#15 3.207 npm warn install-scripts
+#15 3.207 npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+#15 DONE 8.5s
+
+#16 [stage-1 3/5] COPY --from=build /app/package.json ./
+#16 CACHED
+
+#17 [stage-1 4/5] COPY --from=build /app/node_modules ./node_modules
+#17 CACHED
+
+#18 [stage-1 2/5] WORKDIR /app
+#18 CACHED
+
+#19 [stage-1 5/5] COPY --from=build /app/dist ./dist
+#19 CACHED
+
+#20 exporting to image
+#20 exporting layers done
+#20 writing image sha256:1078ae9e24d6c4a8a8e81f8896d7f5d57ad77fb1105323e026ed826f3fe36afd done
+#20 naming to docker.io/one-cpu/node:local done
+#20 DONE 0.0s
+
+#21 resolving provenance for metadata file
+#21 DONE 0.0s
+ one-cpu/node:local  Built
+ Container bench-cadvisor-1  Creating
+ Container bench-postgres-1  Running
+ Container bench-postgres-exporter-1  Creating
+ Container bench-app-1  Creating
+ Container bench-cadvisor-1  Created
+ Container bench-postgres-exporter-1  Created
+ Container bench-app-1  Created
+ Container bench-nginx-1  Creating
+ Container bench-nginx-1  Created
+ Container bench-nginx-exporter-1  Creating
+ Container bench-nginx-exporter-1  Created
+ Container bench-app-1  Starting
+ Container bench-postgres-exporter-1  Starting
+ Container bench-cadvisor-1  Starting
+ Container bench-app-1  Started
+ Container bench-nginx-1  Starting
+ Container bench-postgres-exporter-1  Started
+ Container bench-cadvisor-1  Started
+ Container bench-nginx-1  Started
+ Container bench-nginx-exporter-1  Starting
+ Container bench-nginx-exporter-1  Started
+==> Waiting for http://192.168.64.3:8080/health
+==> Ready: node, phase none
+==> Contract test
+==> Idle baseline (30 s)
+==> calibration_seconds=5.50   (runs: 5.48 5.50 5.62)
+==> Warm-up: 20 sessions/s for 60 s
+==>   28 req/s, p95 12 ms, p99 17 ms, errors 0.00%
+==> ramp-quick: 7 steps of 60 s, rates 969, 1047, 1130, 1221, 1318, 1424, 1538 sessions/s, after a 45 s ramp-up
+==>   step 1/7 @ 969 sessions/s: 1356 req/s, p95 7 ms, p99 20 ms, errors 0.00%, server CPU 62% -> PASS
+==>   step 2/7 @ 1047 sessions/s: 1465 req/s, p95 10 ms, p99 24 ms, errors 0.00%, server CPU 72% -> PASS
+==>   step 3/7 @ 1130 sessions/s: 1584 req/s, p95 21 ms, p99 75 ms, errors 0.00%, server CPU 79% -> PASS
+==>   step 4/7 @ 1221 sessions/s: 1712 req/s, p95 41 ms, p99 87 ms, errors 0.00%, server CPU 86% -> PASS
+==>   step 5/7 @ 1318 sessions/s: 1757 req/s, p95 3970 ms, p99 4279 ms, errors 21.11%, server CPU 96% -> FAIL (p95 3970 ms, p99 4279 ms, errors 21.1%, k6 dropped 4.9% of sessions)
+==> QUICK RESULT node / none: highest passing 1-minute step 1712 req/s (1221 sessions/s), p95 41 ms, p99 87 ms. For tuning only: not comparable with full results
+==> Saved results/node/none/20261025-214259-quick. Let the Mac cool down 5 minutes before the next run.

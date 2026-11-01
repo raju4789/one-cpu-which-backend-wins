@@ -195,7 +195,7 @@ top = {"id": next_id(), "type": "table", "title": "Top queries by total time (se
 add(top)
 
 # ---------------------------------------------------------------- app
-row("App: measured inside the stack (empty if the stack exposes no metrics)")
+row("App: measured inside the stack (empty if the stack exposes no metrics; Node.js and Ruby panels each fill for their own stack)")
 add(ts("Time inside the app, p95 by route",
        [(f"histogram_quantile(0.95, sum by (le, route) (rate(app_http_request_duration_seconds_bucket[{WIN}])))", "{{route}}")],
        "s", 0, 12, desc="Compare with k6's p95: the difference is Nginx, the network and queueing before the app"),
@@ -212,6 +212,19 @@ add(ts("Feed cache hit ratio (app-cache phase)",
        [("max(nodejs_heap_size_used_bytes)", "heap used"),
         (f"sum(rate(nodejs_gc_duration_seconds_sum[{WIN}]))", "GC seconds per second")],
        "none", 16, 8, desc="Heap in bytes; GC as the share of each second spent collecting"))
+add(ts("Ruby garbage collection",
+       [(f"sum(rate(ruby_gc_time_seconds[{WIN}]))", "GC seconds per second"),
+        (f"sum(rate(ruby_gc_minor_count[{WIN}]))", "minor / s"),
+        (f"sum(rate(ruby_gc_major_count[{WIN}]))", "major / s")],
+       "percentunit", 0, 8, overrides=[right_axis("minor / s", "short"), right_axis("major / s", "short")],
+       desc="Share of each second Ruby spends collecting garbage (left), and how often each kind runs "
+            "(right): minor collections scan only young objects, major ones the whole heap. A large share "
+            "is time not spent on requests: the case for tuning RUBY_GC_* settings"),
+    ts("Ruby heap: live objects", [("sum(ruby_heap_live_slots)", "live objects")], "short", 8, 8,
+       desc="Objects alive on the Ruby heap. Steady under constant load is healthy; a climb that never "
+            "levels off is a leak"),
+    ts("Ruby YJIT", [("max(ruby_yjit_enabled)", "YJIT on")], "none", 16, 8, maxv=1,
+       desc="1 when YJIT, Ruby's JIT compiler, is on. Rails turns it on in production by default"))
 
 # ---------------------------------------------------------------- mac
 row("Load generator and trust checks: is k6 telling the truth?")

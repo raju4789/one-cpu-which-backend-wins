@@ -50,7 +50,7 @@ So a "users" number on its own says little: the same server load can be called 4
 | --- | --- |
 | `constant` | Warm-up, and the 5-minute confirm after a 45-second ramp-up |
 | `ramp` | 1-minute steps, one per rate |
-| `overload` | A 45-second ramp-up to a rate, then 2 minutes at 1.5x it, then 2 minutes back at it |
+| `overload` | A 45-second ramp-up to a rate, then 2 minutes at 1.5x it, then 2 minutes back at it. `RECOVER_RATE` (set by `bin/run --recover-at`) recovers at a lower rate instead: a diagnostic only |
 
 Every request is tagged with its step. The first 10 seconds after each rate change are tagged `settle` and left out of the results, so they measure steady load only.
 

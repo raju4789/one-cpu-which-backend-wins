@@ -1,0 +1,12 @@
+# DATABASE_URL comes from the harness (postgres://bench:bench@postgres:5432/app);
+# Rails merges it with the settings below.
+production:
+  adapter: postgresql
+  encoding: unicode
+  url: <%= ENV["DATABASE_URL"] %>
+  # One connection per Puma thread, as Rails sets it up.
+  max_connections: <%= ENV.fetch("RAILS_MAX_THREADS", 3) %>
+  application_name: one-cpu-rails
+  variables:
+    # A query running longer than this is cancelled by Postgres instead of holding a connection.
+    statement_timeout: <%= ENV.fetch("DB_STATEMENT_TIMEOUT_MS", 5000) %>

@@ -1,0 +1,7 @@
+# Rails stack. Like every stack, this only adds the image for the "app"
+# service; the harness supplies the environment, Postgres, Nginx and monitoring.
+services:
+  app:
+    build:
+      context: ${STACK_DIR}
+    image: one-cpu/rails:local

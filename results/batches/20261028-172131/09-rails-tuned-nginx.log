@@ -1,0 +1,126 @@
+==> Run rails-nginx-20261028-234222, results in results/rails/nginx/20261028-234222
+==> Stopping anything already running
+==> Starting Postgres
+ Network bench_default  Creating
+ Network bench_default  Created
+ Container bench-postgres-1  Creating
+ Container bench-postgres-1  Created
+ Container bench-postgres-1  Starting
+ Container bench-postgres-1  Started
+==> Waiting for the seed (the first run on a new VM takes a few minutes)
+==> Resetting database from app_template
+==> Starting rails (phase: nginx, FEED_CACHE=off, nginx: cache)
+#1 [internal] load local bake definitions
+#1 reading from stdin 657B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 2.80kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/ruby:3.4.12-slim@sha256:dd852d6dd55f5d283839e940aeb0394bb5f5a4f51295a4eee545f732c46d1b41
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 62B done
+#4 DONE 0.0s
+
+#5 [base 1/3] FROM docker.io/library/ruby:3.4.12-slim@sha256:dd852d6dd55f5d283839e940aeb0394bb5f5a4f51295a4eee545f732c46d1b41
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 1.84kB done
+#6 DONE 0.0s
+
+#7 [base 3/3] RUN apt-get update -qq  && apt-get install --no-install-recommends -y libjemalloc2 libpq5  && ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so  && rm -rf /var/lib/apt/lists /var/cache/apt/archives
+#7 CACHED
+
+#8 [build 3/5] RUN bundle install  && rm -rf ~/.bundle/ "/usr/local/bundle"/ruby/*/cache  && bundle exec bootsnap precompile --gemfile
+#8 CACHED
+
+#9 [build 1/5] RUN apt-get update -qq  && apt-get install --no-install-recommends -y build-essential libpq-dev libyaml-dev pkg-config  && rm -rf /var/lib/apt/lists /var/cache/apt/archives
+#9 CACHED
+
+#10 [build 2/5] COPY Gemfile Gemfile.lock .ruby-version ./
+#10 CACHED
+
+#11 [build 4/5] COPY . .
+#11 CACHED
+
+#12 [base 2/3] WORKDIR /rails
+#12 CACHED
+
+#13 [build 5/5] RUN bundle exec ruby -Itest -e 'Dir["./test/**/*_test.rb"].sort.each { |f| require f }'  && SECRET_KEY_BASE_DUMMY=1 DATABASE_URL=postgres://build/none bin/rails zeitwerk:check  && bundle exec bootsnap precompile app/  && chmod -R a+rX /rails "/usr/local/bundle"
+#13 CACHED
+
+#14 [stage-2 2/3] COPY --from=build /rails /rails
+#14 CACHED
+
+#15 [stage-2 1/3] COPY --from=build /usr/local/bundle /usr/local/bundle
+#15 CACHED
+
+#16 [stage-2 3/3] RUN groupadd --system --gid 1000 rails  && useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash  && mkdir -p tmp/pids log  && chown -R rails:rails tmp log
+#16 CACHED
+
+#17 exporting to image
+#17 exporting layers done
+#17 writing image sha256:c9a1f5353d403bc0d186e4872e58d3c188da76d1d754bbc1e75c58990d4734ac done
+#17 naming to docker.io/one-cpu/rails:local done
+#17 DONE 0.0s
+
+#18 resolving provenance for metadata file
+#18 DONE 0.0s
+ one-cpu/rails:local  Built
+ Container bench-postgres-1  Running
+ Container bench-cadvisor-1  Creating
+ Container bench-postgres-exporter-1  Creating
+ Container bench-app-1  Creating
+ Container bench-postgres-exporter-1  Created
+ Container bench-cadvisor-1  Created
+ Container bench-app-1  Created
+ Container bench-nginx-1  Creating
+ Container bench-nginx-1  Created
+ Container bench-nginx-exporter-1  Creating
+ Container bench-nginx-exporter-1  Created
+ Container bench-cadvisor-1  Starting
+ Container bench-postgres-exporter-1  Starting
+ Container bench-app-1  Starting
+ Container bench-postgres-exporter-1  Started
+ Container bench-app-1  Started
+ Container bench-nginx-1  Starting
+ Container bench-cadvisor-1  Started
+ Container bench-nginx-1  Started
+ Container bench-nginx-exporter-1  Starting
+ Container bench-nginx-exporter-1  Started
+==> Waiting for http://192.168.64.3:8080/health
+==> Ready: rails, phase nginx
+==> Contract test
+==> Idle baseline (30 s)
+==> calibration_seconds=5.45   (runs: 5.44 5.45 5.46)
+==> Warm-up: 20 sessions/s for 120 s
+==>   28 req/s, p95 7 ms, p99 10 ms, errors 0.00%
+==> ramp-coarse: 19 steps of 60 s, rates 10, 15, 22, 34, 51, 76, 114, 171, 256, 384, 577, 865, 1297, 1946, 2919, 4379, 6568, 9853, 14779 sessions/s
+==>   step 1/19 @ 10 sessions/s: 14 req/s, p95 8 ms, p99 11 ms, errors 0.00%, server CPU 5% -> PASS
+==>   step 2/19 @ 15 sessions/s: 21 req/s, p95 8 ms, p99 10 ms, errors 0.00%, server CPU 6% -> PASS
+==>   step 3/19 @ 22 sessions/s: 31 req/s, p95 8 ms, p99 10 ms, errors 0.00%, server CPU 8% -> PASS
+==>   step 4/19 @ 34 sessions/s: 47 req/s, p95 7 ms, p99 9 ms, errors 0.00%, server CPU 10% -> PASS
+==>   step 5/19 @ 51 sessions/s: 72 req/s, p95 8 ms, p99 11 ms, errors 0.00%, server CPU 15% -> PASS
+==>   step 6/19 @ 76 sessions/s: 106 req/s, p95 8 ms, p99 12 ms, errors 0.00%, server CPU 21% -> PASS
+==>   step 7/19 @ 114 sessions/s: 159 req/s, p95 9 ms, p99 13 ms, errors 0.00%, server CPU 29% -> PASS
+==>   step 8/19 @ 171 sessions/s: 238 req/s, p95 9 ms, p99 14 ms, errors 0.00%, server CPU 36% -> PASS
+==>   step 9/19 @ 256 sessions/s: 360 req/s, p95 8 ms, p99 12 ms, errors 0.00%, server CPU 39% -> PASS
+==>   step 10/19 @ 384 sessions/s: 538 req/s, p95 7 ms, p99 11 ms, errors 0.00%, server CPU 42% -> PASS
+==>   step 11/19 @ 577 sessions/s: 808 req/s, p95 5 ms, p99 10 ms, errors 0.00%, server CPU 41% -> PASS
+==>   step 12/19 @ 865 sessions/s: 1212 req/s, p95 4 ms, p99 7 ms, errors 0.00%, server CPU 48% -> PASS
+==>   step 13/19 @ 1297 sessions/s: 1812 req/s, p95 3 ms, p99 5 ms, errors 0.00%, server CPU 47% -> PASS
+==>   step 14/19 @ 1946 sessions/s: 2722 req/s, p95 2 ms, p99 4 ms, errors 0.00%, server CPU 59% -> PASS
+==>   step 15/19 @ 2919 sessions/s: 3531 req/s, p95 1310 ms, p99 16922 ms, errors 0.51%, server CPU 94% -> FAIL (p95 1310 ms, p99 16922 ms, k6 dropped 7.0% of sessions)
+==> Cool-down 120 s before the fine ramp
+==> ramp-fine: 4 steps of 60 s, rates 2141, 2335, 2530, 2724 sessions/s
+==>   step 1/4 @ 2141 sessions/s: 2993 req/s, p95 3 ms, p99 5 ms, errors 0.00%, server CPU 66% -> PASS
+==>   step 2/4 @ 2335 sessions/s: 3265 req/s, p95 3 ms, p99 8 ms, errors 0.00%, server CPU 71% -> PASS
+==>   step 3/4 @ 2530 sessions/s: 3545 req/s, p95 4 ms, p99 10 ms, errors 0.00%, server CPU 75% -> PASS
+==>   step 4/4 @ 2724 sessions/s: 3818 req/s, p95 8 ms, p99 195 ms, errors 0.00%, server CPU 78% -> PASS
+==> Cool-down 120 s, then confirm 2724 sessions/s for 300 s after a 45 s ramp-up
+ERROR: run aborted: k6 could not open 241 connections while the server answered in p95 6 ms. That is the Mac or the VM network, not the stack. Most likely the Mac firewall's connection limit: check `sudo pfctl -s memory`, see Network in harness/README.md. Details: /Users/raju4789/Raju/projects/one-cpu-which-backend-wins/results/rails/nginx/20261028-234222/k6-confirm-2724.log
+Partial results are in results/rails/nginx/20261028-234222. They are not a valid result: rerun.

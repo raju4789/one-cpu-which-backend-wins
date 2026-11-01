@@ -1,0 +1,245 @@
+{
+  "plan": {
+    "repeat": 3,
+    "cooldown": 600,
+    "configs": [
+      {
+        "label": "node-untuned",
+        "ref": "node-untuned",
+        "stack": "node",
+        "phase": "none",
+        "extra": [],
+        "commit": "43614a0612242eef780d6be3106469a179eef997"
+      },
+      {
+        "label": "node-tuned",
+        "ref": "node-tuned",
+        "stack": "node",
+        "phase": "none",
+        "extra": [],
+        "commit": "814f326280d3bfb828dc3c3e30a36781cc4d03e3"
+      },
+      {
+        "label": "node-tuned-app",
+        "ref": "node-tuned",
+        "stack": "node",
+        "phase": "app",
+        "extra": [
+          "--max-vus",
+          "20000"
+        ],
+        "commit": "814f326280d3bfb828dc3c3e30a36781cc4d03e3"
+      },
+      {
+        "label": "node-tuned-nginx",
+        "ref": "node-tuned",
+        "stack": "node",
+        "phase": "nginx",
+        "extra": [
+          "--max-vus",
+          "20000"
+        ],
+        "commit": "814f326280d3bfb828dc3c3e30a36781cc4d03e3"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "label": "node-untuned",
+      "ref": "node-untuned",
+      "commit": "43614a0612",
+      "exit_code": 0,
+      "minutes": 37.0,
+      "results": "results/node/none/20261025-215529",
+      "status": "complete",
+      "rps": 1698,
+      "rate": 1211,
+      "p95_ms": 17,
+      "p99_ms": 49,
+      "calibration_s": 5.53,
+      "warnings": []
+    },
+    {
+      "label": "node-tuned",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 35.3,
+      "results": "results/node/none/20261025-224231",
+      "status": "complete",
+      "rps": 1816,
+      "rate": 1297,
+      "p95_ms": 18,
+      "p99_ms": 48,
+      "calibration_s": 5.46,
+      "warnings": []
+    },
+    {
+      "label": "node-tuned-app",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 1,
+      "minutes": 47.1,
+      "results": "results/node/app/20261025-232749",
+      "status": "complete",
+      "rps": 4496,
+      "rate": 3211,
+      "p95_ms": 11,
+      "p99_ms": 84,
+      "calibration_s": 5.44,
+      "warnings": [
+        "the Mac compressed 2.0 GB more memory during the run: it was short of memory, so k6 may have slowed itself down. Lower --max-vus or close other apps, and don't trust latencies from this point on",
+        "overload test not valid: aborted with \"k6 ran out of virtual users (--max-vus 20000), so it could n...\". A bug in bin/run: the warning came from the 1.5x phase, where running short of virtual users is expected, but was judged against the recovery phase. The confirmed result was measured and checked before the overload test and stands. Fixed 26 Oct 2026"
+      ]
+    },
+    {
+      "label": "node-tuned-nginx",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 1,
+      "minutes": 39.3,
+      "results": "results/node/nginx/20261026-002452",
+      "status": "complete",
+      "rps": 4904,
+      "rate": 3503,
+      "p95_ms": 32,
+      "p99_ms": 180,
+      "calibration_s": 5.47,
+      "warnings": [
+        "overload test not valid: aborted with \"k6 ran out of virtual users (--max-vus 20000), so it could n...\". A bug in bin/run: the warning came from the 1.5x phase, where running short of virtual users is expected, but was judged against the recovery phase. The confirmed result was measured and checked before the overload test and stands. Fixed 26 Oct 2026"
+      ]
+    },
+    {
+      "label": "node-untuned",
+      "ref": "node-untuned",
+      "commit": "43614a0612",
+      "exit_code": 1,
+      "minutes": 43.0,
+      "results": "results/node/none/20261026-011409",
+      "status": "complete",
+      "rps": 1212,
+      "rate": 865,
+      "p95_ms": 4,
+      "p99_ms": 14,
+      "calibration_s": 5.45,
+      "warnings": [
+        "overload test not valid: aborted with \"k6 ran out of virtual users (--max-vus 10000), so it could n...\". A bug in bin/run: the warning came from the 1.5x phase, where running short of virtual users is expected, but was judged against the recovery phase. The confirmed result was measured and checked before the overload test and stands. Fixed 26 Oct 2026"
+      ]
+    },
+    {
+      "label": "node-tuned",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 44.0,
+      "results": "results/node/none/20261026-020708",
+      "status": "complete",
+      "rps": 1815,
+      "rate": 1297,
+      "p95_ms": 17,
+      "p99_ms": 49,
+      "calibration_s": 5.45,
+      "warnings": []
+    },
+    {
+      "label": "node-tuned-app",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 38.2,
+      "results": "results/node/app/20261026-030106",
+      "status": "complete",
+      "rps": 4497,
+      "rate": 3211,
+      "p95_ms": 30,
+      "p99_ms": 184,
+      "calibration_s": 5.45,
+      "warnings": []
+    },
+    {
+      "label": "node-tuned-nginx",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 1,
+      "minutes": 39.3,
+      "results": "results/node/nginx/20261026-034919",
+      "status": "complete",
+      "rps": 4903,
+      "rate": 3503,
+      "p95_ms": 28,
+      "p99_ms": 164,
+      "calibration_s": 5.46,
+      "warnings": [
+        "overload test not valid: aborted with \"k6 ran out of virtual users (--max-vus 20000), so it could n...\". A bug in bin/run: the warning came from the 1.5x phase, where running short of virtual users is expected, but was judged against the recovery phase. The confirmed result was measured and checked before the overload test and stands. Fixed 26 Oct 2026"
+      ]
+    },
+    {
+      "label": "node-untuned",
+      "ref": "node-untuned",
+      "commit": "43614a0612",
+      "exit_code": 0,
+      "minutes": 35.1,
+      "results": "results/node/none/20261026-043836",
+      "status": "complete",
+      "rps": 1817,
+      "rate": 1297,
+      "p95_ms": 78,
+      "p99_ms": 114,
+      "calibration_s": 5.46,
+      "warnings": []
+    },
+    {
+      "label": "node-tuned",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 44.0,
+      "results": "results/node/none/20261026-052344",
+      "status": "complete",
+      "rps": 1812,
+      "rate": 1297,
+      "p95_ms": 29,
+      "p99_ms": 81,
+      "calibration_s": 5.45,
+      "warnings": []
+    },
+    {
+      "label": "node-tuned-app",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 1,
+      "minutes": 37.2,
+      "results": "results/node/app/20261026-061742",
+      "status": "complete",
+      "rps": 4089,
+      "rate": 2919,
+      "p95_ms": 12,
+      "p99_ms": 39,
+      "calibration_s": 5.46,
+      "warnings": [
+        "the Mac compressed 3.2 GB more memory during the run: it was short of memory, so k6 may have slowed itself down. Lower --max-vus or close other apps, and don't trust latencies from this point on",
+        "overload test not valid: aborted with \"k6 ran out of virtual users (--max-vus 20000), so it could n...\". A bug in bin/run: the warning came from the 1.5x phase, where running short of virtual users is expected, but was judged against the recovery phase. The confirmed result was measured and checked before the overload test and stands. Fixed 26 Oct 2026"
+      ]
+    },
+    {
+      "label": "node-tuned-nginx",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 1,
+      "minutes": 39.3,
+      "results": "results/node/nginx/20261026-070455",
+      "status": "complete",
+      "rps": 4901,
+      "rate": 3503,
+      "p95_ms": 26,
+      "p99_ms": 155,
+      "calibration_s": 5.45,
+      "warnings": [
+        "the Mac compressed 2.2 GB more memory during the run: it was short of memory, so k6 may have slowed itself down. Lower --max-vus or close other apps, and don't trust latencies from this point on",
+        "overload test not valid: aborted with \"k6 ran out of virtual users (--max-vus 20000), so it could n...\". A bug in bin/run: the warning came from the 1.5x phase, where running short of virtual users is expected, but was judged against the recovery phase. The confirmed result was measured and checked before the overload test and stands. Fixed 26 Oct 2026"
+      ]
+    }
+  ],
+  "started": "2026-10-25T21:55:28+01:00",
+  "finished": "2026-10-26T07:44:10+01:00"
+}

@@ -1,0 +1,65 @@
+time="2026-10-28T12:31:27+01:00" level=info msg="Experimental feature enabled" feature=native-histograms lifecycle=experimental
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate==1' rate=100.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 31      8.987359/s
+    checks_succeeded...: 100.00% 31 out of 31
+    checks_failed......: 0.00%   0 out of 31
+
+    ✓ GET /health returns 200
+    ✓ GET /health body is {status: ok}
+    ✓ GET /feed returns 200
+    ✓ GET /feed returns exactly 20 posts
+    ✓ every post has the contract fields and UTC timestamps
+    ✓ feed is ordered newest first (created_at, then id)
+    ✓ POST /posts returns 201
+    ✓ POST /posts returns the post with its author
+    ✓ new post appears in the feed (allowed staleness 2500 ms)
+    ✓ POST /posts with empty body returns 400
+    ✓ POST /posts with empty body returns an error body
+    ✓ POST /posts with body over 280 characters returns 400
+    ✓ POST /posts with body over 280 characters returns an error body
+    ✓ POST /posts with missing body field returns 400
+    ✓ POST /posts with missing body field returns an error body
+    ✓ POST /posts with malformed JSON returns 400
+    ✓ POST /posts with malformed JSON returns an error body
+    ✓ POST /posts with missing X-User-Id returns 400
+    ✓ POST /posts with missing X-User-Id returns an error body
+    ✓ POST /posts with unknown user returns 400
+    ✓ POST /posts with unknown user returns an error body
+    ✓ first like returns 204
+    ✓ repeat like returns 204
+    ✓ repeat like from the same user counts once
+    ✓ like on a missing post returns 404
+    ✓ like on a missing post returns an error body
+    ✓ like without X-User-Id returns 400
+    ✓ like from an unknown user returns 400
+    ✓ 50 concurrent likes all return 204
+    ✓ 50 concurrent repeat likes all return 204
+    ✓ like_count is exactly 50 after concurrent likes (no lost updates)
+
+    HTTP
+    http_req_duration..............: avg=23.38ms min=1.02ms med=7.62ms max=89.16ms p(90)=66.36ms p(95)=76.1ms
+      { expected_response:true }...: avg=24.52ms min=1.02ms med=9.64ms max=89.16ms p(90)=68.95ms p(95)=76.3ms
+    http_req_failed................: 6.81%  9 out of 132
+    http_reqs......................: 132    38.268756/s
+
+    EXECUTION
+    iteration_duration.............: avg=3.44s   min=3.44s  med=3.44s  max=3.44s   p(90)=3.44s   p(95)=3.44s 
+    iterations.....................: 1      0.289915/s
+    vus............................: 1      min=1        max=1
+    vus_max........................: 1      min=1        max=1
+
+    NETWORK
+    data_received..................: 150 kB 43 kB/s
+    data_sent......................: 16 kB  4.7 kB/s
+
+
+

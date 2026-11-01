@@ -1,0 +1,9 @@
+# Rails's final runs: three configurations x 3, interleaved, overnight.
+# No separate untuned row: tuning kept nothing, so rails-tuned handles requests
+# exactly like rails-untuned (stacks/rails/README.md, tuning log).
+repeat 3
+cooldown 600
+# label            ref           stack  phase  options
+rails-tuned        rails-tuned   rails  none
+rails-tuned-app    rails-tuned   rails  app    --max-vus 20000
+rails-tuned-nginx  rails-tuned   rails  nginx  --max-vus 20000

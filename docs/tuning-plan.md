@@ -8,7 +8,7 @@ The same process for Node, Spring Boot and Rails, so the comparison stays fair. 
 | --- | --- | --- |
 | Node | **Finished** 25 October 2026, tagged `node-tuned`. Final runs 26 October | Same throughput as untuned within the 10% resolution; reliable where untuned wasn't. See step 6 |
 | Spring Boot | Not started | |
-| Rails | Not started | |
+| Rails | **Finished** 28 October 2026 with nothing kept; tagged `rails-untuned` and `rails-tuned` (same request handling) | Untuned: 1,133 req/s, no recovery after overload; no change was a clear win. See the [tuning log](../stacks/rails/README.md#tuning-log) |
 
 **Node, in short.** Kept: load shedding (at most 10 + 300 requests using or waiting for a database connection, then 503) and named prepared statements. Dropped: a hand-written feed query (4% cheaper, not worth leaving the ORM), a connection pool of 4 (Postgres no cheaper, requests waited longer in Node). Skipped: likes in one SQL statement (likes were 2% of Postgres's time). Quick runs suggested about +8% (one step). The final full runs didn't confirm it: tuned and untuned both held 1,297 sessions/s and failed at 1,427, so any gain is under the 10% resolution. What tuning did buy is reliability: tuned reached that rate in 6 of 6 full runs and recovered from overload every time; untuned reached it in 4 of 6 and never recovered.
 
@@ -112,6 +112,21 @@ The list as written before tuning, with the outcome. Two candidates that weren't
 ## Candidates for Spring Boot and Rails
 
 Decided when we build them, with the same rule and process. Starting points already planned: for Spring Boot, the connection pool (Hikari), virtual threads and the garbage collector; for Rails, Puma workers and threads, YJIT and jemalloc.
+
+**Rails, decided when building it.** jemalloc and YJIT moved into the baseline: Rails's generated Dockerfile installs jemalloc and Rails turns YJIT on by default (`config.load_defaults` 7.2 and later), so a production team gets both without tuning. Catawiki runs both too. Candidates, in order:
+
+1. **Puma threads, 3 to 5.** Rails's default is 3; Catawiki runs 5. More threads help only while requests wait on Postgres; on one core they also compete for the CPU and Ruby's global lock.
+2. **Puma workers.** One process by default. On one core a second process mostly competes for it, but it sidesteps Ruby's global lock, so it's measured, not assumed.
+3. **GC settings** (`RUBY_GC_*`), only if the dashboards show garbage collection costing real time.
+4. **Load shedding**, added after the baseline: untuned Rails never recovered from overload, the same trap as untuned Node. The production Rails pattern is the proxy stamping each request with `X-Request-Start` and the [rack-timeout](https://github.com/zombocom/rack-timeout) gem answering 503 for requests that queued too long (Heroku's router sets the header for every app).
+
+**Tried, with one exception to "only the stack's folder changes", then reverted** (28 October 2026). Rails can't shed load without knowing how long a request queued, and that queue sits in Puma, before Rails sees the request, so only the proxy can say. So the shared Nginx config briefly sent `X-Request-Start` for one quick run. Shedding worked, but Rails still didn't recover (tuning log, change 2), so the change was dropped and the header removed: the shared harness is back to exactly what Node ran on.
+
+**Change 1, Puma threads 3 to 5: dropped** (28 October). No throughput gain, and one step lower than 3 threads at the same core speed.
+
+**Recovery from overload: not fixed so far.** Load shedding with rack-timeout was dropped, and a Puma queue cap was ruled out from Puma's source (tuning log). The diagnostic found the cause: Puma's listen queue overflowing, so connections retry after 1 s (tuning log). Puma workers, change 3, targeted exactly that and were dropped: 20% less throughput, and the queue still overflowed.
+
+**Change 4, GC free-slot ratios: dropped.** A third as many minor collections, but GC time unchanged at about 5% of the core. With that, Rails tuning stopped with nothing kept: every candidate on the list was tested or ruled out, and none was a clear win. If nothing recovers at Rails's own limit, the post says so plainly, and reports a diagnostic: whether Rails recovers when the load drops back below its limit (`bin/run --recover-at`), so readers see whether it's stuck or just slow to dig out.
 
 ## Time budget per stack
 

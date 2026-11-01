@@ -1,0 +1,290 @@
+{
+  "plan": {
+    "repeat": 3,
+    "cooldown": 600,
+    "configs": [
+      {
+        "label": "rails-tuned-nginx",
+        "ref": "rails-tuned",
+        "stack": "rails",
+        "phase": "nginx",
+        "extra": [
+          "--max-vus",
+          "20000"
+        ],
+        "commit": "9aa5bfb8c0eb63da7e6baffe24e23c451eb0c98a"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "label": "rails-tuned-nginx",
+      "ref": "rails-tuned",
+      "commit": "9aa5bfb8c0",
+      "exit_code": 0,
+      "minutes": 47.6,
+      "results": "results/rails/nginx/20261031-203248",
+      "status": "complete",
+      "rps": 3540,
+      "rate": 2530,
+      "p95_ms": 4,
+      "p99_ms": 38,
+      "calibration_s": 5.53,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "25%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "1.52 cores, 6445 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.53 s (+0.7% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "1,141,545 vs 1,141,545 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "729,298 vs 721,536 (+1.08%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "302,677 posts stored for 302,461 acknowledged, 896,073 likes for 895,887",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 82ea35c4d5, stack 9aa5bfb8c0 (rails-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "rails-tuned-nginx",
+      "ref": "rails-tuned",
+      "commit": "9aa5bfb8c0",
+      "exit_code": 0,
+      "minutes": 47.6,
+      "results": "results/rails/nginx/20261031-213024",
+      "status": "complete",
+      "rps": 3545,
+      "rate": 2530,
+      "p95_ms": 4,
+      "p99_ms": 29,
+      "calibration_s": 5.46,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "22%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "1.75 cores, 6459 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.46 s (-0.5% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "1,142,669 vs 1,142,669 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "700,176 vs 693,623 (+0.94%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "321,622 posts stored for 321,575 acknowledged, 955,350 likes for 955,842",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 82ea35c4d5, stack 9aa5bfb8c0 (rails-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "rails-tuned-nginx",
+      "ref": "rails-tuned",
+      "commit": "9aa5bfb8c0",
+      "exit_code": 0,
+      "minutes": 47.6,
+      "results": "results/rails/nginx/20261031-222800",
+      "status": "complete",
+      "rps": 3546,
+      "rate": 2530,
+      "p95_ms": 4,
+      "p99_ms": 20,
+      "calibration_s": 5.44,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "19%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "1.68 cores, 6471 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.44 s (-0.9% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "1,142,764 vs 1,142,764 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "672,753 vs 668,136 (+0.69%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "318,322 posts stored for 318,258 acknowledged, 948,179 likes for 948,712",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 82ea35c4d5, stack 9aa5bfb8c0 (rails-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    }
+  ],
+  "started": "2026-10-31T20:32:48+01:00",
+  "finished": "2026-10-31T23:15:35+01:00"
+}

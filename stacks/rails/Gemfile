@@ -1,0 +1,10 @@
+source "https://rubygems.org"
+
+# Exact versions live in Gemfile.lock, written by bin/pin.
+gem "rails", "~> 8.1.4"
+gem "pg", "~> 1.6"
+gem "puma", ">= 6.0"
+# Rails's default: caches Ruby's compiled code and load paths, so boot is faster.
+gem "bootsnap", require: false
+# Prometheus metrics on port 9464 (config/initializers/metrics.rb).
+gem "prometheus-client", "~> 4.2"

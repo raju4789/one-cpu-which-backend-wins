@@ -1,0 +1,40 @@
+{
+  "stack": "node",
+  "phase": "none",
+  "run_id": "node-none-20261025-091358",
+  "started": "2026-10-25T09:13:59+01:00",
+  "k6": "k6 v2.3.0 (commit/devel, go1.27.1, darwin/arm64)",
+  "criteria": {
+    "p95_s": 0.3,
+    "p99_s": 1.0,
+    "error_rate": 0.01,
+    "dropped": 0.01
+  },
+  "contract": "passed",
+  "idle": {
+    "vm_cpu_avg": 0.05314467892332465,
+    "cpu_avg_by_container": {
+      "bench-nginx-1": 0.0006047868910154106,
+      "bench-postgres-1": 0.009159485426981879,
+      "bench-nginx-exporter-1": 0.0007311850451384794,
+      "bench-postgres-exporter-1": 0.0031519731208146814,
+      "bench-cadvisor-1": 0.0031373401972581566,
+      "bench-app-1": 0.03248967195763877
+    },
+    "memory_max_mb_by_container": {
+      "bench-nginx-1": 9.890625,
+      "bench-postgres-1": 193.61328125,
+      "bench-nginx-exporter-1": 3.32421875,
+      "bench-postgres-exporter-1": 6.8046875,
+      "bench-cadvisor-1": 16.4921875,
+      "bench-app-1": 69.40234375
+    },
+    "vm_memory_max_mb": 527.53125,
+    "mac_cpu_max": 0.20325731813020054,
+    "pg_connections_max": 10.0
+  },
+  "calibration_seconds": 5.85,
+  "status": "aborted",
+  "abort_reason": "k6 could not open 4 connections while the server answered in p95 15 ms. That is the Mac or the VM network, not the stack. Most likely the Mac firewall's connection limit: check `sudo pfctl -s memory`, see Network in harness/README.md. Details: /Users/raju4789/Raju/projects/one-cpu-which-backend-wins/results/node/none/20261025-091358/k6-warmup.log",
+  "finished": "2026-10-25T09:16:59+01:00"
+}
