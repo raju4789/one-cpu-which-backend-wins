@@ -1,0 +1,55 @@
+# Spring Boot's defaults, unless there's a reason. This is the untuned
+# baseline: thread pool, connection pool, heap and GC are all left at their
+# defaults; tuning changes them one at a time (README, tuning log).
+
+spring:
+  main:
+    banner-mode: off
+  jpa:
+    hibernate:
+      ddl-auto: none        # the shared schema (contract/schema.sql) is never changed
+    # open-in-view stays at Spring's default (true) in the baseline; turning it
+    # off is a tuning candidate. Spring warns about it once at startup.
+  datasource:
+    hikari:
+      pool-name: app
+      # A query running longer than this is cancelled by Postgres instead of
+      # holding a connection. Same 5 s as the other stacks.
+      connection-init-sql: SET statement_timeout = 5000
+      # Other Hikari settings at their defaults: 10 connections, 30 s wait.
+  web:
+    resources:
+      add-mappings: false   # no static files; unknown paths are a JSON 404
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful        # on SIGTERM: stop accepting, finish in-flight requests
+  tomcat:
+    # Longer than Nginx keeps idle upstream connections (60 s), so Tomcat never
+    # closes a connection Nginx is about to reuse (that race shows up as 502s).
+    keep-alive-timeout: 75s
+    # Tomcat closes a keep-alive connection after 100 requests by default.
+    # Puma and Node don't, so Nginx would reconnect to Spring alone: unlimited.
+    max-keep-alive-requests: -1
+    mbeanregistry:
+      enabled: true         # Tomcat thread pool metrics (tomcat_threads_*)
+    # Threads, accept count and max connections at their defaults (200, 100, 8192).
+
+# Metrics on a separate port (9464), so scraping never competes with API
+# traffic for a place in Nginx, a Tomcat thread or the API's routes.
+management:
+  server:
+    port: ${METRICS_PORT:9464}
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: prometheus
+      path-mapping:
+        prometheus: metrics
+
+# Warnings and errors only, the same rule for every stack: Nginx keeps the
+# access log. BootLog logs one line at startup. LOG_LEVEL=info shows more.
+logging:
+  level:
+    root: ${LOG_LEVEL:warn}

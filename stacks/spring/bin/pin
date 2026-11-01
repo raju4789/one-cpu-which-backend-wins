@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# One-time setup, run on the Mac with the bench VM up: pins the Maven (build)
+# and Temurin JRE (runtime) images in the Dockerfile by digest, and prints the
+# latest Spring Boot release next to the one in pom.xml. Needs the internet
+# (Docker Hub, Maven Central). Rerun only to move to new versions, then commit.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+source ../../harness/bin/common.sh
+
+pin() { # pin <image:tag> : rewrites "FROM image:tag[@digest]" to the current digest
+  local ref="$1" digest
+  log "Pulling $ref into the bench VM"
+  bench pull --quiet "$ref" >/dev/null
+  digest="$(bench image inspect -f '{{index .RepoDigests 0}}' "$ref")"
+  digest="${digest#*@}"
+  [ -n "$digest" ] || fail "no digest for $ref"
+  REF="$ref" DIGEST="$digest" perl -pi -e 's|^FROM \Q$ENV{REF}\E(\@sha256:[0-9a-f]+)?|FROM $ENV{REF}\@$ENV{DIGEST}|' Dockerfile
+  log "Dockerfile: FROM $ref@$digest"
+}
+
+pin "$(sed -nE 's|^FROM ([^@ ]+)(@[^ ]+)? AS build|\1|p' Dockerfile)"
+pin "$(sed -nE 's|^FROM ([^@ ]+)(@[^ ]+)?$|\1|p' Dockerfile | tail -1)"
+
+current="$(sed -nE '/spring-boot-starter-parent/{n;s|.*<version>(.*)</version>.*|\1|p;}' pom.xml)"
+latest="$(curl -fsS https://repo.maven.apache.org/maven2/org/springframework/boot/spring-boot-starter-parent/maven-metadata.xml \
+  | sed -nE 's|.*<release>(.*)</release>.*|\1|p')"
+log "Spring Boot in pom.xml: $current, latest release: ${latest:-unknown}"
