@@ -107,6 +107,20 @@ The Gemfile.lock and the Ruby image's digest are written once, on the Mac, by `b
 stacks/rails/bin/pin
 ```
 
+## Final results
+
+Three full runs per setup, Rails at its defaults (`rails-tuned`, the same request handling as `rails-untuned`). No cache and app cache: batch `results/batches/20261028-172131`. Nginx cache: batch `results/batches/20261031-203248`, rerun after a fix to the runner's connection check stopped two of the first three. Every run passed the validity checks; raw results committed unedited with checksums.
+
+| Setup | Runs (req/s) | Median | Highest rate held | Recovered from overload |
+| --- | --- | --- | --- | --- |
+| No cache | 1,212 / 1,211 / 1,132 | **1,211** | 865 sessions/s in 2 of 3 | 0 of 3 |
+| App cache | 2,544 / 2,542 / 2,544 | **2,544** | 1,816 sessions/s in 3 of 3 | 0 of 3 |
+| Nginx cache | 3,540 / 3,545 / 3,546 | **3,545** | 2,530 sessions/s in 3 of 3 | 0 of 3 |
+
+Read the medians as bands, like Node's: the runner only confirms rates it tried, about 10% apart. In every Nginx-cache run, the next rate (2,724 sessions/s) failed its confirm, either collapsing or with k6 unable to connect while the server's core was busy.
+
+Against Node: Rails reaches about two-thirds of Node without a cache (1,211 against 1,815), about half with the app cache (2,544 against 4,906) and about 72% with the Nginx cache (3,545 against 4,905). No Rails setup recovered from overload; the tuning log explains why.
+
 ## Tuning log
 
 Follows the [tuning plan](../../docs/tuning-plan.md): one production-grade change at a time, a quick run for each, kept only on a clear win.
