@@ -33,7 +33,14 @@ server:
     max-keep-alive-requests: -1
     mbeanregistry:
       enabled: true         # Tomcat thread pool metrics (tomcat_threads_*)
-    # Threads, accept count and max connections at their defaults (200, 100, 8192).
+    threads:
+      # Tuning change 1: 20 threads instead of 200, twice the database pool.
+      # With 200, overload put all 200 threads to work at once, each waiting for
+      # one of 10 connections and holding its memory: Java grew from 381 to
+      # 632 MB and Linux killed it (README, tuning log). Requests beyond 20 wait
+      # in Tomcat's connection queue, which costs kilobytes, not a thread.
+      max: 20
+    # Accept count and max connections at their defaults (100, 8192).
 
 # Metrics on a separate port (9464), so scraping never competes with API
 # traffic for a place in Nginx, a Tomcat thread or the API's routes.

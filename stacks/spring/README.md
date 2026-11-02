@@ -11,7 +11,7 @@ The contract API in Spring Boot, built the way a production team would build it,
 | Logs | Logback to stdout, warnings and errors only |
 | Metrics | Actuator with Micrometer's Prometheus registry, port 9464 |
 
-**Status:** written, not yet built or contract tested. Next: `bin/pin`, build, contract test in all three phases, then tag `spring-untuned`.
+**Status:** passes [the contract test](../../k6/README.md#contract-test) in all three phases. The untuned version is tagged `spring-untuned`.
 
 ## Why these defaults
 
@@ -19,7 +19,7 @@ The untuned version is what `start.spring.io` gives you with Web, Data JPA and A
 
 | Setting | Default | Tuning candidate |
 | --- | --- | --- |
-| Request threads | Tomcat, 200 platform threads | Virtual threads (first step), then a smaller pool |
+| Request threads | Tomcat, 200 platform threads | A smaller pool (change 1), virtual threads |
 | Database pool | HikariCP, 10 connections, 30 s wait | Smaller pool, shorter wait |
 | Heap | The JVM's choice: 1/4 of the VM's memory | Sized for the 2 GB box |
 | GC | The JVM's choice for one CPU (Serial GC) | Compared with the alternatives |
@@ -75,4 +75,14 @@ Metrics on `:9464/metrics`: the shared `app_http_request_duration_seconds`, `app
 
 ## Tuning log
 
-Empty until the untuned baseline is measured.
+**Untuned baseline** (tag `spring-untuned`, 1 and 2 November 2026, two full runs, no cache). Both runs passed 1,297 sessions/s (about 1,815 req/s, p95 2 ms, no errors) with the server at 68% CPU, then crashed at 1,946 sessions/s: the VM ran out of memory and Linux killed Java (exit 137, Docker's out-of-memory flag set). So untuned Spring has no confirmed result: it doesn't slow down under overload, it takes the box down. Memory at the last steps:
+
+| Sessions/s | Spring | Nginx | Postgres | Whole VM |
+| --- | --- | --- | --- | --- |
+| 865 | 337 MB | 53 MB | 464 MB | 1,433 MB |
+| 1,297 | 381 MB | 54 MB | 470 MB | 1,507 MB |
+| 1,946 (killed) | 632 MB | 236 MB | 467 MB | 1,630 MB |
+
+CPU wasn't the limit; memory was, and only once Spring fell behind. Then all 200 Tomcat threads ran at once, each waiting for one of 10 database connections while holding its request and stack. The JVM's heap limit (473 MB) isn't its memory use: threads and connections sit outside the heap. Results: `results/spring/none/20261101-205835` and `20261102-072004`.
+
+**Change 1, Tomcat threads 200 to 20: testing.** Twice the database pool, so every connection stays busy while extra requests wait in Tomcat's connection queue, which costs kilobytes per request instead of a thread. Moved ahead of virtual threads, the first change in the original plan: with virtual threads every waiting request becomes a live thread holding memory, the problem the baseline showed. Kept only if it stops the crash and holds at least the baseline's last passing rate.
