@@ -24,7 +24,7 @@ The untuned version is what `start.spring.io` gives you with Web, Data JPA and A
 | Heap | The JVM's choice: 1/4 of the VM's memory | Sized for the 2 GB box |
 | GC | The JVM's choice for one CPU (Serial GC) | Compared with the alternatives |
 | Overload | Tomcat queues up to 8,192 connections | Cap connections, answer 503 instead of queuing |
-| Open session in view | On (Spring's default) | Off |
+| Open session in view | On (Spring's default) | Off (change 4) |
 
 ## Layout
 
@@ -96,3 +96,5 @@ CPU wasn't the limit; memory was, and only once Spring fell behind. Then all 200
 **Change 3, load shedding (queue cap 300): kept** (quick run `20261102-101128-quick`, boot line confirms `tomcat_max_queue=300`). Spring now recovers: back at 1x after the overload, p95 10 ms, p99 57 ms, no errors, against p95 617 ms without the cap. During the 1.5x part it shed 57% of requests and kept p95 at 306 ms for the rest. Throughput unchanged: the same highest passing step, 1,616 sessions/s (2,260 req/s). At 1,746 it now fails with 13% refused requests instead of p95 over 800 ms: failing fast, as intended.
 
 **Change 3, as planned:** After change 2, Spring survived overload with no errors but didn't recover: requests queued and drained slowly. Node fixed the same problem with a limiter in its own code (10 using the pool plus 300 waiting, then 503). That can't work as-is in Spring: a request reaches the app's code only once one of Tomcat's 20 threads takes it, so the queue sits in Tomcat, before any filter could count it. So the cap is Tomcat's own (`server.tomcat.threads.max-queue-capacity`): at most 300 requests wait for a thread, and the next is refused at once. Tomcat closes a refused connection instead of answering, so clients see a 502 from Nginx, not a 503; for the recovery test both count the same. Kept if Spring recovers after overload and the highest passing step stays within 10% of change 2. The closer match to Node, virtual threads with Node's limiter, stays a candidate, tested as one change because virtual threads alone could bring the memory problem back.
+
+**Change 4, open session in view off: testing.** Spring's default keeps the Hibernate session and its database connection open for the whole request, including writing the JSON. Every query here loads what the response needs inside its own transaction (the feed's `join fetch`, the author loaded with the new post), so nothing needs the session afterwards. Off, each connection goes back to the pool as soon as its transaction ends. Since change 1, CPU is the limit (93% at 1,746 sessions/s), so this is kept only if the highest passing step rises, or stays the same with lower CPU or latency, and recovery still passes. A small change: the main effect is shorter time holding the pool's connections, not much less CPU.
