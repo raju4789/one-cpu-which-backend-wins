@@ -7,7 +7,7 @@ The same process for Node, Spring Boot and Rails, so the comparison stays fair. 
 | Stack | Tuning | Result |
 | --- | --- | --- |
 | Node | **Finished** 25 October 2026, tagged `node-tuned`. Final runs 26 October | Same throughput as untuned within the 10% resolution; reliable where untuned wasn't. See step 6 |
-| Spring Boot | Not started | |
+| Spring Boot | **Started** 1 November 2026, untuned tagged `spring-untuned` | First full run: held 1,812 req/s at p95 2 ms, then the VM ran out of memory and Linux killed Java at 1,946 sessions/s. No confirmed result yet |
 | Rails | **Finished** 28 October 2026 with nothing kept; tagged `rails-untuned` and `rails-tuned` (same request handling) | Untuned: 1,133 req/s, no recovery after overload; no change was a clear win. See the [tuning log](../stacks/rails/README.md#tuning-log) |
 
 **Node, in short.** Kept: load shedding (at most 10 + 300 requests using or waiting for a database connection, then 503) and named prepared statements. Dropped: a hand-written feed query (4% cheaper, not worth leaving the ORM), a connection pool of 4 (Postgres no cheaper, requests waited longer in Node). Skipped: likes in one SQL statement (likes were 2% of Postgres's time). Quick runs suggested about +8% (one step). The final full runs didn't confirm it: tuned and untuned both held 1,297 sessions/s and failed at 1,427, so any gain is under the 10% resolution. What tuning did buy is reliability: tuned reached that rate in 6 of 6 full runs and recovered from overload every time; untuned reached it in 4 of 6 and never recovered.
@@ -112,6 +112,8 @@ The list as written before tuning, with the outcome. Two candidates that weren't
 ## Candidates for Spring Boot and Rails
 
 Decided when we build them, with the same rule and process. Starting points already planned: for Spring Boot, the connection pool (Hikari), virtual threads and the garbage collector; for Rails, Puma workers and threads, YJIT and jemalloc.
+
+**Shared harness change: the runner records app crashes** (2 November 2026, commit `b6606d1`). After every step, confirm and overload, the runner checks the app container is still running; after every cool-down, the app must also answer `/health` within 5 seconds. If not, the run stops and records the crash, with the exit code and the out-of-memory flag. Found when untuned Spring was killed for running out of memory and the runner kept testing a dead container for 20 minutes ([lessons, chapter 17](lessons-learned.md)). It changes no Node or Rails result: neither app ever crashed, so for them the check never acts and the load, timing and pass limits are unchanged.
 
 **Rails, decided when building it.** jemalloc and YJIT moved into the baseline: Rails's generated Dockerfile installs jemalloc and Rails turns YJIT on by default (`config.load_defaults` 7.2 and later), so a production team gets both without tuning. Catawiki runs both too. Candidates, in order:
 
