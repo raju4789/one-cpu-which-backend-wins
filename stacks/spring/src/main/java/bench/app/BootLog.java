@@ -37,11 +37,12 @@ public class BootLog {
         .map(b -> b.getName()).collect(Collectors.joining("+"));
     int pool = dataSource instanceof HikariDataSource h ? h.getMaximumPoolSize() : -1;
     log.warn("booted: java={} spring_boot={} cpus={} max_heap_mb={} gc={} virtual_threads={} "
-            + "tomcat_max_threads={} tomcat_max_queue={} db_pool={} open_in_view={} feed_cache={}",
+            + "tomcat_max_threads={} tomcat_max_queue={} tomcat_max_connections={} db_pool={} open_in_view={} feed_cache={}",
         Runtime.version(), SpringBootVersion.getVersion(), rt.availableProcessors(), rt.maxMemory() / (1024 * 1024),
         gc, env.getProperty("spring.threads.virtual.enabled", "false"),
         env.getProperty("server.tomcat.threads.max", "200"),
-        env.getProperty("server.tomcat.threads.max-queue-capacity", "unbounded"), pool,
+        env.getProperty("server.tomcat.threads.max-queue-capacity", "unbounded"),
+        env.getProperty("server.tomcat.max-connections", "8192"), pool,
         env.getProperty("spring.jpa.open-in-view", "true"), feed.cached() ? "app" : "off");
   }
 }
