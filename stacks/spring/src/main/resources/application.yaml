@@ -8,12 +8,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: none        # the shared schema (contract/schema.sql) is never changed
-    # Tuning change 4: no open session in view. Spring's default (true) keeps
-    # the Hibernate session, and its database connection, open for the whole
-    # web request, including writing the JSON. Every query here loads what the
-    # response needs inside its own transaction, so it isn't needed; off, each
-    # connection goes back to the pool as soon as the transaction ends.
-    open-in-view: false
+    # open-in-view stays at Spring's default (true). Turning it off was tried
+    # and dropped (README, tuning log, change 4): no measurable difference.
   datasource:
     hikari:
       pool-name: app
