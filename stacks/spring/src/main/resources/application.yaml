@@ -46,14 +46,8 @@ server:
       # load dropped (README, tuning log). Tomcat closes a refused connection,
       # so the client sees a 502 from Nginx rather than a 503.
       max-queue-capacity: 300
-    # Tuning change 5: at most 500 open connections instead of 8,192. Each open
-    # connection costs Tomcat memory even while it only waits, and the queue cap
-    # above counts requests, not connections. In the app-cache phase, thousands
-    # of connections piled up and Java grew to 504 MB, past its 256 MB heap, until
-    # Linux killed it (README, tuning log). 500 covers the 20 threads and the 300
-    # queued requests with room to spare; further connections wait in the
-    # kernel's accept queue (accept count, default 100) and are refused beyond it.
-    max-connections: 500
+    # Accept count and max connections at their defaults (100, 8192). Capping
+    # connections at 500 was tried and dropped (README, tuning log, change 5).
 
 # Metrics on a separate port (9464), so scraping never competes with API
 # traffic for a place in Nginx, a Tomcat thread or the API's routes.
