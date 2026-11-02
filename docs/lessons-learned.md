@@ -396,6 +396,23 @@ Untuned and tuned now look the same. So do the app cache and the Nginx cache. Ch
 - Read the source of the tool you're tuning. It ruled out one plan in minutes and corrected a dangerous default in another.
 - Stopping with nothing kept is a valid result. Keep only clear wins, and say so plainly.
 
+## Chapter 17: Spring's first run, and a server that killed its app
+
+**What happened.** Untuned Spring Boot (Tomcat with 200 threads, a pool of 10, the JVM's default heap of 473 MB and Serial GC) held 1,812 requests per second with p95 at 2 ms. At the next step, 1,946 sessions per second, the run fell apart: 12% errors, then 100% errors and 60-second timeouts in every later test, with the server's CPU at 6%.
+
+**The cause.** Linux's out-of-memory killer killed Java at 21:15, during that step. Docker recorded exit code 137 with its out-of-memory flag set, and the VM's kernel log named the process. Java was using 655 MB, about 180 MB more than its heap limit: every Tomcat thread and every open connection needs memory outside the heap. With Postgres, Nginx and the monitoring agents sharing the same 2 GB, the whole VM ran out, and the kernel killed the biggest process.
+
+**What the runner got wrong.** It never checked that the app was alive. For 20 minutes it ran the fine ramp and two confirms against a dead container, then reported "no rate passed the 5-minute confirm". The low CPU was the clue: an overloaded server runs at 100%, an empty one at 6%. Node and Rails had never crashed, so the gap had never shown.
+
+**The fix.** After every step, confirm and overload, the runner now asks Docker whether the app container is still running. After every cool-down, the app must also answer `/health` within 5 seconds. If not, the run stops and records "app crashed at X sessions/s" with the exit code and the out-of-memory flag, in `result.json` and `summary.md`. A crash is a result about the stack, not an invalid run, so whatever was measured before it is kept. Checks after a step only look at the container, because an app that is overloaded but alive may be too slow for `/health` right then. This changes no earlier result: neither Node nor Rails ever crashed.
+
+**Lessons.**
+
+- A low CPU during a failing test means the server isn't working, not that it's coping. Find out whether the app is still there.
+- Exit code 137 means something sent SIGKILL. Docker's out-of-memory flag and the kernel log say whether it was the out-of-memory killer.
+- On a small box, the JVM's heap limit is not its memory use. Threads, connections and the JVM itself all sit outside the heap.
+- A test runner should check that the thing it measures is still alive before every test.
+
 ## Ideas worth understanding
 
 **Virtual users vs requests per second.** Requests per second is what the server actually handles, so it's the fair way to compare servers. The number of virtual users depends on how long the pretend people pause. At 577 sessions per second, k6 sent about 810 requests per second while about 2,300 virtual users were busy, most of them "reading". Make the pauses twice as long and you get twice the users for the same server work.
@@ -425,3 +442,4 @@ Untuned and tuned now look the same. So do the app cache and the Nginx cache. Ch
 17. **Can someone else check the result?** Record which code ran, and commit the raw results before anyone can touch them.
 18. **What is your measurement's resolution?** A difference smaller than the gap between tested rates isn't a difference.
 19. **Do you know where the requests wait?** Count drops and retries at every layer, including the operating system's queues, before tuning the app.
+20. **Is the app still alive?** Check it between tests. A crash must be recorded as a crash, not as "nothing passed".
