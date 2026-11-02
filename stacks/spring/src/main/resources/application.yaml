@@ -40,6 +40,12 @@ server:
       # 632 MB and Linux killed it (README, tuning log). Requests beyond 20 wait
       # in Tomcat's connection queue, which costs kilobytes, not a thread.
       max: 20
+      # Tuning change 3, load shedding: at most 300 requests wait for one of the
+      # 20 threads; Tomcat refuses the next one at once instead of queuing it.
+      # Unbounded, overload built a queue that took minutes to drain after the
+      # load dropped (README, tuning log). Tomcat closes a refused connection,
+      # so the client sees a 502 from Nginx rather than a 503.
+      max-queue-capacity: 300
     # Accept count and max connections at their defaults (100, 8192).
 
 # Metrics on a separate port (9464), so scraping never competes with API
