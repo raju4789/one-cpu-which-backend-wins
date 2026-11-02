@@ -27,7 +27,10 @@ COPY --from=build /extracted/snapshot-dependencies/ ./
 COPY --from=build /extracted/application/ ./
 USER 1001:1001
 EXPOSE 8080 9464
-# The JVM at its defaults: it sizes the heap from the VM's memory and picks its
-# own GC for one CPU. Both are tuning steps (README, tuning log).
+# Tuning change 2: a 256 MB heap instead of the JVM's default, a quarter of the
+# VM's memory (473 MB). The heap grows towards its limit under load, and Java's
+# memory outside the heap (threads, classes, buffers) comes on top: at the
+# default, overload took Java past 650 MB and Linux killed it (README, tuning
+# log). The GC stays the JVM's choice for one CPU, Serial.
 # Java as PID 1, so SIGTERM reaches it and Spring shuts down gracefully.
-ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["java", "-Xmx256m", "org.springframework.boot.loader.launch.JarLauncher"]
