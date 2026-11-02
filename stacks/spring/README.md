@@ -11,7 +11,7 @@ The contract API in Spring Boot, built the way a production team would build it,
 | Logs | Logback to stdout, warnings and errors only |
 | Metrics | Actuator with Micrometer's Prometheus registry, port 9464 |
 
-**Status:** passes [the contract test](../../k6/README.md#contract-test) in all three phases. The untuned version is tagged `spring-untuned`.
+**Status:** passes [the contract test](../../k6/README.md#contract-test) in the no-cache phase; the app-cache and Nginx-cache phases are not checked yet. The untuned version is tagged `spring-untuned`.
 
 ## Why these defaults
 
