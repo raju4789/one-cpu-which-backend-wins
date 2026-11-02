@@ -13,6 +13,8 @@ public class ApiException extends RuntimeException {
 
   static ApiException badRequest(String message) { return new ApiException(HttpStatus.BAD_REQUEST, message); }
   static ApiException notFound(String message) { return new ApiException(HttpStatus.NOT_FOUND, message); }
+  // Load shed (DbLimiter): the database queue is full, retry in a moment.
+  static ApiException busy() { return new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "server busy, retry shortly"); }
 
   HttpStatus status() { return status; }
 }

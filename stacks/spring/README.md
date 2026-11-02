@@ -19,7 +19,7 @@ The untuned version is what `start.spring.io` gives you with Web, Data JPA and A
 
 | Setting | Default | Tuning candidate |
 | --- | --- | --- |
-| Request threads | Tomcat, 200 platform threads | A smaller pool (change 1), virtual threads |
+| Request threads | Tomcat, 200 platform threads | A smaller pool (change 1), then virtual threads with a database limiter (change 6) |
 | Database pool | HikariCP, 10 connections, 30 s wait | Smaller pool, shorter wait |
 | Heap | The JVM's choice: 1/4 of the VM's memory | Sized for the 2 GB box |
 | GC | The JVM's choice for one CPU (Serial GC) | Compared with the alternatives |
@@ -108,3 +108,5 @@ CPU wasn't the limit; memory was, and only once Spring fell behind. Then all 200
 **Change 5, Tomcat connections 8,192 to 500: dropped.** It moved the pile-up from Tomcat into Nginx instead of removing it. App cache (`20261102-180345-quick`, core 5% slow): no crash, highest passing step 4,082 sessions/s as before, but no recovery after overload (p95 1.3 s, 4% errors). No cache (`20261102-182803-quick`): unchanged, 1,616 sessions/s, recovered. Nginx cache (`20261102-185503-quick`): crashed during the ramp-up to 4,800 sessions/s, a rate it passed without the cap. Prometheus shows why: in 90 seconds Nginx grew from 36 to 712 MB, holding connections Tomcat would no longer take, while Java reached 435 MB. Linux killed Java, the biggest single process, but Nginx caused it.
 
 **Change 5, as planned:** Bounds what thousands of waiting connections can cost. 500 covers the 20 threads and 300 queued requests with room to spare; beyond that, connections wait in the kernel's accept queue (100) and are then refused. Kept if the app-cache phase no longer crashes and the no-cache phase holds its highest passing step and its recovery.
+
+**Change 6, virtual threads plus Node's database limiter: testing.** Replaces changes 1 and 3 (20 threads, Tomcat's queue cap of 300). With platform threads, a request reaches the app's code only once a thread is free, so the queue sits in Tomcat and, with a connection cap, in Nginx: out of the app's reach, and on 2 GB it ran the box out of memory in the app-cache phase. With virtual threads every request gets its own cheap thread at once and reaches the app, where `DbLimiter` applies Node's rule: at most 10 requests using plus 300 waiting for a database connection, then 503 with `Retry-After: 1`. Feed cache hits never touch the database and are never shed. Shed requests are answered at once, so nothing piles up. Tested as one change because virtual threads alone, without the limiter, would let every waiting request hold memory. Kept if the app-cache phase stops crashing and recovers, and no cache and Nginx cache hold their highest passing steps and recovery.

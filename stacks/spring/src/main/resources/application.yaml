@@ -5,6 +5,14 @@
 spring:
   main:
     banner-mode: off
+  threads:
+    virtual:
+      # Tuning change 6: virtual threads. Every request gets its own cheap
+      # thread at once, reaches the app's code, and DbLimiter decides there:
+      # at most 10 using plus 300 waiting for a connection, then 503. Platform
+      # threads can't do that: a request only reaches the app once a thread is
+      # free, so the queue sat in Tomcat and Nginx, out of the app's reach.
+      enabled: true
   jpa:
     hibernate:
       ddl-auto: none        # the shared schema (contract/schema.sql) is never changed
@@ -33,19 +41,10 @@ server:
     max-keep-alive-requests: -1
     mbeanregistry:
       enabled: true         # Tomcat thread pool metrics (tomcat_threads_*)
-    threads:
-      # Tuning change 1: 20 threads instead of 200, twice the database pool.
-      # With 200, overload put all 200 threads to work at once, each waiting for
-      # one of 10 connections and holding its memory: Java grew from 381 to
-      # 632 MB and Linux killed it (README, tuning log). Requests beyond 20 wait
-      # in Tomcat's connection queue, which costs kilobytes, not a thread.
-      max: 20
-      # Tuning change 3, load shedding: at most 300 requests wait for one of the
-      # 20 threads; Tomcat refuses the next one at once instead of queuing it.
-      # Unbounded, overload built a queue that took minutes to drain after the
-      # load dropped (README, tuning log). Tomcat closes a refused connection,
-      # so the client sees a 502 from Nginx rather than a 503.
-      max-queue-capacity: 300
+    # Thread pool size and queue cap no longer apply: with virtual threads
+    # (change 6, below) Tomcat starts one per request. Changes 1 and 3 (20
+    # threads, a queue of 300) were replaced by the database limiter
+    # (DbLimiter), which sheds load with a 503 (README, tuning log).
     # Accept count and max connections at their defaults (100, 8192). Capping
     # connections at 500 was tried and dropped (README, tuning log, change 5).
 

@@ -20,6 +20,9 @@ public class ErrorHandler {
 
   @ExceptionHandler(ApiException.class)
   ResponseEntity<Json.Error> api(ApiException e) {
+    if (e.status() == HttpStatus.SERVICE_UNAVAILABLE) { // load shed: try again shortly
+      return ResponseEntity.status(e.status()).header("Retry-After", "1").body(new Json.Error(e.getMessage()));
+    }
     return error(e.status(), e.getMessage());
   }
 

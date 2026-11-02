@@ -23,8 +23,10 @@ public class BootLog {
   private final Environment env;
   private final DataSource dataSource;
   private final FeedService feed;
+  private final DbLimiter limiter;
 
-  BootLog(Environment env, DataSource dataSource, FeedService feed) {
+  BootLog(Environment env, DataSource dataSource, FeedService feed, DbLimiter limiter) {
+    this.limiter = limiter;
     this.env = env;
     this.dataSource = dataSource;
     this.feed = feed;
