@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Starts a batch on loadgen, in a tmux session that keeps going without your Mac.
+# Same arguments as harness/bin/batch. The plan's tags must be pushed to GitHub.
+#   cloud/bin/start-batch harness/batches/spring-final.txt
+source "$(dirname "$0")/common.sh"
+[ $# -ge 1 ] || fail "usage: cloud/bin/start-batch <plan> [harness/bin/batch options]"
+args="$(printf '%q ' "$@")"
+on_loadgen "tmux has-session -t bench 2>/dev/null && { echo 'ERROR: a run is already going: cloud/bin/status' >&2; exit 1; }
+  cd $REMOTE_REPO && git pull -q --ff-only && git fetch -q --tags origin && tmux new-session -d -s bench \"cloud/bin/remote-run batch $args 2>&1 | tee ~/last-run.log\""
+log "Started on loadgen. Follow it: cloud/bin/status (Ctrl-B then D to leave it running)"

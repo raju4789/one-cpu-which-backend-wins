@@ -1,0 +1,25 @@
+# The cloud version of harness/monitoring/prometheus.yml: the same jobs and
+# interval, aimed at the bench droplet's private IP (filled in by
+# cloud/bin/monitoring-up). Prometheus runs on loadgen, never on the bench box.
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: cadvisor
+    static_configs:
+      - targets: ["BENCH_PRIVATE_IP:8081"]
+  - job_name: postgres
+    static_configs:
+      - targets: ["BENCH_PRIVATE_IP:9187"]
+  - job_name: nginx
+    static_configs:
+      - targets: ["BENCH_PRIVATE_IP:9113"]
+  - job_name: app
+    static_configs:
+      - targets: ["BENCH_PRIVATE_IP:9464"]
+  # The load generator's own CPU and memory. Named "mac" because that's the job
+  # harness/bin/run reads for its "is k6 short of CPU" check: here it's loadgen.
+  - job_name: mac
+    static_configs:
+      - targets: ["127.0.0.1:9100"]
