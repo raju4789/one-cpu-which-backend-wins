@@ -1,0 +1,24 @@
+# Spring's final full runs: untuned vs tuned, then the two cache phases on the
+# tuned version. Run with: harness/bin/batch harness/batches/spring-final.txt
+# About 10 to 12 hours. Before starting: harness/bin/mac-setup (after any
+# reboot), plug the Mac in, lid open, nothing else running.
+#
+# spring-untuned is the Spring code before tuning, spring-tuned after it (20
+# Tomcat threads, a 256 MB heap, Tomcat's queue capped at 300). Same rules as
+# Node and Rails: no restarts. Untuned is expected to crash out of memory at
+# its failing step, and the cache phases may too; the runner then records the
+# crash as the result (docs/lessons-learned.md, chapter 17).
+#
+# The cache phases get up to 30,000 virtual users, not Node's 20,000: Spring's
+# cache phases passed about 4,400 to 4,800 sessions/s in quick runs, so the
+# coarse ramp's next step, 6,568 sessions/s, needs about 26,000 at once (each
+# session lasts about 4 s). With 20,000, k6 would run out and abort the run as
+# invalid instead of measuring the step. The runner warns if the Mac starts
+# compressing memory.
+repeat 3
+cooldown 600
+# label              ref             stack   phase
+spring-untuned       spring-untuned  spring  none
+spring-tuned         spring-tuned    spring  none
+spring-tuned-app     spring-tuned    spring  app     --max-vus 30000
+spring-tuned-nginx   spring-tuned    spring  nginx   --max-vus 30000

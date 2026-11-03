@@ -1,0 +1,127 @@
+==> Run spring-app-20261103-092519, results in results/spring/app/20261103-092519
+==> Stopping anything already running
+==> Starting Postgres
+ Network bench_default  Creating
+ Network bench_default  Created
+ Container bench-postgres-1  Creating
+ Container bench-postgres-1  Created
+ Container bench-postgres-1  Starting
+ Container bench-postgres-1  Started
+==> Waiting for the seed (the first run on a new VM takes a few minutes)
+==> Resetting database from app_template
+==> Starting spring (phase: app, FEED_CACHE=app, nginx: proxy)
+#1 [internal] load local bake definitions
+#1 reading from stdin 658B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 2.11kB done
+#2 DONE 0.0s
+
+#3 resolving provenance for metadata file
+#3 DONE 0.0s
+
+#4 [internal] load metadata for docker.io/library/eclipse-temurin:25-jre@sha256:ecdc0adb37bde1a281c4d245a3cd535004b1fc8322d560f5b09463b248c81df0
+#4 DONE 0.0s
+
+#5 [internal] load metadata for docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#5 DONE 0.0s
+
+#6 [internal] load .dockerignore
+#6 transferring context: 61B done
+#6 DONE 0.0s
+
+#7 [build 1/6] FROM docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#7 DONE 0.0s
+
+#8 [stage-1 1/7] FROM docker.io/library/eclipse-temurin:25-jre@sha256:ecdc0adb37bde1a281c4d245a3cd535004b1fc8322d560f5b09463b248c81df0
+#8 DONE 0.0s
+
+#9 [internal] load build context
+#9 transferring context: 1.56kB done
+#9 DONE 0.0s
+
+#10 [build 2/6] WORKDIR /build
+#10 CACHED
+
+#11 [stage-1 4/7] COPY --from=build /extracted/dependencies/ ./
+#11 CACHED
+
+#12 [build 6/6] RUN mvn -B -q package  && java -Djarmode=tools -jar target/app.jar extract --layers --launcher --destination /extracted
+#12 CACHED
+
+#13 [stage-1 5/7] COPY --from=build /extracted/spring-boot-loader/ ./
+#13 CACHED
+
+#14 [build 3/6] COPY pom.xml .
+#14 CACHED
+
+#15 [build 4/6] RUN mvn -B -q dependency:go-offline
+#15 CACHED
+
+#16 [stage-1 2/7] WORKDIR /app
+#16 CACHED
+
+#17 [stage-1 6/7] COPY --from=build /extracted/snapshot-dependencies/ ./
+#17 CACHED
+
+#18 [build 5/6] COPY src src
+#18 CACHED
+
+#19 [stage-1 3/7] RUN groupadd --system --gid 1001 spring  && useradd spring --system --uid 1001 --gid 1001 --no-create-home --shell /usr/sbin/nologin
+#19 CACHED
+
+#20 [stage-1 7/7] COPY --from=build /extracted/application/ ./
+#20 CACHED
+
+#21 exporting to image
+#21 exporting layers done
+#21 writing image sha256:21bf0c1b0538b299abfa73a01dee7f6a13a553a2566698be0f4930617b2ba5c0 done
+#21 naming to docker.io/one-cpu/spring:local done
+#21 DONE 0.0s
+ one-cpu/spring:local  Built
+ Container bench-cadvisor-1  Creating
+ Container bench-postgres-1  Running
+ Container bench-app-1  Creating
+ Container bench-postgres-exporter-1  Creating
+ Container bench-postgres-exporter-1  Created
+ Container bench-cadvisor-1  Created
+ Container bench-app-1  Created
+ Container bench-nginx-1  Creating
+ Container bench-nginx-1  Created
+ Container bench-nginx-exporter-1  Creating
+ Container bench-nginx-exporter-1  Created
+ Container bench-cadvisor-1  Starting
+ Container bench-app-1  Starting
+ Container bench-postgres-exporter-1  Starting
+ Container bench-postgres-exporter-1  Started
+ Container bench-cadvisor-1  Started
+ Container bench-app-1  Started
+ Container bench-nginx-1  Starting
+ Container bench-nginx-1  Started
+ Container bench-nginx-exporter-1  Starting
+ Container bench-nginx-exporter-1  Started
+==> Waiting for http://192.168.64.3:8080/health
+==> Ready: spring, phase app
+==> Contract test
+==> Idle baseline (30 s)
+==> calibration_seconds=5.50   (runs: 5.46 5.50 5.52)
+==> Warm-up: 20 sessions/s for 120 s
+==>   28 req/s, p95 14 ms, p99 20 ms, errors 0.00%
+==> ramp-coarse: 19 steps of 60 s, rates 10, 15, 22, 34, 51, 76, 114, 171, 256, 384, 577, 865, 1297, 1946, 2919, 4379, 6568, 9853, 14779 sessions/s
+==>   step 1/19 @ 10 sessions/s: 14 req/s, p95 10 ms, p99 15 ms, errors 0.00%, server CPU 8% -> PASS
+==>   step 2/19 @ 15 sessions/s: 21 req/s, p95 10 ms, p99 15 ms, errors 0.00%, server CPU 11% -> PASS
+==>   step 3/19 @ 22 sessions/s: 32 req/s, p95 9 ms, p99 13 ms, errors 0.00%, server CPU 13% -> PASS
+==>   step 4/19 @ 34 sessions/s: 48 req/s, p95 8 ms, p99 10 ms, errors 0.00%, server CPU 15% -> PASS
+==>   step 5/19 @ 51 sessions/s: 71 req/s, p95 7 ms, p99 10 ms, errors 0.00%, server CPU 18% -> PASS
+==>   step 6/19 @ 76 sessions/s: 107 req/s, p95 7 ms, p99 9 ms, errors 0.00%, server CPU 22% -> PASS
+==>   step 7/19 @ 114 sessions/s: 160 req/s, p95 6 ms, p99 10 ms, errors 0.00%, server CPU 27% -> PASS
+==>   step 8/19 @ 171 sessions/s: 242 req/s, p95 7 ms, p99 11 ms, errors 0.00%, server CPU 36% -> PASS
+==>   step 9/19 @ 256 sessions/s: 358 req/s, p95 7 ms, p99 11 ms, errors 0.00%, server CPU 46% -> PASS
+==>   step 10/19 @ 384 sessions/s: 537 req/s, p95 6 ms, p99 10 ms, errors 0.00%, server CPU 45% -> PASS
+==>   step 11/19 @ 577 sessions/s: 808 req/s, p95 7 ms, p99 11 ms, errors 0.00%, server CPU 46% -> PASS
+==>   step 12/19 @ 865 sessions/s: 1209 req/s, p95 6 ms, p99 10 ms, errors 0.00%, server CPU 47% -> PASS
+==>   step 13/19 @ 1297 sessions/s: 1816 req/s, p95 5 ms, p99 9 ms, errors 0.00%, server CPU 50% -> PASS
+==>   step 14/19 @ 1946 sessions/s: 2716 req/s, p95 3 ms, p99 26 ms, errors 0.00%, server CPU 45% -> PASS
+==> RESULT spring / app: app crashed at 2919 sessions/s (ramp-coarse step 15): container exited, killed by the out-of-memory killer, stopped at 2026-11-03T08:43:38.228341048Z
+==> Saved results/spring/app/20261103-092519. Let the Mac cool down 5 minutes before the next run.
