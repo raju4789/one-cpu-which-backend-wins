@@ -7,5 +7,5 @@ source "$(dirname "$0")/common.sh"
 [ $# -ge 2 ] || fail "usage: cloud/bin/start <stack> <phase> [harness/bin/run options]"
 args="$(printf '%q ' "$@")"
 on_loadgen "tmux has-session -t bench 2>/dev/null && { echo 'ERROR: a run is already going: cloud/bin/status' >&2; exit 1; }
-  cd $REMOTE_REPO && git pull -q --ff-only && tmux new-session -d -s bench \"cloud/bin/remote-run run $args 2>&1 | tee ~/last-run.log\""
+  cd $REMOTE_REPO && git pull -q --ff-only && cloud/bin/sync-bench && tmux new-session -d -s bench \"cloud/bin/remote-run run $args 2>&1 | tee ~/last-run.log\""
 log "Started on loadgen. Follow it: cloud/bin/status (Ctrl-B then D to leave it running)"
