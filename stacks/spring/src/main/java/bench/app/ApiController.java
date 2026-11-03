@@ -18,13 +18,11 @@ public class ApiController {
   private final FeedService feed;
   private final PostService posts;
   private final LikeRepository likes;
-  private final DbLimiter limiter;
 
-  ApiController(FeedService feed, PostService posts, LikeRepository likes, DbLimiter limiter) {
+  ApiController(FeedService feed, PostService posts, LikeRepository likes) {
     this.feed = feed;
     this.posts = posts;
     this.likes = likes;
-    this.limiter = limiter;
   }
 
   // The app only starts once Postgres answers (Application.main), so this means ready.
@@ -46,8 +44,7 @@ public class ApiController {
     if (!PostService.validBody(body)) {
       throw ApiException.badRequest("body must be a string of 1 to " + PostService.MAX_BODY + " characters");
     }
-    // Outside the transaction: a shed request never takes a connection.
-    return ResponseEntity.status(HttpStatus.CREATED).body(limiter.run(() -> posts.create(userId, (String) body)));
+    return ResponseEntity.status(HttpStatus.CREATED).body(posts.create(userId, (String) body));
   }
 
   @PostMapping("/posts/{id}/like")
@@ -56,7 +53,7 @@ public class ApiController {
     long userId = userId(userHeader);
     Long postId = RequestIds.parse(id);
     if (postId == null) throw ApiException.badRequest("post id must be a positive integer");
-    limiter.execute(() -> likes.add(postId, userId));
+    likes.add(postId, userId);
     return ResponseEntity.noContent().build();
   }
 

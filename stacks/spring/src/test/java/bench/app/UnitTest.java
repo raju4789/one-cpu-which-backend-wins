@@ -101,38 +101,4 @@ class UnitTest {
     for (Thread t : threads) t.join();
     assertEquals(1, loads.get());
   }
-
-  @Test
-  void dbLimiterShedsBeyondItsLimitAndFreesPermits() throws Exception {
-    DbLimiter limiter = new DbLimiter(2);
-    CountDownLatch holding = new CountDownLatch(2);
-    CountDownLatch release = new CountDownLatch(1);
-    List<Thread> threads = new ArrayList<>();
-    for (int i = 0; i < 2; i++) {
-      threads.add(Thread.ofVirtual().start(() -> limiter.run(() -> {
-        holding.countDown();
-        try { release.await(); } catch (InterruptedException e) { throw new RuntimeException(e); }
-        return null;
-      })));
-    }
-    holding.await();
-    assertEquals(2, limiter.inFlight());
-    try {
-      limiter.run(() -> "third");
-      throw new AssertionError("expected a 503");
-    } catch (ApiException e) {
-      assertEquals(HttpStatus.SERVICE_UNAVAILABLE, e.status());
-    }
-    release.countDown();
-    for (Thread t : threads) t.join();
-    assertEquals(0, limiter.inFlight());
-    assertEquals("ok", limiter.run(() -> "ok"));
-  }
-
-  @Test
-  void dbLimiterReleasesOnFailure() {
-    DbLimiter limiter = new DbLimiter(1);
-    try { limiter.run(() -> { throw new IllegalStateException("db down"); }); } catch (IllegalStateException expected) { }
-    assertEquals(0, limiter.inFlight());
-  }
 }

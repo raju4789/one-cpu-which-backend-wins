@@ -19,7 +19,7 @@ The untuned version is what `start.spring.io` gives you with Web, Data JPA and A
 
 | Setting | Default | Tuning candidate |
 | --- | --- | --- |
-| Request threads | Tomcat, 200 platform threads | A smaller pool (change 1), then virtual threads with a database limiter (change 6) |
+| Request threads | Tomcat, 200 platform threads | A smaller pool (change 1), virtual threads |
 | Database pool | HikariCP, 10 connections, 30 s wait | Smaller pool, shorter wait |
 | Heap | The JVM's choice: 1/4 of the VM's memory | Sized for the 2 GB box |
 | GC | The JVM's choice for one CPU (Serial GC) | Compared with the alternatives |
@@ -109,4 +109,4 @@ CPU wasn't the limit; memory was, and only once Spring fell behind. Then all 200
 
 **Change 5, as planned:** Bounds what thousands of waiting connections can cost. 500 covers the 20 threads and 300 queued requests with room to spare; beyond that, connections wait in the kernel's accept queue (100) and are then refused. Kept if the app-cache phase no longer crashes and the no-cache phase holds its highest passing step and its recovery.
 
-**Change 6, virtual threads plus Node's database limiter: testing.** Replaces changes 1 and 3 (20 threads, Tomcat's queue cap of 300). With platform threads, a request reaches the app's code only once a thread is free, so the queue sits in Tomcat and, with a connection cap, in Nginx: out of the app's reach, and on 2 GB it ran the box out of memory in the app-cache phase. With virtual threads every request gets its own cheap thread at once and reaches the app, where `DbLimiter` applies Node's rule: at most 10 requests using plus 300 waiting for a database connection, then 503 with `Retry-After: 1`. Feed cache hits never touch the database and are never shed. Shed requests are answered at once, so nothing piles up. Tested as one change because virtual threads alone, without the limiter, would let every waiting request hold memory. Kept if the app-cache phase stops crashing and recovers, and no cache and Nginx cache hold their highest passing steps and recovery.
+**Change 6, virtual threads plus Node's database limiter: dropped, reverted to changes 1 to 3.** Virtual threads replaced the 20-thread pool and Tomcat's queue cap; `DbLimiter` allowed 10 requests using plus 300 waiting for a connection, then 503, like Node. It made memory worse, not better. App cache (`20261102-202415-quick`): failed one step earlier (4,082 sessions/s, 1.2% errors) and crashed out of memory in the overload test. Nginx cache (`20261102-205924-quick`): passed 4,400 sessions/s at 90% CPU, then crashed at 4,752, a rate the change-3 setup passed. The no-cache run was invalid (k6 couldn't open connections on the Mac, not the stack). With virtual threads every request starts work at once, so under overload far more requests are in flight in the JVM at the same time than with 20 threads, and the limiter only counts the database part.

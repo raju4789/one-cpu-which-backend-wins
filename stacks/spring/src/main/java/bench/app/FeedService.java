@@ -17,14 +17,11 @@ public class FeedService {
   private final JsonMapper json;
   private final FeedCache cache; // null when FEED_CACHE=off
 
-  private final DbLimiter limiter;
-
-  FeedService(PostRepository posts, JsonMapper json, AppMetrics metrics, DbLimiter limiter,
+  FeedService(PostRepository posts, JsonMapper json, AppMetrics metrics,
               @Value("${FEED_CACHE:off}") String feedCache,
               @Value("${FEED_CACHE_TTL_MS:1000}") long ttlMs) {
     this.posts = posts;
     this.json = json;
-    this.limiter = limiter;
     this.cache = "app".equals(feedCache)
         ? new FeedCache(TimeUnit.MILLISECONDS.toNanos(ttlMs), System::nanoTime, metrics::feedCacheLookup, this::build)
         : null;
@@ -40,7 +37,7 @@ public class FeedService {
   }
 
   private String build() {
-    var feed = new Json.Feed(limiter.run(() -> posts.feed(Limit.of(FEED_SIZE))).stream().map(Json.PostView::of).toList());
+    var feed = new Json.Feed(posts.feed(Limit.of(FEED_SIZE)).stream().map(Json.PostView::of).toList());
     return json.writeValueAsString(feed);
   }
 }
