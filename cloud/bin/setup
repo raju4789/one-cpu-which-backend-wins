@@ -44,6 +44,7 @@ docker context rm -f colima-bench >/dev/null 2>&1 || true
 docker context create colima-bench --docker host=ssh://root@$bench_priv >/dev/null
 docker --context colima-bench info </dev/null --format 'bench Docker {{.ServerVersion}}, {{.NCPU}} CPU, {{.MemTotal}} bytes'
 printf 'BASE_URL=http://%s:8080\nPROM_URL=http://127.0.0.1:9090\nBENCH_PRIVATE_IP=%s\n' $bench_priv $bench_priv > ~/cloud.env
+cd $REMOTE_REPO && cloud/bin/sync-bench --fresh
 SH
 
 log "loadgen: Prometheus and Grafana"

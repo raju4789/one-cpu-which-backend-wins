@@ -67,6 +67,7 @@ A 12-hour batch costs about $2. Check current prices on DigitalOcean's pricing p
 | `bin/create`, `bin/destroy` | Mac | Create or delete both droplets and their firewall |
 | `bin/setup` | Mac | Connects loadgen to the bench droplet, clones the repo, starts monitoring |
 | `bin/start`, `bin/start-batch`, `bin/status`, `bin/tunnel`, `bin/collect` | Mac | Start, follow, view and fetch runs |
+| `bin/sync-bench` | loadgen | Keeps a copy of the repo on the bench droplet at the same path and commit: the harness's compose file mounts repo files, and Docker looks for them on the machine running the containers |
 | `bin/remote-run`, `bin/monitoring-up` | loadgen | Call the harness with the cloud addresses; start Prometheus and Grafana |
 | `init/bench.sh`, `init/loadgen.sh` | droplets, at creation | Install Docker, k6 and the kernel settings |
 | `monitoring/` | loadgen | The Prometheus config aimed at the bench droplet |

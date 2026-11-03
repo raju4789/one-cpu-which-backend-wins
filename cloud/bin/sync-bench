@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Runs ON loadgen. Puts the bench droplet's copy of the repo at the same path
+# and the same commit as loadgen's.
+#
+# Why: harness/compose.yaml bind-mounts repo files (postgresql.conf, the seed,
+# the schema, nginx.conf). Docker resolves those paths on the machine that runs
+# the containers. On the Mac, Colima shares the Mac's files with the VM, so they
+# exist there; a droplet has no such sharing, so it needs its own copy at the
+# same path. A missing path is silently created as an empty folder, which is
+# what made Postgres fail with "configuration file contains errors".
+#   cloud/bin/sync-bench [--fresh]   --fresh: also drop bench containers and the
+#                                    database volume, so the seed runs again
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+. ~/cloud.env
+repo="$(pwd)"
+commit="$(git rev-parse HEAD)"
+url="$(git remote get-url origin)"
+fresh="${1:-}"
+ssh -n -o BatchMode=yes "root@$BENCH_PRIVATE_IP" "set -e
+  if [ -e '$repo' ] && [ ! -d '$repo/.git' ]; then rm -rf '$repo'; fi
+  [ -d '$repo' ] || git clone -q '$url' '$repo'
+  cd '$repo' && git fetch -q origin && git checkout -q --force '$commit'"
+if [ "$fresh" = "--fresh" ]; then
+  docker --context colima-bench compose -p bench down --remove-orphans --volumes </dev/null >/dev/null 2>&1 || true
+  docker --context colima-bench volume rm -f bench_pgdata </dev/null >/dev/null 2>&1 || true
+fi
+echo "bench repo at $(git rev-parse --short HEAD)"
