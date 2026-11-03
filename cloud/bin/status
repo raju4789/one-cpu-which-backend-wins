@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Attaches to the running run or batch on loadgen; if none is running, shows
+# the end of the last one's output. Ctrl-B then D detaches and leaves it running.
+source "$(dirname "$0")/common.sh"
+ssh -t "${SSH_OPTS[@]}" "root@$(loadgen_ip)" \
+  'tmux attach -t bench 2>/dev/null || { echo "Nothing running. End of the last run:"; tail -40 ~/last-run.log 2>/dev/null; }'

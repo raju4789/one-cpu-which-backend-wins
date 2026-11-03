@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Deletes both droplets and the firewall, so nothing keeps billing.
+# Run cloud/bin/collect first: anything left on loadgen is gone after this.
+#   cloud/bin/destroy
+source "$(dirname "$0")/common.sh"
+read -r -p "Delete $BENCH_NAME and $LOADGEN_NAME? Did you run cloud/bin/collect? [y/N] " ok
+[ "$ok" = "y" ] || fail "nothing deleted"
+doctl compute droplet delete --force --tag-name "$TAG" || true
+fw="$(doctl compute firewall list -o json | jq -r --arg n "$TAG" '.[] | select(.name == $n) | .id')"
+[ -z "$fw" ] || doctl compute firewall delete --force "$fw"
+log "Deleted. Check nothing is left: doctl compute droplet list"

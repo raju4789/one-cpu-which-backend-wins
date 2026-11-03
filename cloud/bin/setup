@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Prepares loadgen to drive the bench droplet, so harness/bin/run works unchanged:
+#   1. waits for both droplets to finish installing
+#   2. clones this repo on loadgen at the branch you're on (push it first)
+#   3. gives loadgen an SSH key the bench droplet accepts, and a Docker context
+#      named colima-bench pointing at it: the name harness/bin/common.sh uses
+#   4. starts Prometheus and Grafana on loadgen, scraping the bench droplet
+#   cloud/bin/setup
+source "$(dirname "$0")/common.sh"
+
+bench_pub="$(droplet_ip "$BENCH_NAME" public)"; bench_priv="$(droplet_ip "$BENCH_NAME" private)"
+lg="$(loadgen_ip)"
+[ -n "$bench_pub" ] && [ -n "$bench_priv" ] || fail "no $BENCH_NAME droplet: run cloud/bin/create"
+branch="$(git -C "$REPO_DIR" rev-parse --abbrev-ref HEAD)"
+git -C "$REPO_DIR" fetch -q origin "$branch" 2>/dev/null || true
+[ "$(git -C "$REPO_DIR" rev-parse HEAD)" = "$(git -C "$REPO_DIR" rev-parse "origin/$branch" 2>/dev/null)" ] ||
+  fail "push $branch first (git push origin $branch --tags): loadgen clones it from GitHub"
+
+for host in "$bench_pub" "$lg"; do
+  log "Waiting for $host to finish installing"
+  for _ in $(seq 1 120); do
+    ssh "${SSH_OPTS[@]}" -o ConnectTimeout=5 "root@$host" test -f /root/cloud-init-done 2>/dev/null && break
+    sleep 5
+  done
+  ssh "${SSH_OPTS[@]}" "root@$host" test -f /root/cloud-init-done ||
+    fail "$host didn't finish installing in 10 minutes; see /var/log/cloud-init-output.log on it"
+done
+
+log "loadgen: SSH key for the bench droplet"
+pub="$(on_loadgen 'test -f ~/.ssh/id_ed25519 || ssh-keygen -q -t ed25519 -N "" -f ~/.ssh/id_ed25519; cat ~/.ssh/id_ed25519.pub')"
+ssh "${SSH_OPTS[@]}" "root@$bench_pub" "grep -qxF '$pub' ~/.ssh/authorized_keys || echo '$pub' >> ~/.ssh/authorized_keys"
+
+log "loadgen: clone $branch, Docker context colima-bench -> $bench_priv"
+on_loadgen bash -s <<SH
+set -euo pipefail
+printf 'Host %s\n  StrictHostKeyChecking accept-new\n' "$bench_priv" > ~/.ssh/config
+ssh -o BatchMode=yes root@$bench_priv true
+[ -d $REMOTE_REPO ] || git clone -q --branch $branch $REPO_URL $REMOTE_REPO
+cd $REMOTE_REPO && git fetch -q --tags origin && git checkout -q $branch && git pull -q --ff-only
+git rev-parse HEAD > ~/cloud-start-commit
+git config user.name raju4789 && git config user.email narasimha4789@gmail.com
+docker context rm -f colima-bench >/dev/null 2>&1 || true
+docker context create colima-bench --docker host=ssh://root@$bench_priv >/dev/null
+docker --context colima-bench info --format 'bench Docker {{.ServerVersion}}, {{.NCPU}} CPU, {{.MemTotal}} bytes'
+printf 'BASE_URL=http://%s:8080\nPROM_URL=http://127.0.0.1:9090\nBENCH_PRIVATE_IP=%s\n' $bench_priv $bench_priv > ~/cloud.env
+SH
+
+log "loadgen: Prometheus and Grafana"
+on_loadgen "cd $REMOTE_REPO && cloud/bin/monitoring-up"
+log "Ready. Next: cloud/bin/start <stack> <phase> [run options], or cloud/bin/start-batch <plan>"
+log "Grafana: cloud/bin/tunnel, then http://localhost:3000"

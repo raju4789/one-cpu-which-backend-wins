@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Copies every result made on loadgen since cloud/bin/setup into results-cloud/
+# on the Mac, keeping the same layout (results-cloud/spring/none/<stamp>/...).
+# Cloud results are a separate dataset: a shared x86 vCPU, not the Mac's VM.
+# Never compare a cloud number with a Mac number.
+#   cloud/bin/collect
+source "$(dirname "$0")/common.sh"
+dest="$REPO_DIR/results-cloud"
+mkdir -p "$dest"
+on_loadgen "cd $REMOTE_REPO && { git diff --name-only \$(cat ~/cloud-start-commit) HEAD -- results; git ls-files --others --exclude-standard results; } | sort -u | sed 's|^results/||' > ~/collect.list
+  [ -s ~/collect.list ] || { echo 'ERROR: no new results on loadgen' >&2; exit 1; }
+  tar -C results -czf - -T ~/collect.list" | tar -C "$dest" -xzf -
+log "Copied into results-cloud/: $(on_loadgen 'wc -l < ~/collect.list') files. Commit them when you've checked them"

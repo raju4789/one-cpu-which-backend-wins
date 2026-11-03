@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Runs ON loadgen. harness/bin/run or harness/bin/batch, unchanged, with the
+# bench droplet's address and loadgen's Prometheus (set by cloud/bin/setup).
+#   cloud/bin/remote-run run <stack> <phase> [options]
+#   cloud/bin/remote-run batch <plan> [options]
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+set -a; . ~/cloud.env; set +a
+ulimit -n 1000000
+what="$1"; shift
+case "$what" in
+  run|batch) exec "harness/bin/$what" "$@" ;;
+  *) echo "usage: cloud/bin/remote-run run|batch ..." >&2; exit 2 ;;
+esac

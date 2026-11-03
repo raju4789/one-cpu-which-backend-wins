@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Runs ON loadgen (cloud/bin/setup calls it). Starts the harness's own
+# monitoring compose file, with cloud/monitoring/prometheus.yml swapped in:
+# same jobs, aimed at the bench droplet instead of Colima's forwarded ports.
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+. ~/cloud.env
+sed "s/BENCH_PRIVATE_IP/$BENCH_PRIVATE_IP/g" cloud/monitoring/prometheus.yml > ~/prometheus.yml
+CLOUD_PROMETHEUS_YML=~/prometheus.yml docker compose \
+  -f harness/monitoring/compose.yaml -f cloud/monitoring/compose.yaml up -d --force-recreate
+for _ in $(seq 1 30); do curl -fsS -o /dev/null http://127.0.0.1:9090/-/ready && exit 0; sleep 1; done
+echo "ERROR: Prometheus did not start" >&2; exit 1

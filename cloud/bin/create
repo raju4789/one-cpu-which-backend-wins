@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Creates the two droplets in one region, on its private network, behind a
+# firewall that only lets SSH in from outside. Billing starts now: run
+# cloud/bin/destroy when you're done.
+#   cloud/bin/create
+source "$(dirname "$0")/common.sh"
+
+keys="$(doctl compute ssh-key list --format ID --no-header | paste -sd, -)"
+[ -n "$keys" ] || fail "no SSH key in your DigitalOcean account: add ~/.ssh/id_ed25519.pub (cloud/README.md)"
+for name in "$BENCH_NAME" "$LOADGEN_NAME"; do
+  [ -z "$(droplet_ip "$name" public)" ] || fail "$name already exists: use it, or run cloud/bin/destroy first"
+done
+
+log "Creating $BENCH_NAME ($BENCH_SIZE) and $LOADGEN_NAME ($LOADGEN_SIZE) in $REGION"
+doctl compute droplet create "$BENCH_NAME" --region "$REGION" --size "$BENCH_SIZE" --image "$IMAGE" \
+  --ssh-keys "$keys" --tag-name "$TAG" --user-data-file "$CLOUD_DIR/init/bench.sh" --wait >/dev/null
+doctl compute droplet create "$LOADGEN_NAME" --region "$REGION" --size "$LOADGEN_SIZE" --image "$IMAGE" \
+  --ssh-keys "$keys" --tag-name "$TAG" --user-data-file "$CLOUD_DIR/init/loadgen.sh" --wait >/dev/null
+
+if ! doctl compute firewall list -o json | jq -e --arg n "$TAG" '.[] | select(.name == $n)' >/dev/null; then
+  log "Firewall: SSH from anywhere (keys only), everything between the two droplets"
+  doctl compute firewall create --name "$TAG" --tag-names "$TAG" \
+    --inbound-rules "protocol:tcp,ports:22,address:0.0.0.0/0,address:::/0 protocol:tcp,ports:all,tag:$TAG protocol:udp,ports:all,tag:$TAG protocol:icmp,tag:$TAG" \
+    --outbound-rules "protocol:tcp,ports:all,address:0.0.0.0/0,address:::/0 protocol:udp,ports:all,address:0.0.0.0/0,address:::/0 protocol:icmp,address:0.0.0.0/0,address:::/0" >/dev/null
+fi
+
+log "bench:   public $(droplet_ip "$BENCH_NAME" public), private $(droplet_ip "$BENCH_NAME" private)"
+log "loadgen: public $(droplet_ip "$LOADGEN_NAME" public), private $(droplet_ip "$LOADGEN_NAME" private)"
+log "Both are installing Docker and tools (about 3 minutes). Next: cloud/bin/setup"

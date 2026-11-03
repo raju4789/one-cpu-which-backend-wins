@@ -1,0 +1,6 @@
+# Overrides harness/monitoring/compose.yaml on loadgen: only the Prometheus
+# config changes (cloud/monitoring/prometheus.yml, rendered by monitoring-up).
+services:
+  prometheus:
+    volumes:
+      - ${CLOUD_PROMETHEUS_YML}:/etc/prometheus/prometheus.yml:ro
