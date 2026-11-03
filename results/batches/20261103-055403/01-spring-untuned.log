@@ -1,0 +1,134 @@
+==> Run spring-none-20261103-055403, results in results/spring/none/20261103-055403
+==> Stopping anything already running
+==> Starting Postgres
+ Network bench_default  Creating
+ Network bench_default  Created
+ Container bench-postgres-1  Creating
+ Container bench-postgres-1  Created
+ Container bench-postgres-1  Starting
+ Container bench-postgres-1  Started
+==> Waiting for the seed (the first run on a new VM takes a few minutes)
+==> Resetting database from app_template
+==> Starting spring (phase: none, FEED_CACHE=off, nginx: proxy)
+#1 [internal] load local bake definitions
+#1 reading from stdin 654B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 1.87kB done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/eclipse-temurin:25-jre@sha256:ecdc0adb37bde1a281c4d245a3cd535004b1fc8322d560f5b09463b248c81df0
+#3 DONE 0.0s
+
+#4 [internal] load metadata for docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#4 DONE 0.0s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 61B done
+#5 DONE 0.0s
+
+#6 [build 1/6] FROM docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#6 DONE 0.0s
+
+#7 [stage-1 1/7] FROM docker.io/library/eclipse-temurin:25-jre@sha256:ecdc0adb37bde1a281c4d245a3cd535004b1fc8322d560f5b09463b248c81df0
+#7 DONE 0.0s
+
+#8 [internal] load build context
+#8 transferring context: 36.33kB done
+#8 DONE 0.0s
+
+#9 [build 2/6] WORKDIR /build
+#9 CACHED
+
+#10 [build 3/6] COPY pom.xml .
+#10 DONE 0.0s
+
+#11 [build 4/6] RUN mvn -B -q dependency:go-offline
+#11 0.749 WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+#11 0.749 WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/usr/share/maven/lib/guice-5.1.0-classes.jar)
+#11 0.749 WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+#11 0.749 WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+#11 DONE 35.2s
+
+#12 [build 5/6] COPY src src
+#12 DONE 0.0s
+
+#13 [build 6/6] RUN mvn -B -q package  && java -Djarmode=tools -jar target/app.jar extract --layers --launcher --destination /extracted
+#13 0.611 WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+#13 0.611 WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/usr/share/maven/lib/guice-5.1.0-classes.jar)
+#13 0.611 WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+#13 0.611 WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+#13 DONE 5.0s
+
+#14 resolving provenance for metadata file
+#14 DONE 0.0s
+
+#15 [stage-1 2/7] WORKDIR /app
+#15 CACHED
+
+#16 [stage-1 3/7] RUN groupadd --system --gid 1001 spring  && useradd spring --system --uid 1001 --gid 1001 --no-create-home --shell /usr/sbin/nologin
+#16 CACHED
+
+#17 [stage-1 4/7] COPY --from=build /extracted/dependencies/ ./
+#17 CACHED
+
+#18 [stage-1 5/7] COPY --from=build /extracted/spring-boot-loader/ ./
+#18 CACHED
+
+#19 [stage-1 6/7] COPY --from=build /extracted/snapshot-dependencies/ ./
+#19 CACHED
+
+#20 [stage-1 7/7] COPY --from=build /extracted/application/ ./
+#20 CACHED
+
+#21 exporting to image
+#21 exporting layers done
+#21 writing image sha256:ef998a4a4dd8ef2c8663dad7d8781a0069d2c095f2c0e582e13c870b94adaa0c done
+#21 naming to docker.io/one-cpu/spring:local done
+#21 DONE 0.0s
+ one-cpu/spring:local  Built
+ Container bench-cadvisor-1  Creating
+ Container bench-postgres-1  Running
+ Container bench-app-1  Creating
+ Container bench-postgres-exporter-1  Creating
+ Container bench-postgres-exporter-1  Created
+ Container bench-cadvisor-1  Created
+ Container bench-app-1  Created
+ Container bench-nginx-1  Creating
+ Container bench-nginx-1  Created
+ Container bench-nginx-exporter-1  Creating
+ Container bench-nginx-exporter-1  Created
+ Container bench-postgres-exporter-1  Starting
+ Container bench-app-1  Starting
+ Container bench-cadvisor-1  Starting
+ Container bench-postgres-exporter-1  Started
+ Container bench-app-1  Started
+ Container bench-nginx-1  Starting
+ Container bench-cadvisor-1  Started
+ Container bench-nginx-1  Started
+ Container bench-nginx-exporter-1  Starting
+ Container bench-nginx-exporter-1  Started
+==> Waiting for http://192.168.64.3:8080/health
+==> Ready: spring, phase none
+==> Contract test
+==> Idle baseline (30 s)
+==> calibration_seconds=5.54   (runs: 5.50 5.54 5.56)
+==> Warm-up: 20 sessions/s for 120 s
+==>   28 req/s, p95 16 ms, p99 23 ms, errors 0.00%
+==> ramp-coarse: 19 steps of 60 s, rates 10, 15, 22, 34, 51, 76, 114, 171, 256, 384, 577, 865, 1297, 1946, 2919, 4379, 6568, 9853, 14779 sessions/s
+==>   step 1/19 @ 10 sessions/s: 14 req/s, p95 11 ms, p99 15 ms, errors 0.00%, server CPU 12% -> PASS
+==>   step 2/19 @ 15 sessions/s: 21 req/s, p95 11 ms, p99 14 ms, errors 0.00%, server CPU 15% -> PASS
+==>   step 3/19 @ 22 sessions/s: 30 req/s, p95 9 ms, p99 14 ms, errors 0.00%, server CPU 17% -> PASS
+==>   step 4/19 @ 34 sessions/s: 47 req/s, p95 8 ms, p99 13 ms, errors 0.00%, server CPU 21% -> PASS
+==>   step 5/19 @ 51 sessions/s: 71 req/s, p95 8 ms, p99 12 ms, errors 0.00%, server CPU 27% -> PASS
+==>   step 6/19 @ 76 sessions/s: 107 req/s, p95 7 ms, p99 11 ms, errors 0.00%, server CPU 34% -> PASS
+==>   step 7/19 @ 114 sessions/s: 159 req/s, p95 8 ms, p99 12 ms, errors 0.00%, server CPU 47% -> PASS
+==>   step 8/19 @ 171 sessions/s: 239 req/s, p95 7 ms, p99 10 ms, errors 0.00%, server CPU 52% -> PASS
+==>   step 9/19 @ 256 sessions/s: 358 req/s, p95 6 ms, p99 8 ms, errors 0.00%, server CPU 54% -> PASS
+==>   step 10/19 @ 384 sessions/s: 538 req/s, p95 5 ms, p99 8 ms, errors 0.00%, server CPU 54% -> PASS
+==>   step 11/19 @ 577 sessions/s: 807 req/s, p95 3 ms, p99 5 ms, errors 0.00%, server CPU 61% -> PASS
+==>   step 12/19 @ 865 sessions/s: 1209 req/s, p95 2 ms, p99 6 ms, errors 0.00%, server CPU 58% -> PASS
+==>   step 13/19 @ 1297 sessions/s: 1816 req/s, p95 2 ms, p99 25 ms, errors 0.00%, server CPU 67% -> PASS
+==> RESULT spring / none: app crashed at 1946 sessions/s (ramp-coarse step 14): container exited, killed by the out-of-memory killer, stopped at 2026-11-03T05:11:15.304207468Z
+==> Saved results/spring/none/20261103-055403. Let the Mac cool down 5 minutes before the next run.

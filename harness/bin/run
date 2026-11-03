@@ -81,6 +81,13 @@ def fail(msg):
 
 # ---------------------------------------------------------------- Prometheus
 
+class AppCrashed(Exception):
+    """The app died or stopped answering. A real result about the stack, not an invalid run."""
+    def __init__(self, info):
+        super().__init__(info["text"])
+        self.info = info
+
+
 class RunInvalid(Exception):
     """Something outside the stack broke, so the numbers can't be trusted."""
 
@@ -415,6 +422,56 @@ class Ctx:
     pass
 
 
+# ---------------------------------------------------------------- is the app still alive?
+
+APP_CONTAINER = "bench-app-1"
+HEALTH_TIMEOUT = 5
+
+
+def app_container_state():
+    """Docker's view of the app container: status, exit code, OOM-killed flag, when it stopped."""
+    out = subprocess.run(
+        ["bash", "-c", 'source "$1/bin/common.sh"; bench inspect -f '
+         '"{{.State.Status}} {{.State.ExitCode}} {{.State.OOMKilled}} {{.State.FinishedAt}}" "$2"',
+         "_", HARNESS, APP_CONTAINER], capture_output=True, text=True)
+    parts = out.stdout.split()
+    if out.returncode != 0 or len(parts) < 4:
+        return {"status": "missing", "exit_code": None, "oom_killed": None, "finished_at": None}
+    return {"status": parts[0], "exit_code": int(parts[1]), "oom_killed": parts[2] == "true",
+            "finished_at": parts[3]}
+
+
+def health_ok(ctx):
+    try:
+        with urllib.request.urlopen(ctx.base_url + "/health", timeout=HEALTH_TIMEOUT) as r:
+            return r.status == 200
+    except (urllib.error.URLError, OSError, ValueError):
+        return False
+
+
+def check_app(ctx, health):
+    """Stops the run if the app container died, or (health=True) no longer answers /health.
+
+    After a step only the container is checked: an overloaded but alive app may be too slow
+    for /health right then. After a cool-down it must answer within HEALTH_TIMEOUT seconds.
+    """
+    state = app_container_state()
+    if state["status"] != "running":
+        why = "killed by the out-of-memory killer" if state["oom_killed"] else f"exit code {state['exit_code']}"
+        text = (f"app crashed at {ctx.load}: container {state['status']}, {why}"
+                + (f", stopped at {state['finished_at']}" if state["finished_at"] else ""))
+        raise AppCrashed(dict(state, load=ctx.load, responding=False, text=text))
+    if health and not health_ok(ctx):
+        text = (f"app stopped answering after {ctx.load}: container still running, but /health gave "
+                f"no answer within {HEALTH_TIMEOUT} s after the {COOLDOWN} s cool-down")
+        raise AppCrashed(dict(state, load=ctx.load, responding=False, text=text))
+
+
+def cooldown(ctx):
+    time.sleep(COOLDOWN)
+    check_app(ctx, health=True)
+
+
 def sh(ctx, *cmd, capture=False):
     env = os.environ.copy()
     env["BASE_URL"] = ctx.base_url
@@ -458,6 +515,9 @@ def _ramp_steps(ctx, prom, rates, test, run, start, steps):
         dropped_ratio = dropped / (r["sessions"] + dropped) if (r["sessions"] + dropped) else 0.0
         r.update({"rate": rate, "dropped_sessions": int(dropped), "server": server_metrics(prom, t0, t1)})
         steps.append(r)
+        # Before the validity checks: a dead app must not be mistaken for an invalid run.
+        ctx.load = f"{rate} sessions/s ({test} step {i + 1})"
+        check_app(ctx, health=False)
         check_run(ctx, run, r, t0 - SETTLE_SECONDS, t1)
         check_mac_memory(ctx, prom, r, t1)
         r["fail_reasons"] = verdict(r, dropped_ratio)
@@ -575,6 +635,7 @@ def main():
     log(f"Run {ctx.run_id}, results in {os.path.relpath(ctx.out, REPO)}")
     check_mac_ports(ctx.max_vus)
     ctx.result = result
+    ctx.load = "the warm-up"
     ctx.run_started = time.time()
     try:
         ctx.mac_compressed_start = mac_compressed_gb(prom) if sys.platform == "darwin" else None
@@ -589,6 +650,10 @@ def main():
     try:
         confirmed = protocol(args, ctx, prom, result, bin_dir)
         data_check(ctx, result)
+    except AppCrashed as e:
+        # Not invalid: the stack itself failed. Keep what was measured before the crash.
+        result["crash"] = e.info
+        confirmed = result.get("result")
     except (RunInvalid, KeyboardInterrupt) as e:
         result["status"] = "aborted"
         result["abort_reason"] = str(e) or type(e).__name__
@@ -597,7 +662,11 @@ def main():
              f"Partial results are in {os.path.relpath(ctx.out, REPO)}. They are not a valid result: rerun.")
     result["status"] = "complete"
     save(ctx, result)
-    if args.quick:
+    if result.get("crash"):
+        log(f"RESULT {args.stack} / {args.phase}: {result['crash']['text']}")
+        if confirmed:
+            log(f"  measured before the crash: {confirmed['rps']:.0f} req/s ({confirmed['rate']} sessions/s)")
+    elif args.quick:
         log(f"QUICK RESULT {args.stack} / {args.phase}: highest passing 1-minute step "
             f"{confirmed['rps']:.0f} req/s ({confirmed['rate']} sessions/s), p95 {confirmed['p95_s'] * 1000:.0f} ms, "
             f"p99 {confirmed['p99_s'] * 1000:.0f} ms. For tuning only: not comparable with full results")
@@ -676,7 +745,7 @@ def protocol(args, ctx, prom, result, bin_dir):
                              if best < round(best * f) < failed_at})
         if fine_rates:
             log(f"Cool-down {COOLDOWN} s before the fine ramp")
-            time.sleep(COOLDOWN)
+            cooldown(ctx)
             fine = ramp(ctx, prom, fine_rates, "ramp-fine", result["ramp"]["fine"])
             passing += [s for s in fine if s["passed"]]
     else:
@@ -688,7 +757,8 @@ def protocol(args, ctx, prom, result, bin_dir):
     for rate in candidates:
         log(f"Cool-down {COOLDOWN} s, then confirm {rate} sessions/s for {args.confirm_seconds} s "
         f"after a {RAMP_SECONDS} s ramp-up")
-        time.sleep(COOLDOWN)
+        cooldown(ctx)
+        ctx.load = f"{rate} sessions/s (confirm)"
         c, (t0, t1) = constant(ctx, f"confirm-{rate}", rate, args.confirm_seconds, 30, RAMP_SECONDS, prom)
         dropped_ratio = c["dropped_sessions_whole_run"] / max(1, c["sessions"] + c["dropped_sessions_whole_run"])
         c["fail_reasons"] = verdict(c, dropped_ratio)
@@ -698,6 +768,7 @@ def protocol(args, ctx, prom, result, bin_dir):
         outcome = "CONFIRMED" if not c["fail_reasons"] else "FAIL (" + ", ".join(c["fail_reasons"]) + ")"
         log(f"  {fmt(c)} -> {outcome}")
         result.setdefault("confirm_attempts", []).append(c)
+        check_app(ctx, health=False)
         if not c["fail_reasons"]:
             confirmed = c
             break
@@ -721,7 +792,8 @@ def overload(ctx, prom, result, rate, recover_pct=100):
     if recover_pct != 100:
         warn(result, f"overload recovery tested at {recover_pct}% of the rate ({recover_rate} sessions/s), not at "
                      "the rate itself: a diagnostic, not comparable with normal overload results")
-    time.sleep(COOLDOWN)
+    cooldown(ctx)
+    ctx.load = f"{rate} sessions/s x1.5 (overload)"
     summary = os.path.join(ctx.out, "k6-overload-summary.json")
     run = K6Run(ctx, os.path.join(K6_DIR, "load.js"), "overload",
                 {"MODE": "overload", "RATE": rate, "RECOVER_RATE": recover_rate, "RAMP_SECONDS": RAMP_SECONDS},
@@ -730,6 +802,7 @@ def overload(ctx, prom, result, rate, recover_pct=100):
     run.wait()
     t_end = time.time()
     ctx.result.setdefault("k6_process", {})["overload"] = run.usage()
+    check_app(ctx, health=False)
     over = summary_numbers(summary, "over", OVERLOAD_SECONDS - SETTLE_SECONDS)
     rec = summary_numbers(summary, "recover", OVERLOAD_SECONDS - SETTLE_SECONDS)
     t_over = run.start + RAMP_SECONDS
@@ -1039,6 +1112,10 @@ def write_summary(ctx, res):
         lines += [f"**Aborted, not a valid result:** {res['abort_reason']}", ""]
     for w in res.get("warnings", []):
         lines += [f"**Warning:** {w}", ""]
+    if res.get("crash"):
+        t = res["crash"]["text"]
+        lines += ["## The app crashed", "", t[0].upper() + t[1:] + ".",
+                  "", "The run stopped there. Anything below was measured before the crash.", ""]
     c = res.get("result")
     if c:
         lines += ["## Result", "",

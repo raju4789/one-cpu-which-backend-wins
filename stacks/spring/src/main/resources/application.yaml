@@ -1,0 +1,69 @@
+# Spring Boot's defaults, unless there's a reason. This is the untuned
+# baseline: thread pool, connection pool, heap and GC are all left at their
+# defaults; tuning changes them one at a time (README, tuning log).
+
+spring:
+  main:
+    banner-mode: off
+  jpa:
+    hibernate:
+      ddl-auto: none        # the shared schema (contract/schema.sql) is never changed
+    # open-in-view stays at Spring's default (true). Turning it off was tried
+    # and dropped (README, tuning log, change 4): no measurable difference.
+  datasource:
+    hikari:
+      pool-name: app
+      # A query running longer than this is cancelled by Postgres instead of
+      # holding a connection. Same 5 s as the other stacks.
+      connection-init-sql: SET statement_timeout = 5000
+      # Other Hikari settings at their defaults: 10 connections, 30 s wait.
+  web:
+    resources:
+      add-mappings: false   # no static files; unknown paths are a JSON 404
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful        # on SIGTERM: stop accepting, finish in-flight requests
+  tomcat:
+    # Longer than Nginx keeps idle upstream connections (60 s), so Tomcat never
+    # closes a connection Nginx is about to reuse (that race shows up as 502s).
+    keep-alive-timeout: 75s
+    # Tomcat closes a keep-alive connection after 100 requests by default.
+    # Puma and Node don't, so Nginx would reconnect to Spring alone: unlimited.
+    max-keep-alive-requests: -1
+    mbeanregistry:
+      enabled: true         # Tomcat thread pool metrics (tomcat_threads_*)
+    threads:
+      # Tuning change 1: 20 threads instead of 200, twice the database pool.
+      # With 200, overload put all 200 threads to work at once, each waiting for
+      # one of 10 connections and holding its memory: Java grew from 381 to
+      # 632 MB and Linux killed it (README, tuning log). Requests beyond 20 wait
+      # in Tomcat's connection queue, which costs kilobytes, not a thread.
+      max: 20
+      # Tuning change 3, load shedding: at most 300 requests wait for one of the
+      # 20 threads; Tomcat refuses the next one at once instead of queuing it.
+      # Unbounded, overload built a queue that took minutes to drain after the
+      # load dropped (README, tuning log). Tomcat closes a refused connection,
+      # so the client sees a 502 from Nginx rather than a 503.
+      max-queue-capacity: 300
+    # Accept count and max connections at their defaults (100, 8192). Capping
+    # connections at 500 was tried and dropped (README, tuning log, change 5).
+
+# Metrics on a separate port (9464), so scraping never competes with API
+# traffic for a place in Nginx, a Tomcat thread or the API's routes.
+management:
+  server:
+    port: ${METRICS_PORT:9464}
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: prometheus
+      path-mapping:
+        prometheus: metrics
+
+# Warnings and errors only, the same rule for every stack: Nginx keeps the
+# access log. BootLog logs one line at startup. LOG_LEVEL=info shows more.
+logging:
+  level:
+    root: ${LOG_LEVEL:warn}

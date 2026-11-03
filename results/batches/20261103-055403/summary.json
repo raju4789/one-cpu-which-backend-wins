@@ -1,0 +1,796 @@
+{
+  "plan": {
+    "repeat": 3,
+    "cooldown": 600,
+    "configs": [
+      {
+        "label": "spring-untuned",
+        "ref": "spring-untuned",
+        "stack": "spring",
+        "phase": "none",
+        "extra": [],
+        "commit": "b58c287e3f31470c64ff993ab058f33107b67849"
+      },
+      {
+        "label": "spring-tuned",
+        "ref": "spring-tuned",
+        "stack": "spring",
+        "phase": "none",
+        "extra": [],
+        "commit": "17b0155dd557a600f247a22ecad74a29357e1e7f"
+      },
+      {
+        "label": "spring-tuned-app",
+        "ref": "spring-tuned",
+        "stack": "spring",
+        "phase": "app",
+        "extra": [
+          "--max-vus",
+          "30000"
+        ],
+        "commit": "17b0155dd557a600f247a22ecad74a29357e1e7f"
+      },
+      {
+        "label": "spring-tuned-nginx",
+        "ref": "spring-tuned",
+        "stack": "spring",
+        "phase": "nginx",
+        "extra": [
+          "--max-vus",
+          "30000"
+        ],
+        "commit": "17b0155dd557a600f247a22ecad74a29357e1e7f"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "label": "spring-untuned",
+      "ref": "spring-untuned",
+      "commit": "b58c287e3f",
+      "exit_code": 0,
+      "minutes": 18.0,
+      "results": "results/spring/none/20261103-055403",
+      "status": "complete",
+      "rps": null,
+      "rate": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "calibration_s": 5.54,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "-",
+          "limit": "< 70%",
+          "ok": null
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "-",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.54 s (+0.9% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 17b0155dd5, stack b58c287e3f (spring-untuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 38.6,
+      "results": "results/spring/none/20261103-062202",
+      "status": "complete",
+      "rps": 2363,
+      "rate": 1686,
+      "p95_ms": 49,
+      "p99_ms": 78,
+      "calibration_s": 5.46,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "17%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.96 cores, 3702 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.46 s (-0.5% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "761,795 vs 761,795 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "696,666 vs 696,666 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "154,922 posts stored for 154,895 acknowledged, 437,257 likes for 437,230",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 17b0155dd5, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned-app",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 19.4,
+      "results": "results/spring/app/20261103-071040",
+      "status": "complete",
+      "rps": null,
+      "rate": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "calibration_s": 5.5,
+      "warnings": [
+        "the Mac compressed 2.2 GB more memory during the run: it was short of memory, so k6 may have slowed itself down. Lower --max-vus or close other apps, and don't trust latencies from this point on"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "-",
+          "limit": "< 70%",
+          "ok": null
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "-",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.50 s (+0.2% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 17b0155dd5, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned-nginx",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 19.4,
+      "results": "results/spring/nginx/20261103-074003",
+      "status": "complete",
+      "rps": null,
+      "rate": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "calibration_s": 5.47,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "-",
+          "limit": "< 70%",
+          "ok": null
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "-",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.47 s (-0.4% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 17b0155dd5, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-untuned",
+      "ref": "spring-untuned",
+      "commit": "b58c287e3f",
+      "exit_code": 0,
+      "minutes": 17.3,
+      "results": "results/spring/none/20261103-080929",
+      "status": "complete",
+      "rps": null,
+      "rate": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "calibration_s": 5.46,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "-",
+          "limit": "< 70%",
+          "ok": null
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "-",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.46 s (-0.5% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 17b0155dd5, stack b58c287e3f (spring-untuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 38.5,
+      "results": "results/spring/none/20261103-083648",
+      "status": "complete",
+      "rps": 2364,
+      "rate": 1686,
+      "p95_ms": 29,
+      "p99_ms": 60,
+      "calibration_s": 5.45,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "18%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.99 cores, 3707 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.45 s (-0.7% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "761,908 vs 761,908 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "696,835 vs 696,834 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "154,162 posts stored for 154,138 acknowledged, 439,469 likes for 439,450",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 17b0155dd5, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned-app",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 18.4,
+      "results": "results/spring/app/20261103-092519",
+      "status": "complete",
+      "rps": null,
+      "rate": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "calibration_s": 5.5,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "-",
+          "limit": "< 70%",
+          "ok": null
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "-",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.50 s (+0.2% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 17b0155dd5, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned-nginx",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 19.4,
+      "results": "results/spring/nginx/20261103-095342",
+      "status": "complete",
+      "rps": null,
+      "rate": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "calibration_s": 5.47,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "-",
+          "limit": "< 70%",
+          "ok": null
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "-",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.47 s (-0.4% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 17b0155dd5, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-untuned",
+      "ref": "spring-untuned",
+      "commit": "b58c287e3f",
+      "exit_code": 0,
+      "minutes": 17.3,
+      "results": "results/spring/none/20261103-102306",
+      "status": "complete",
+      "rps": null,
+      "rate": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "calibration_s": 5.46,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "-",
+          "limit": "< 70%",
+          "ok": null
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "-",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.46 s (-0.5% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 17b0155dd5, stack b58c287e3f (spring-untuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 38.5,
+      "results": "results/spring/none/20261103-105025",
+      "status": "complete",
+      "rps": 2359,
+      "rate": 1686,
+      "p95_ms": 46,
+      "p99_ms": 81,
+      "calibration_s": 5.46,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "17%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "0.0 GB",
+          "limit": "< 2 GB",
+          "ok": true
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "1.03 cores, 3693 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.46 s (-0.5% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "760,557 vs 760,556 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "697,502 vs 697,502 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "153,823 posts stored for 153,803 acknowledged, 436,972 likes for 436,948",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 17b0155dd5, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned-app",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 18.4,
+      "results": "results/spring/app/20261103-113856",
+      "status": "complete",
+      "rps": null,
+      "rate": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "calibration_s": 5.45,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "-",
+          "limit": "< 70%",
+          "ok": null
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "-",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.45 s (-0.7% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 17b0155dd5, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned-nginx",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 19.4,
+      "results": "results/spring/nginx/20261103-120717",
+      "status": "complete",
+      "rps": null,
+      "rate": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "calibration_s": 5.47,
+      "warnings": [],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "-",
+          "limit": "< 70%",
+          "ok": null
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "-",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "5.47 s (-0.4% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 17b0155dd5, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    }
+  ],
+  "started": "2026-11-03T05:54:03+01:00",
+  "finished": "2026-11-03T12:26:43+01:00"
+}
