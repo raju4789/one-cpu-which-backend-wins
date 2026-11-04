@@ -14,8 +14,12 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 . ~/cloud.env
 repo="$(pwd)"
-commit="$(git rev-parse HEAD)"
 url="$(git remote get-url origin)"
+# The newest commit that is also on GitHub: a batch commits its results on
+# loadgen only, and the bench droplet can only fetch what GitHub has. Results
+# commits touch results/ alone, so the files the containers mount are the same.
+git fetch -q origin
+commit="$(git merge-base HEAD "@{upstream}")"
 fresh="${1:-}"
 ssh -n -o BatchMode=yes "root@$BENCH_PRIVATE_IP" "set -e
   if [ -e '$repo' ] && [ ! -d '$repo/.git' ]; then rm -rf '$repo'; fi
@@ -25,4 +29,4 @@ if [ "$fresh" = "--fresh" ]; then
   docker --context colima-bench compose -p bench down --remove-orphans --volumes </dev/null >/dev/null 2>&1 || true
   docker --context colima-bench volume rm -f bench_pgdata </dev/null >/dev/null 2>&1 || true
 fi
-echo "bench repo at $(git rev-parse --short HEAD)"
+echo "bench repo at ${commit:0:7}"
