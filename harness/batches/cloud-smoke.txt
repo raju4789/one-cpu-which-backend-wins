@@ -1,0 +1,13 @@
+# Cloud smoke test: one quick run per stack from its tuned tag, before a real
+# cloud batch. Checks that each stack builds on the droplet, passes the
+# contract test and stores its writes (the data check). It measures nothing:
+# the start rate is low on purpose (the droplet's CPU is about 3x slower than
+# the Mac's), and quick results aren't comparable with full ones anyway.
+# Run with: cloud/bin/start-batch harness/batches/cloud-smoke.txt
+# About an hour.
+repeat 1
+cooldown 120
+# label          ref            stack   phase  options
+node-tuned       node-tuned     node    none   --quick --quick-from 150
+rails-tuned      rails-tuned    rails   none   --quick --quick-from 150
+spring-tuned     spring-tuned   spring  none   --quick --quick-from 150

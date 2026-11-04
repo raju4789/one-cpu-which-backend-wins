@@ -1,0 +1,15 @@
+# The first real cloud batch: every stack without a cache, on DigitalOcean.
+# Run with: cloud/bin/start-batch harness/batches/cloud-no-cache.txt
+# after cloud-smoke.txt has passed. About 11 hours.
+# Load generator: s-4vcpu-8gb (the 8 vCPU size needs a DigitalOcean ticket);
+# enough here, as no-cache loads stay far below the cache phases' 20,000+
+# virtual users. Rails untuned and tuned are the same request handling, so
+# only rails-tuned.
+repeat 3
+cooldown 600
+# label            ref             stack   phase
+node-untuned       node-untuned    node    none
+node-tuned         node-tuned      node    none
+rails-tuned        rails-tuned     rails   none
+spring-untuned     spring-untuned  spring  none
+spring-tuned       spring-tuned    spring  none
