@@ -37,7 +37,7 @@ printf 'Host %s\n  StrictHostKeyChecking accept-new\n' "$bench_priv" > ~/.ssh/co
 # -n: without it, ssh reads this script's own stdin and swallows the rest of it
 ssh -n -o BatchMode=yes root@$bench_priv true
 [ -d $REMOTE_REPO ] || git clone -q --branch $branch $REPO_URL $REMOTE_REPO
-cd $REMOTE_REPO && git fetch -q --tags origin && git checkout -q $branch && git pull -q --ff-only
+cd $REMOTE_REPO && git fetch -q --tags origin && git checkout -q $branch && git pull -q --rebase
 git rev-parse HEAD > ~/cloud-start-commit
 git config user.name raju4789 && git config user.email narasimha4789@gmail.com
 docker context rm -f colima-bench >/dev/null 2>&1 || true
