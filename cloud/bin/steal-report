@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Runs ON loadgen (cloud/bin/collect calls it). For every run folder named on
+stdin, writes steal.json next to its result.json: how much of the bench
+droplet's shared vCPU the host gave to other customers during the run.
+
+A run on a busy host looks slower for reasons that have nothing to do with the
+stack, and the containers' CPU numbers can't show it. Fields: the run's average
+steal, the worst minute, and one value per minute (share of the core, 0 to 1).
+"""
+import datetime, json, os, sys, urllib.parse, urllib.request
+
+PROM = "http://127.0.0.1:9090"
+Q = 'avg(rate(node_cpu_seconds_total{job="bench-node",mode="steal"}[1m]))'
+
+
+def query(start, end):
+    url = f"{PROM}/api/v1/query_range?" + urllib.parse.urlencode({"query": Q, "start": start, "end": end, "step": 60})
+    data = json.load(urllib.request.urlopen(url, timeout=30))
+    res = data.get("data", {}).get("result", [])
+    return [[float(t), float(v)] for t, v in res[0]["values"]] if res else []
+
+
+for line in sys.stdin:
+    d = line.strip()
+    path = os.path.join(d, "result.json")
+    if not d or not os.path.exists(path):
+        continue
+    r = json.load(open(path))
+    try:
+        start = datetime.datetime.fromisoformat(r["started"]).timestamp()
+        end = datetime.datetime.fromisoformat(r["finished"]).timestamp()
+    except (KeyError, ValueError):
+        continue
+    pts = query(start, end)
+    out = {"run_id": r.get("run_id"), "metric": Q,
+           "steal_avg": round(sum(v for _, v in pts) / len(pts), 4) if pts else None,
+           "steal_max_minute": round(max(v for _, v in pts), 4) if pts else None,
+           "per_minute": [[int(t), round(v, 4)] for t, v in pts]}
+    with open(os.path.join(d, "steal.json"), "w") as f:
+        json.dump(out, f, indent=1)
+    avg = "no data" if out["steal_avg"] is None else f"{out['steal_avg'] * 100:.1f}% average, {out['steal_max_minute'] * 100:.1f}% worst minute"
+    print(f"steal {d}: {avg}")

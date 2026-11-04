@@ -58,7 +58,8 @@ A 12-hour batch costs about $2. Check current prices on DigitalOcean's pricing p
 - **A separate dataset.** x86 instead of arm64, a shared vCPU instead of dedicated cores, a real network. Compare stacks within the cloud runs, never a cloud number with a Mac number.
 - **The calibration warning doesn't apply.** The runner compares each run's CPU benchmark with `harness/calibration-reference`, the Mac's score. In the cloud it may warn or stay quiet for the wrong reason. Compare cloud runs' `calibration_seconds` with each other instead; a shared vCPU can vary, so a run far off the others is worth repeating.
 - **The "Mac" metrics are loadgen's.** The runner's check that k6 isn't short of CPU reads the Prometheus job named `mac`; in the cloud that job scrapes loadgen. The Mac-only checks (firewall, memory compression, sleep) are skipped off macOS.
-- **The bench droplet runs nothing else.** Automatic updates are off, and DigitalOcean's monitoring agent is not installed, so nothing competes for the one core.
+- **CPU steal is recorded.** A shared vCPU can lose time to other customers on the same host, and the containers' CPU numbers can't show it. The bench droplet runs node_exporter (cpu, load and pressure only), and `cloud/bin/collect` writes `steal.json` next to each run's `result.json`: average steal, the worst minute, and one value per minute. A run with high steal is a noisy neighbour, not a slow stack.
+- **The bench droplet runs almost nothing else.** Automatic updates are off and DigitalOcean's monitoring agent is not installed. The one extra is the minimal node_exporter for steal, a fraction of a percent of the core.
 
 ## Files
 
@@ -67,6 +68,7 @@ A 12-hour batch costs about $2. Check current prices on DigitalOcean's pricing p
 | `bin/create`, `bin/destroy` | Mac | Create or delete both droplets and their firewall |
 | `bin/setup` | Mac | Connects loadgen to the bench droplet, clones the repo, starts monitoring |
 | `bin/start`, `bin/start-batch`, `bin/status`, `bin/tunnel`, `bin/collect` | Mac | Start, follow, view and fetch runs |
+| `bin/steal-report` | loadgen | Writes each run's CPU steal into `steal.json` (called by `collect`) |
 | `bin/sync-bench` | loadgen | Keeps a copy of the repo on the bench droplet at the same path and commit: the harness's compose file mounts repo files, and Docker looks for them on the machine running the containers |
 | `bin/remote-run`, `bin/monitoring-up` | loadgen | Call the harness with the cloud addresses; start Prometheus and Grafana |
 | `init/bench.sh`, `init/loadgen.sh` | droplets, at creation | Install Docker, k6 and the kernel settings |
