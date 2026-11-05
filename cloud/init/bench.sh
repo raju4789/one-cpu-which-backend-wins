@@ -11,13 +11,13 @@ curl -fsSL https://get.docker.com | sh
 mkdir -p /etc/docker
 echo '{"features": {"containerd-snapshotter": false}}' > /etc/docker/daemon.json
 systemctl restart docker
-# CPU steal: time the host gave this droplet's shared vCPU to other customers.
-# Containers' own CPU numbers can't show it. node_exporter with only the cpu,
-# load and pressure collectors, scraped from loadgen (cloud-only: the Mac's
-# bench VM has dedicated cores and no such exporter).
+# The droplet's own CPU (including steal: time the host gave the shared vCPU to
+# other customers), disk, network and memory, which the containers' numbers
+# can't show. node_exporter with only those collectors, scraped from loadgen
+# (cloud-only: the Mac's bench VM has dedicated cores and no such exporter).
 apt-get update
 apt-get install -y prometheus-node-exporter
-echo 'ARGS="--collector.disable-defaults --collector.cpu --collector.loadavg --collector.pressure"' \
+echo 'ARGS="--collector.disable-defaults --collector.cpu --collector.loadavg --collector.pressure --collector.diskstats --collector.netdev --collector.netstat --collector.meminfo"' \
   > /etc/default/prometheus-node-exporter
 systemctl restart prometheus-node-exporter
 # Connection tracking for the cache phases' many connections (as in vm-up).

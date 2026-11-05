@@ -10,6 +10,6 @@ mkdir -p "$dest"
 on_loadgen "cd $REMOTE_REPO && { git diff --name-only \$(cat ~/cloud-start-commit) HEAD -- results; git ls-files --others --exclude-standard results; } | sort -u | sed 's|^results/||' > ~/collect.list
   [ -s ~/collect.list ] || { echo 'ERROR: no new results on loadgen' >&2; exit 1; }
   sed -n 's|/result.json\$||p' ~/collect.list | sed 's|^|results/|' | cloud/bin/steal-report >&2
-  { cat ~/collect.list; find results -name steal.json | sed 's|^results/||'; } | sort -u > ~/collect.tar.list
+  { cat ~/collect.list; find results -name steal.json -o -name bench.json | sed 's|^results/||'; } | sort -u > ~/collect.tar.list
   tar -C results -czf - -T ~/collect.tar.list" | tar -C "$dest" -xzf -
 log "Copied into results-cloud/: $(on_loadgen 'wc -l < ~/collect.list') files. Commit them when you've checked them"
