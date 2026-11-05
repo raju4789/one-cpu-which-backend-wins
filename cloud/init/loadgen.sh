@@ -4,6 +4,9 @@
 set -euxo pipefail
 export DEBIAN_FRONTEND=noninteractive
 systemctl disable --now unattended-upgrades apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
+# Safe to rerun: a k6 repo entry left by an earlier, failed run (without its
+# key) would make every apt-get update fail, including Docker's installer.
+rm -f /etc/apt/sources.list.d/k6.list
 curl -fsSL https://get.docker.com | sh
 apt-get update
 apt-get install -y gnupg git jq python3 prometheus-node-exporter
