@@ -1,23 +1,58 @@
 #!/usr/bin/env python3
 """Runs ON loadgen (cloud/bin/collect calls it). For every run folder named on
-stdin, writes steal.json next to its result.json: how much of the bench
-droplet's shared vCPU the host gave to other customers during the run.
+stdin, saves what the bench droplet itself did during the run, which the
+containers' numbers can't show, before the droplets (and Prometheus) are gone:
 
-A run on a busy host looks slower for reasons that have nothing to do with the
-stack, and the containers' CPU numbers can't show it. Fields: the run's average
-steal, the worst minute, and one value per minute (share of the core, 0 to 1).
+  steal.json  CPU steal: time the host gave the shared vCPU to other customers.
+              The run's average, the worst minute, one value per minute.
+  bench.json  Every 15 s: CPU by mode (user, system, iowait, steal, softirq,
+              idle), disk busy share and read/write bytes and operations,
+              pressure (time tasks waited for CPU, disk, memory), network bytes,
+              TCP retransmits and listen-queue overflows, available memory.
+
+Use them to tell a slow stack from a slow machine: high iowait or disk busy
+points at the droplet's network disk, retransmits or overflows at the network.
 """
 import datetime, json, os, sys, urllib.parse, urllib.request
 
 PROM = "http://127.0.0.1:9090"
-Q = 'avg(rate(node_cpu_seconds_total{job="bench-node",mode="steal"}[1m]))'
+J = 'job="bench-node"'
+R = "[1m]"
+STEAL = f'avg(rate(node_cpu_seconds_total{{{J},mode="steal"}}{R}))'
+SERIES = {
+    "cpu_by_mode": f'sum by (mode) (rate(node_cpu_seconds_total{{{J},mode=~"user|system|iowait|steal|softirq|irq|idle"}}{R}))',
+    "disk_busy": f'max by (device) (rate(node_disk_io_time_seconds_total{{{J},device!~"loop.*|sr.*"}}{R}))',
+    "disk_read_bytes": f'sum by (device) (rate(node_disk_read_bytes_total{{{J},device!~"loop.*|sr.*"}}{R}))',
+    "disk_write_bytes": f'sum by (device) (rate(node_disk_written_bytes_total{{{J},device!~"loop.*|sr.*"}}{R}))',
+    "disk_reads": f'sum by (device) (rate(node_disk_reads_completed_total{{{J},device!~"loop.*|sr.*"}}{R}))',
+    "disk_writes": f'sum by (device) (rate(node_disk_writes_completed_total{{{J},device!~"loop.*|sr.*"}}{R}))',
+    "pressure_cpu": f'rate(node_pressure_cpu_waiting_seconds_total{{{J}}}{R})',
+    "pressure_io": f'rate(node_pressure_io_waiting_seconds_total{{{J}}}{R})',
+    "pressure_memory": f'rate(node_pressure_memory_waiting_seconds_total{{{J}}}{R})',
+    "net_rx_bytes": f'sum by (device) (rate(node_network_receive_bytes_total{{{J},device!~"lo|veth.*|docker.*|br-.*"}}{R}))',
+    "net_tx_bytes": f'sum by (device) (rate(node_network_transmit_bytes_total{{{J},device!~"lo|veth.*|docker.*|br-.*"}}{R}))',
+    "tcp_retransmits": f'rate(node_netstat_Tcp_RetransSegs{{{J}}}{R})',
+    "listen_overflows": f'rate(node_netstat_TcpExt_ListenOverflows{{{J}}}{R})',
+    "mem_available_bytes": f'node_memory_MemAvailable_bytes{{{J}}}',
+}
 
 
-def query(start, end):
-    url = f"{PROM}/api/v1/query_range?" + urllib.parse.urlencode({"query": Q, "start": start, "end": end, "step": 60})
-    data = json.load(urllib.request.urlopen(url, timeout=30))
-    res = data.get("data", {}).get("result", [])
-    return [[float(t), float(v)] for t, v in res[0]["values"]] if res else []
+def query(q, start, end, step):
+    url = f"{PROM}/api/v1/query_range?" + urllib.parse.urlencode({"query": q, "start": start, "end": end, "step": step})
+    try:
+        data = json.load(urllib.request.urlopen(url, timeout=60))
+    except OSError as e:
+        print(f"  query failed ({e}): {q}", file=sys.stderr)
+        return []
+    out = []
+    for s in data.get("data", {}).get("result", []):
+        label = s["metric"].get("mode") or s["metric"].get("device") or "value"
+        out.append([label, [[int(float(t)), round(float(v), 6)] for t, v in s["values"]]])
+    return out
+
+
+def avg(pts):
+    return sum(v for _, v in pts) / len(pts) if pts else None
 
 
 for line in sys.stdin:
@@ -31,12 +66,22 @@ for line in sys.stdin:
         end = datetime.datetime.fromisoformat(r["finished"]).timestamp()
     except (KeyError, ValueError):
         continue
-    pts = query(start, end)
-    out = {"run_id": r.get("run_id"), "metric": Q,
-           "steal_avg": round(sum(v for _, v in pts) / len(pts), 4) if pts else None,
-           "steal_max_minute": round(max(v for _, v in pts), 4) if pts else None,
-           "per_minute": [[int(t), round(v, 4)] for t, v in pts]}
+    steal = query(STEAL, start, end, 60)
+    pts = steal[0][1] if steal else []
+    out = {"run_id": r.get("run_id"), "metric": STEAL, "steal_avg": round(avg(pts), 4) if pts else None,
+           "steal_max_minute": round(max(v for _, v in pts), 4) if pts else None, "per_minute": pts}
     with open(os.path.join(d, "steal.json"), "w") as f:
         json.dump(out, f, indent=1)
-    avg = "no data" if out["steal_avg"] is None else f"{out['steal_avg'] * 100:.1f}% average, {out['steal_max_minute'] * 100:.1f}% worst minute"
-    print(f"steal {d}: {avg}")
+    bench = {"run_id": r.get("run_id"), "step_seconds": 15, "queries": SERIES,
+             "series": {k: query(q, start, end, 15) for k, q in SERIES.items()}}
+    with open(os.path.join(d, "bench.json"), "w") as f:
+        json.dump(bench, f)
+
+    def peak(name):
+        vals = [v for _, pts in bench["series"].get(name, []) for _, v in pts]
+        return max(vals) if vals else None
+    iowait = next((avg(p) for m, p in bench["series"]["cpu_by_mode"] if m == "iowait"), None)
+    fmt = lambda v, s="%": "-" if v is None else (f"{v * 100:.1f}%" if s == "%" else f"{v:.1f}/s")
+    print(f"bench {d}: steal {fmt(out['steal_avg'])} avg, {fmt(out['steal_max_minute'])} worst minute; "
+          f"iowait {fmt(iowait)} avg; disk busy {fmt(peak('disk_busy'))} peak; "
+          f"retransmits {fmt(peak('tcp_retransmits'), '/')} peak; listen overflows {fmt(peak('listen_overflows'), '/')} peak")
