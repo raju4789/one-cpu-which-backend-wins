@@ -61,6 +61,31 @@ A 12-hour batch costs about $2. Check current prices on DigitalOcean's pricing p
 - **The droplet's own CPU, disk and network are recorded.** A shared vCPU can lose time to other customers on the same host, the disk is network storage, and the containers' numbers show neither. The bench droplet runs node_exporter (cpu, load, pressure, disk, network and memory only, well under 1% of the core). `cloud/bin/collect` writes two files next to each run's `result.json` and prints a one-line summary per run: `steal.json` (average steal, the worst minute, one value per minute) and `bench.json` (every 15 s: CPU by mode including iowait and steal, disk busy share and throughput, CPU, disk and memory pressure, network bytes, TCP retransmits, listen-queue overflows, available memory). High steal points at a noisy neighbour, high iowait or disk busy at the network disk, retransmits or overflows at the network: not a slow stack. They're saved before `destroy`, because Prometheus lives on loadgen and goes with it.
 - **The bench droplet runs almost nothing else.** Automatic updates are off and DigitalOcean's monitoring agent is not installed. The one extra is the minimal node_exporter for steal, a fraction of a percent of the core.
 
+## What the cloud runs showed
+
+The full batch (`results-cloud/batches/20261104-161056`: every stack and setup, 3 interleaved rounds, 33 runs, all valid) and a diagnosis run (`results-cloud/spring/none/20261105-195947`) on a `s-1vcpu-2gb` bench droplet with a `s-4vcpu-8gb` load generator, in ams3.
+
+**The droplet is CPU-bound, and far slower than the Mac.** Without a cache, every stack held about 90 to 150 req/s, against 1,200 to 2,400 on the Mac: about 20 times less, not the 4 times the CPU benchmark suggests. During the diagnosis run's 5-minute hold at 106 sessions/s, the droplet's core was 81 to 86% busy, and processes waited for CPU 58 to 67% of the time:
+
+| Share of the one core | Diagnosis hold |
+| --- | --- |
+| Kernel (system + softirq), mostly network packet handling | 33 to 35% |
+| The apps (user: Spring, Postgres, Nginx) | 37 to 41% |
+| Steal (the host's other customers) | 5 to 9% |
+| Idle | 14 to 19% |
+
+A third of the one core goes to the kernel moving packets, on top of a slower shared core and steal. That's what this $12 droplet is like, not a fault in the setup.
+
+**Disk and network were checked and are not the limit.** Disk busy 12 to 22%, iowait 2 to 5%, TCP retransmits and listen-queue overflows about zero (`bench.json`).
+
+**Steal was recorded for every run.** 1 to 10% on average per run, up to about 26% in the worst minute, higher in the batch's last round. Low on its own, but it varies minute to minute, and with it what each run gets.
+
+**Runs vary up to 3 times for the same configuration** (tuned Spring without a cache: 44, 100, 138 req/s; the diagnosis run 148). The shared host is the cause, and the setup can't remove it. Every stack ran interleaved on the same droplets, so the noise hit all of them equally; the batch's medians and ranges are the result.
+
+**The harness's "server CPU" undercounts on a droplet.** It comes from the containers' own CPU accounting (cAdvisor), which misses kernel work not charged to a container and steal. In the batch it showed 50 to 70% at failing steps while the droplet was over 80% busy. On a droplet, read `bench.json` for the real CPU. (On the Mac's VM this gap is small: dedicated cores, no steal.)
+
+**What the batch supports.** With a cache the ranking is clear and the same as on the Mac: Spring (app 430, Nginx 590 req/s) ahead of Node (224, 358) ahead of Rails (99, 239). Spring never ran out of memory in the cloud, at these much lower loads. Without a cache all five configurations sit at 92 to 128 req/s with overlapping ranges: a tie, and tuning made no visible difference. Recovery after overload: Node 11 of 12 runs, Spring 10 of 12, Rails 3 of 9.
+
 ## Files
 
 | File | Runs on | Does |

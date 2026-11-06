@@ -1,0 +1,139 @@
+==> Run node-none-20261105-092538, results in results/node/none/20261105-092538
+==> Stopping anything already running
+==> Starting Postgres
+ Network bench_default Creating 
+ Network bench_default Creating 
+ Network bench_default Created 
+ Network bench_default Created 
+ Container bench-postgres-1 Creating 
+ Container bench-postgres-1 Created 
+ Container bench-postgres-1 Starting 
+ Container bench-postgres-1 Started 
+==> Waiting for the seed (the first run on a new VM takes a few minutes)
+==> Resetting database from app_template
+==> Starting node (phase: none, FEED_CACHE=off, nginx: proxy)
+ Image one-cpu/node:local Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 543B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 1.67kB 0.0s done
+#2 DONE 0.5s
+
+#3 [internal] load metadata for docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+#3 DONE 0.7s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 91B 0.0s done
+#4 DONE 0.0s
+
+#5 [build  1/10] FROM docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 227.12kB 0.0s done
+#6 DONE 0.0s
+
+#7 [build  5/10] RUN npm ci --no-audit --no-fund
+#7 CACHED
+
+#8 [stage-1 4/5] COPY --from=build /app/node_modules ./node_modules
+#8 CACHED
+
+#9 [build  7/10] COPY prisma ./prisma
+#9 CACHED
+
+#10 [build 10/10] RUN DATABASE_URL=postgres://build/none npm run build  && npm test  && npm prune --omit=dev --no-audit --no-fund  && chmod -R a+rX package.json dist node_modules
+#10 CACHED
+
+#11 [build  6/10] COPY tsconfig.json prisma.config.ts ./
+#11 CACHED
+
+#12 [build  4/10] COPY package.json package-lock.json ./
+#12 CACHED
+
+#13 [build  2/10] RUN apk add --no-cache openssl
+#13 CACHED
+
+#14 [stage-1 2/5] WORKDIR /app
+#14 CACHED
+
+#15 [stage-1 3/5] COPY --from=build /app/package.json ./
+#15 CACHED
+
+#16 [build  3/10] WORKDIR /app
+#16 CACHED
+
+#17 [build  9/10] COPY test ./test
+#17 CACHED
+
+#18 [build  8/10] COPY src ./src
+#18 CACHED
+
+#19 [stage-1 5/5] COPY --from=build /app/dist ./dist
+#19 CACHED
+
+#20 exporting to image
+#20 exporting layers done
+#20 writing image sha256:ebd7877abdfd6e6079dddfd1f7432de853e5713d45fd012d05fc8f9847120ed9 done
+#20 naming to docker.io/one-cpu/node:local 0.0s done
+#20 DONE 0.0s
+
+#21 resolving provenance for metadata file
+#21 DONE 0.0s
+ Image one-cpu/node:local Built 
+ Container bench-postgres-1 Running 
+ Container bench-postgres-exporter-1 Creating 
+ Container bench-app-1 Creating 
+ Container bench-cadvisor-1 Creating 
+ Container bench-postgres-exporter-1 Created 
+ Container bench-app-1 Created 
+ Container bench-nginx-1 Creating 
+ Container bench-nginx-1 Created 
+ Container bench-nginx-exporter-1 Creating 
+ Container bench-nginx-exporter-1 Created 
+ Container bench-cadvisor-1 Created 
+ Container bench-app-1 Starting 
+ Container bench-postgres-exporter-1 Starting 
+ Container bench-cadvisor-1 Starting 
+ Container bench-app-1 Started 
+ Container bench-nginx-1 Starting 
+ Container bench-postgres-exporter-1 Started 
+ Container bench-cadvisor-1 Started 
+ Container bench-nginx-1 Started 
+ Container bench-nginx-exporter-1 Starting 
+ Container bench-nginx-exporter-1 Started 
+==> Waiting for http://10.110.0.2:8080/health
+==> Ready: node, phase none
+==> Contract test
+==> Idle baseline (30 s)
+==> calibration_seconds=20.61   (runs: 20.42 20.61 21.32)
+==> WARNING: calibration 20.61 s is 275% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care
+==> Warm-up: 20 sessions/s for 120 s
+==>   28 req/s, p95 22 ms, p99 43 ms, errors 0.00%
+==> ramp-coarse: 19 steps of 60 s, rates 10, 15, 22, 34, 51, 76, 114, 171, 256, 384, 577, 865, 1297, 1946, 2919, 4379, 6568, 9853, 14779 sessions/s
+==>   step 1/19 @ 10 sessions/s: 14 req/s, p95 19 ms, p99 31 ms, errors 0.00%, server CPU 12% -> PASS
+==>   step 2/19 @ 15 sessions/s: 21 req/s, p95 16 ms, p99 34 ms, errors 0.00%, server CPU 18% -> PASS
+==>   step 3/19 @ 22 sessions/s: 30 req/s, p95 22 ms, p99 40 ms, errors 0.00%, server CPU 24% -> PASS
+==>   step 4/19 @ 34 sessions/s: 47 req/s, p95 34 ms, p99 333 ms, errors 0.00%, server CPU 37% -> PASS
+==>   step 5/19 @ 51 sessions/s: 71 req/s, p95 51 ms, p99 149 ms, errors 0.00%, server CPU 47% -> PASS
+==>   step 6/19 @ 76 sessions/s: 105 req/s, p95 1211 ms, p99 3549 ms, errors 3.58%, server CPU 73% -> FAIL (p95 1211 ms, p99 3549 ms, errors 3.6%)
+==> Cool-down 120 s before the fine ramp
+==> ramp-fine: 4 steps of 60 s, rates 56, 61, 66, 71 sessions/s
+==>   step 1/4 @ 56 sessions/s: 79 req/s, p95 22 ms, p99 46 ms, errors 0.00%, server CPU 45% -> PASS
+==>   step 2/4 @ 61 sessions/s: 86 req/s, p95 58 ms, p99 287 ms, errors 0.00%, server CPU 53% -> PASS
+==>   step 3/4 @ 66 sessions/s: 92 req/s, p95 51 ms, p99 244 ms, errors 0.00%, server CPU 58% -> PASS
+==>   step 4/4 @ 71 sessions/s: 99 req/s, p95 73 ms, p99 407 ms, errors 0.00%, server CPU 63% -> PASS
+==> Cool-down 120 s, then confirm 71 sessions/s for 300 s after a 45 s ramp-up
+==>   Nginx counted 32141 requests, k6 32140 (+0.00%)
+==>   100 req/s, p95 51 ms, p99 132 ms, errors 0.00% -> CONFIRMED
+==> Cool-down 120 s, then overload: 45 s ramp-up, 2 min at 1.5x, 2 min back at 71 sessions/s
+==>   Nginx counted 32076 requests, k6 32075 (+0.00%)
+==>   at 1.5x: 149 req/s, p95 569 ms, p99 722 ms, errors 0.00%
+==>   back at 1x: 99 req/s, p95 32 ms, p99 73 ms, errors 0.00% -> recovered
+==> Data check: 7595 posts and 23083 likes stored for 7584 and 23054 acknowledged; like counts consistent
+==> RESULT node / none: 100 req/s sustained (71 sessions/s, about 286 concurrent users), p95 51 ms, p99 132 ms
+==> WARNING: calibration 20.61 s is 275% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care
+==> Saved results/node/none/20261105-092538. Let the Mac cool down 5 minutes before the next run.

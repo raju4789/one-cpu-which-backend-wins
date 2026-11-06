@@ -1,0 +1,196 @@
+==> Run node-none-20261104-165502, results in results/node/none/20261104-165502
+==> Stopping anything already running
+==> Starting Postgres
+ Network bench_default Creating 
+ Network bench_default Creating 
+ Network bench_default Created 
+ Network bench_default Created 
+ Container bench-postgres-1 Creating 
+ Container bench-postgres-1 Created 
+ Container bench-postgres-1 Starting 
+ Container bench-postgres-1 Started 
+==> Waiting for the seed (the first run on a new VM takes a few minutes)
+==> Resetting database from app_template
+==> Starting node (phase: none, FEED_CACHE=off, nginx: proxy)
+ Image one-cpu/node:local Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 543B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 1.67kB 0.0s done
+#2 DONE 0.5s
+
+#3 [internal] load metadata for docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+#3 DONE 0.7s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 91B done
+#4 DONE 0.0s
+
+#5 [build  1/10] FROM docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 227.12kB 0.0s done
+#6 DONE 0.1s
+
+#7 [build  4/10] COPY package.json package-lock.json ./
+#7 CACHED
+
+#8 [build  5/10] RUN npm ci --no-audit --no-fund
+#8 CACHED
+
+#9 [build  6/10] COPY tsconfig.json prisma.config.ts ./
+#9 CACHED
+
+#10 [build  2/10] RUN apk add --no-cache openssl
+#10 CACHED
+
+#11 [build  3/10] WORKDIR /app
+#11 CACHED
+
+#12 [build  7/10] COPY prisma ./prisma
+#12 CACHED
+
+#13 [build  8/10] COPY src ./src
+#13 DONE 0.2s
+
+#14 [build  9/10] COPY test ./test
+#14 DONE 0.1s
+
+#15 [build 10/10] RUN DATABASE_URL=postgres://build/none npm run build  && npm test  && npm prune --omit=dev --no-audit --no-fund  && chmod -R a+rX package.json dist node_modules
+#15 1.042 
+#15 1.042 > one-cpu-node@1.0.0 build
+#15 1.042 > prisma generate && tsc -p tsconfig.json
+#15 1.042 
+#15 4.361 Loaded Prisma config from prisma.config.ts.
+#15 4.361 
+#15 5.405 Prisma schema loaded from prisma/schema.prisma.
+#15 5.798 
+#15 5.798 ✔ Generated Prisma Client (7.10.1) to ./src/generated/prisma in 218ms
+#15 5.798 
+#15 19.22 
+#15 19.22 > one-cpu-node@1.0.0 test
+#15 19.22 > node --test test/*.test.mjs
+#15 19.22 
+#15 20.56 ✔ GET /health (229.767668ms)
+#15 20.56 ✔ GET /feed returns the service's JSON as is (5.818901ms)
+#15 20.62 ✔ POST /posts returns 201 with the contract's shape (62.223434ms)
+#15 20.65 ✔ POST /posts with missing X-User-Id is a 400 with an error body (31.316424ms)
+#15 20.66 ✔ POST /posts with non-numeric X-User-Id is a 400 with an error body (10.170539ms)
+#15 20.67 ✔ POST /posts with X-User-Id beyond 2^53 is a 400 with an error body (8.845678ms)
+#15 20.68 ✔ POST /posts with empty body is a 400 with an error body (7.734099ms)
+#15 20.69 ✔ POST /posts with body over 280 characters is a 400 with an error body (5.840155ms)
+#15 20.70 ✔ POST /posts with malformed JSON is a 400 with an error body (8.17673ms)
+#15 20.71 ✔ POST /posts/:id/like returns 204, or the service's 404 (9.784338ms)
+#15 20.72 ✔ unknown routes are a 404 with an error body (6.335567ms)
+#15 20.72 ✔ bodies over the size limit are rejected (2.586392ms)
+#15 20.72 ✔ a full database queue is a 503 with Retry-After, and /health still answers (3.831031ms)
+#15 20.98 ✔ unknown user is a 400 (3.279204ms)
+#15 20.98 ✔ missing post is a 404 (0.571162ms)
+#15 20.98 ✔ anything else is left alone (becomes a 500) (0.521663ms)
+#15 21.18 ✔ concurrent requests during a reload share one load (single flight) (26.135395ms)
+#15 21.23 ✔ an expired entry is reloaded (41.210972ms)
+#15 21.23 ✔ a failed load is not cached (3.585125ms)
+#15 21.23 ✔ hits and misses are reported (6.06525ms)
+#15 21.48 ✔ runs work while under the limit (2.700424ms)
+#15 21.48 ✔ answers Overloaded (503) once the limit is reached, without running the work (1.821144ms)
+#15 21.49 ✔ frees the slot when the work fails, and passes the error on (0.659387ms)
+#15 21.66 ✔ the same query always gets the same name (4.131799ms)
+#15 21.67 ✔ different SQL or different parameter types get different names (0.699469ms)
+#15 21.67 ✔ names are valid Postgres identifiers (letter first, at most 63 characters) (1.119816ms)
+#15 21.70 ℹ tests 26
+#15 21.70 ℹ suites 0
+#15 21.70 ℹ pass 26
+#15 21.70 ℹ fail 0
+#15 21.70 ℹ cancelled 0
+#15 21.70 ℹ skipped 0
+#15 21.70 ℹ todo 0
+#15 21.70 ℹ duration_ms 2378.57198
+#15 24.68 
+#15 24.68 up to date in 3s
+#15 24.69 npm warn install-scripts 3 packages have install scripts not yet covered by allowScripts:
+#15 24.69 npm warn install-scripts   @prisma/engines@7.10.1 (postinstall: node scripts/postinstall.js)
+#15 24.69 npm warn install-scripts   prisma@7.10.1 (preinstall: node scripts/preinstall-entry.js)
+#15 24.69 npm warn install-scripts   protobufjs@7.6.6 (postinstall: node scripts/postinstall)
+#15 24.69 npm warn install-scripts
+#15 24.69 npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+#15 DONE 139.7s
+
+#16 [stage-1 2/5] WORKDIR /app
+#16 CACHED
+
+#17 [stage-1 3/5] COPY --from=build /app/package.json ./
+#17 CACHED
+
+#18 [stage-1 4/5] COPY --from=build /app/node_modules ./node_modules
+#18 CACHED
+
+#19 [stage-1 5/5] COPY --from=build /app/dist ./dist
+#19 DONE 0.1s
+
+#20 exporting to image
+#20 exporting layers 0.1s done
+#20 writing image sha256:ebd7877abdfd6e6079dddfd1f7432de853e5713d45fd012d05fc8f9847120ed9 done
+#20 naming to docker.io/one-cpu/node:local
+#20 naming to docker.io/one-cpu/node:local 0.0s done
+#20 DONE 0.1s
+
+#21 resolving provenance for metadata file
+#21 DONE 0.1s
+ Image one-cpu/node:local Built 
+ Container bench-postgres-1 Running 
+ Container bench-postgres-exporter-1 Creating 
+ Container bench-app-1 Creating 
+ Container bench-cadvisor-1 Creating 
+ Container bench-postgres-exporter-1 Created 
+ Container bench-cadvisor-1 Created 
+ Container bench-app-1 Created 
+ Container bench-nginx-1 Creating 
+ Container bench-nginx-1 Created 
+ Container bench-nginx-exporter-1 Creating 
+ Container bench-nginx-exporter-1 Created 
+ Container bench-postgres-exporter-1 Starting 
+ Container bench-app-1 Starting 
+ Container bench-cadvisor-1 Starting 
+ Container bench-postgres-exporter-1 Started 
+ Container bench-app-1 Started 
+ Container bench-nginx-1 Starting 
+ Container bench-cadvisor-1 Started 
+ Container bench-nginx-1 Started 
+ Container bench-nginx-exporter-1 Starting 
+ Container bench-nginx-exporter-1 Started 
+==> Waiting for http://10.110.0.2:8080/health
+==> Ready: node, phase none
+==> Contract test
+==> Idle baseline (30 s)
+==> calibration_seconds=19.77   (runs: 19.62 19.77 19.99)
+==> WARNING: calibration 19.77 s is 260% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care
+==> Warm-up: 20 sessions/s for 120 s
+==>   28 req/s, p95 25 ms, p99 42 ms, errors 0.00%
+==> ramp-coarse: 19 steps of 60 s, rates 10, 15, 22, 34, 51, 76, 114, 171, 256, 384, 577, 865, 1297, 1946, 2919, 4379, 6568, 9853, 14779 sessions/s
+==>   step 1/19 @ 10 sessions/s: 14 req/s, p95 19 ms, p99 44 ms, errors 0.00%, server CPU 19% -> PASS
+==>   step 2/19 @ 15 sessions/s: 21 req/s, p95 20 ms, p99 44 ms, errors 0.00%, server CPU 20% -> PASS
+==>   step 3/19 @ 22 sessions/s: 31 req/s, p95 24 ms, p99 57 ms, errors 0.00%, server CPU 24% -> PASS
+==>   step 4/19 @ 34 sessions/s: 48 req/s, p95 41 ms, p99 131 ms, errors 0.00%, server CPU 44% -> PASS
+==>   step 5/19 @ 51 sessions/s: 72 req/s, p95 39 ms, p99 247 ms, errors 0.00%, server CPU 48% -> PASS
+==>   step 6/19 @ 76 sessions/s: 106 req/s, p95 463 ms, p99 1041 ms, errors 0.00%, server CPU 66% -> FAIL (p95 463 ms, p99 1041 ms)
+==> Cool-down 120 s before the fine ramp
+==> ramp-fine: 4 steps of 60 s, rates 56, 61, 66, 71 sessions/s
+==>   step 1/4 @ 56 sessions/s: 78 req/s, p95 36 ms, p99 108 ms, errors 0.00%, server CPU 46% -> PASS
+==>   step 2/4 @ 61 sessions/s: 86 req/s, p95 44 ms, p99 124 ms, errors 0.00%, server CPU 52% -> PASS
+==>   step 3/4 @ 66 sessions/s: 92 req/s, p95 42 ms, p99 162 ms, errors 0.00%, server CPU 53% -> PASS
+==>   step 4/4 @ 71 sessions/s: 99 req/s, p95 43 ms, p99 111 ms, errors 0.00%, server CPU 56% -> PASS
+==> Cool-down 120 s, then confirm 71 sessions/s for 300 s after a 45 s ramp-up
+==>   Nginx counted 31987 requests, k6 31986 (+0.00%)
+==>   99 req/s, p95 46 ms, p99 221 ms, errors 0.00% -> CONFIRMED
+==> Cool-down 120 s, then overload: 45 s ramp-up, 2 min at 1.5x, 2 min back at 71 sessions/s
+==>   Nginx counted 32164 requests, k6 32163 (+0.00%)
+==>   at 1.5x: 150 req/s, p95 93 ms, p99 163 ms, errors 0.00%
+==>   back at 1x: 100 req/s, p95 28 ms, p99 71 ms, errors 0.00% -> recovered
+==> Data check: 7746 posts and 22993 likes stored for 7741 and 22961 acknowledged; like counts consistent
+==> RESULT node / none: 99 req/s sustained (71 sessions/s, about 285 concurrent users), p95 46 ms, p99 221 ms
+==> WARNING: calibration 19.77 s is 260% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care
+==> Saved results/node/none/20261104-165502. Let the Mac cool down 5 minutes before the next run.

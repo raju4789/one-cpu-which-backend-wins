@@ -1,0 +1,117 @@
+{
+  "plan": {
+    "repeat": 3,
+    "cooldown": 600,
+    "configs": [
+      {
+        "label": "node-untuned",
+        "ref": "node-untuned",
+        "stack": "node",
+        "phase": "none",
+        "extra": [],
+        "commit": "43614a0612242eef780d6be3106469a179eef997"
+      },
+      {
+        "label": "node-tuned",
+        "ref": "node-tuned",
+        "stack": "node",
+        "phase": "none",
+        "extra": [],
+        "commit": "814f326280d3bfb828dc3c3e30a36781cc4d03e3"
+      },
+      {
+        "label": "node-tuned-app",
+        "ref": "node-tuned",
+        "stack": "node",
+        "phase": "app",
+        "extra": [
+          "--max-vus",
+          "15000"
+        ],
+        "commit": "814f326280d3bfb828dc3c3e30a36781cc4d03e3"
+      },
+      {
+        "label": "node-tuned-nginx",
+        "ref": "node-tuned",
+        "stack": "node",
+        "phase": "nginx",
+        "extra": [
+          "--max-vus",
+          "15000"
+        ],
+        "commit": "814f326280d3bfb828dc3c3e30a36781cc4d03e3"
+      },
+      {
+        "label": "rails-tuned",
+        "ref": "rails-tuned",
+        "stack": "rails",
+        "phase": "none",
+        "extra": [],
+        "commit": "9aa5bfb8c0eb63da7e6baffe24e23c451eb0c98a"
+      },
+      {
+        "label": "rails-tuned-app",
+        "ref": "rails-tuned",
+        "stack": "rails",
+        "phase": "app",
+        "extra": [
+          "--max-vus",
+          "15000"
+        ],
+        "commit": "9aa5bfb8c0eb63da7e6baffe24e23c451eb0c98a"
+      },
+      {
+        "label": "rails-tuned-nginx",
+        "ref": "rails-tuned",
+        "stack": "rails",
+        "phase": "nginx",
+        "extra": [
+          "--max-vus",
+          "15000"
+        ],
+        "commit": "9aa5bfb8c0eb63da7e6baffe24e23c451eb0c98a"
+      },
+      {
+        "label": "spring-untuned",
+        "ref": "spring-untuned",
+        "stack": "spring",
+        "phase": "none",
+        "extra": [],
+        "commit": "b58c287e3f31470c64ff993ab058f33107b67849"
+      },
+      {
+        "label": "spring-tuned",
+        "ref": "spring-tuned",
+        "stack": "spring",
+        "phase": "none",
+        "extra": [],
+        "commit": "17b0155dd557a600f247a22ecad74a29357e1e7f"
+      },
+      {
+        "label": "spring-tuned-app",
+        "ref": "spring-tuned",
+        "stack": "spring",
+        "phase": "app",
+        "extra": [
+          "--max-vus",
+          "15000"
+        ],
+        "commit": "17b0155dd557a600f247a22ecad74a29357e1e7f"
+      },
+      {
+        "label": "spring-tuned-nginx",
+        "ref": "spring-tuned",
+        "stack": "spring",
+        "phase": "nginx",
+        "extra": [
+          "--max-vus",
+          "15000"
+        ],
+        "commit": "17b0155dd557a600f247a22ecad74a29357e1e7f"
+      }
+    ]
+  },
+  "runs": [],
+  "started": "2026-11-04T16:05:50+00:00",
+  "finished": "2026-11-04T16:09:00+00:00"
+}

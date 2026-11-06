@@ -1,0 +1,252 @@
+==> Run spring-none-20261104-212604, results in results/spring/none/20261104-212604
+==> Stopping anything already running
+==> Starting Postgres
+ Network bench_default Creating 
+ Network bench_default Creating 
+ Network bench_default Created 
+ Network bench_default Created 
+ Container bench-postgres-1 Creating 
+ Container bench-postgres-1 Created 
+ Container bench-postgres-1 Starting 
+ Container bench-postgres-1 Started 
+==> Waiting for the seed (the first run on a new VM takes a few minutes)
+==> Resetting database from app_template
+==> Starting spring (phase: none, FEED_CACHE=off, nginx: proxy)
+ Image one-cpu/spring:local Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 557B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 1.87kB done
+#2 DONE 0.5s
+
+#3 [internal] load metadata for docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#3 ...
+
+#4 [internal] load metadata for docker.io/library/eclipse-temurin:25-jre@sha256:ecdc0adb37bde1a281c4d245a3cd535004b1fc8322d560f5b09463b248c81df0
+#4 DONE 1.2s
+
+#3 [internal] load metadata for docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#3 DONE 1.2s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 61B done
+#5 DONE 0.1s
+
+#6 [internal] load build context
+#6 transferring context: 36.33kB 0.0s done
+#6 DONE 0.1s
+
+#7 [build 1/6] FROM docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#7 resolve docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c 0.1s done
+#7 sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c 6.65kB / 6.65kB done
+#7 sha256:fd065aabfd5c09c5121cf4b4a99a721c1e1f24d87680698442cec808ff0b6be0 2.91kB / 2.91kB done
+#7 sha256:0f45bb102b13e36ed30cba04675a3a053b13ce6d3a2c93a9b5d0d1efbc66e43b 10.12kB / 10.12kB done
+#7 sha256:20043066d3d5c78b45520c5707319835ac7d1f3d7f0dded0138ea0897d6a3188 0B / 29.72MB 0.1s
+#7 sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 0B / 92.17MB 0.1s
+#7 sha256:20043066d3d5c78b45520c5707319835ac7d1f3d7f0dded0138ea0897d6a3188 1.78MB / 29.72MB 0.2s
+#7 sha256:627c55a201a9095fd9bb5b05a4c058246c463987d178f778ff22db143ca94635 0B / 17.46MB 0.2s
+#7 sha256:20043066d3d5c78b45520c5707319835ac7d1f3d7f0dded0138ea0897d6a3188 28.31MB / 29.72MB 0.4s
+#7 sha256:20043066d3d5c78b45520c5707319835ac7d1f3d7f0dded0138ea0897d6a3188 29.72MB / 29.72MB 0.5s done
+#7 sha256:627c55a201a9095fd9bb5b05a4c058246c463987d178f778ff22db143ca94635 2.10MB / 17.46MB 0.5s
+#7 sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 12.58MB / 92.17MB 0.7s
+#7 sha256:627c55a201a9095fd9bb5b05a4c058246c463987d178f778ff22db143ca94635 11.53MB / 17.46MB 0.7s
+#7 sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1 0B / 32B 0.7s
+#7 sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 17.83MB / 92.17MB 0.8s
+#7 sha256:627c55a201a9095fd9bb5b05a4c058246c463987d178f778ff22db143ca94635 14.68MB / 17.46MB 0.8s
+#7 sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1 32B / 32B 0.7s done
+#7 sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 23.07MB / 92.17MB 0.9s
+#7 sha256:901b8cfcfda7112bdd66707d3d655b06bf97a440a496fe617c60040989857b40 0B / 2.28kB 0.9s
+#7 sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 36.70MB / 92.17MB 1.1s
+#7 sha256:627c55a201a9095fd9bb5b05a4c058246c463987d178f778ff22db143ca94635 17.46MB / 17.46MB 0.9s done
+#7 sha256:901b8cfcfda7112bdd66707d3d655b06bf97a440a496fe617c60040989857b40 2.28kB / 2.28kB 1.0s done
+#7 extracting sha256:20043066d3d5c78b45520c5707319835ac7d1f3d7f0dded0138ea0897d6a3188
+#7 sha256:601cdc61d1bdc3524edd6b5edfba5c217e069820e0e6afb7154a9153a17c4832 0B / 24.52MB 1.1s
+#7 sha256:ddd1e2321ce3277a17620496622c1e6c4fd9511cafdb2742868562b5b2695a4b 0B / 9.24MB 1.1s
+#7 sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 41.94MB / 92.17MB 1.2s
+#7 sha256:601cdc61d1bdc3524edd6b5edfba5c217e069820e0e6afb7154a9153a17c4832 7.34MB / 24.52MB 1.2s
+#7 sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 52.43MB / 92.17MB 1.4s
+#7 sha256:601cdc61d1bdc3524edd6b5edfba5c217e069820e0e6afb7154a9153a17c4832 16.78MB / 24.52MB 1.4s
+#7 sha256:ddd1e2321ce3277a17620496622c1e6c4fd9511cafdb2742868562b5b2695a4b 3.15MB / 9.24MB 1.4s
+#7 sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 58.72MB / 92.17MB 1.5s
+#7 sha256:601cdc61d1bdc3524edd6b5edfba5c217e069820e0e6afb7154a9153a17c4832 19.92MB / 24.52MB 1.5s
+#7 sha256:ddd1e2321ce3277a17620496622c1e6c4fd9511cafdb2742868562b5b2695a4b 9.24MB / 9.24MB 1.5s
+#7 sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 68.16MB / 92.17MB 1.7s
+#7 sha256:601cdc61d1bdc3524edd6b5edfba5c217e069820e0e6afb7154a9153a17c4832 24.52MB / 24.52MB 1.6s done
+#7 sha256:ddd1e2321ce3277a17620496622c1e6c4fd9511cafdb2742868562b5b2695a4b 9.24MB / 9.24MB 1.5s done
+#7 sha256:1df2045d4f04a8ac6c6c4481385c27b70549d96c0e67a44c1cb2f82ffb0bdb21 0B / 851B 1.7s
+#7 sha256:3b6b246d19cf73da2bd1149a1dce08d41a56c988aa5b36f3d2727aef1a79d21b 0B / 156B 1.7s
+#7 sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 74.50MB / 92.17MB 1.8s
+#7 sha256:1df2045d4f04a8ac6c6c4481385c27b70549d96c0e67a44c1cb2f82ffb0bdb21 851B / 851B 1.7s done
+#7 sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 89.89MB / 92.17MB 2.0s
+#7 sha256:3b6b246d19cf73da2bd1149a1dce08d41a56c988aa5b36f3d2727aef1a79d21b 156B / 156B 1.8s done
+#7 sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 92.17MB / 92.17MB 2.1s done
+#7 extracting sha256:20043066d3d5c78b45520c5707319835ac7d1f3d7f0dded0138ea0897d6a3188 5.2s
+#7 extracting sha256:20043066d3d5c78b45520c5707319835ac7d1f3d7f0dded0138ea0897d6a3188 6.6s done
+#7 extracting sha256:627c55a201a9095fd9bb5b05a4c058246c463987d178f778ff22db143ca94635
+#7 ...
+
+#8 [stage-1 1/7] FROM docker.io/library/eclipse-temurin:25-jre@sha256:ecdc0adb37bde1a281c4d245a3cd535004b1fc8322d560f5b09463b248c81df0
+#8 resolve docker.io/library/eclipse-temurin:25-jre@sha256:ecdc0adb37bde1a281c4d245a3cd535004b1fc8322d560f5b09463b248c81df0 0.1s done
+#8 sha256:ecdc0adb37bde1a281c4d245a3cd535004b1fc8322d560f5b09463b248c81df0 5.91kB / 5.91kB done
+#8 sha256:3b0c5a2ef254c787a8efaa090bcba8f424453d1fc8f3a07d9d9e0033cba26f77 9.01kB / 9.01kB done
+#8 sha256:5bc8e1bda53531e3ccf4c0d930e39095b68baeabbc81864fffa68291e14a607e 2.13kB / 2.13kB done
+#8 sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1 32B / 32B 0.7s done
+#8 sha256:edafa32f5d9e4d9629f0dbc6c01e63c79ff08133c01cfb7d3363aa8bd8a614cf 42.14MB / 42.14MB 2.6s done
+#8 sha256:f3f25b84a7d74315d94ee4108231f8f5e0cd2a44725a7204d5dd6ce91c151697 392B / 392B 2.2s done
+#8 sha256:9ce1bc7852a0c4f3c71647f512f5546a079c388d3a5b5381a5df81bbf5aa9186 12.15MB / 12.15MB 2.6s done
+#8 sha256:280dbd83d6216b975386f615cc9bba726595bbb91466ea042f6c8543d4c22ec7 63.10MB / 63.10MB 3.5s done
+#8 sha256:fc9a3680de99da6d0fedf81dec4ab78259e043fdf001d4490684b9faf5660d7e 2.46kB / 2.46kB 2.9s done
+#8 extracting sha256:edafa32f5d9e4d9629f0dbc6c01e63c79ff08133c01cfb7d3363aa8bd8a614cf 6.4s
+#8 ...
+
+#7 [build 1/6] FROM docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#7 extracting sha256:627c55a201a9095fd9bb5b05a4c058246c463987d178f778ff22db143ca94635 5.1s
+#7 extracting sha256:627c55a201a9095fd9bb5b05a4c058246c463987d178f778ff22db143ca94635 5.7s done
+#7 extracting sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 0.1s
+#7 extracting sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 5.1s
+#7 ...
+
+#8 [stage-1 1/7] FROM docker.io/library/eclipse-temurin:25-jre@sha256:ecdc0adb37bde1a281c4d245a3cd535004b1fc8322d560f5b09463b248c81df0
+#8 extracting sha256:edafa32f5d9e4d9629f0dbc6c01e63c79ff08133c01cfb7d3363aa8bd8a614cf 9.3s done
+#8 extracting sha256:f3f25b84a7d74315d94ee4108231f8f5e0cd2a44725a7204d5dd6ce91c151697 done
+#8 extracting sha256:9ce1bc7852a0c4f3c71647f512f5546a079c388d3a5b5381a5df81bbf5aa9186 2.6s done
+#8 extracting sha256:280dbd83d6216b975386f615cc9bba726595bbb91466ea042f6c8543d4c22ec7 4.4s
+#8 ...
+
+#7 [build 1/6] FROM docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#7 ...
+
+#8 [stage-1 1/7] FROM docker.io/library/eclipse-temurin:25-jre@sha256:ecdc0adb37bde1a281c4d245a3cd535004b1fc8322d560f5b09463b248c81df0
+#8 extracting sha256:280dbd83d6216b975386f615cc9bba726595bbb91466ea042f6c8543d4c22ec7 6.6s done
+#8 extracting sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1 done
+#8 extracting sha256:fc9a3680de99da6d0fedf81dec4ab78259e043fdf001d4490684b9faf5660d7e done
+#8 DONE 23.0s
+
+#7 [build 1/6] FROM docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#7 ...
+
+#9 [stage-1 2/7] WORKDIR /app
+#9 DONE 0.3s
+
+#7 [build 1/6] FROM docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#7 extracting sha256:378e3a6f165ea02b44863b980aacd0a6ba57f3b96b08da831cc39bb19eb41760 9.8s done
+#7 extracting sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1 done
+#7 extracting sha256:901b8cfcfda7112bdd66707d3d655b06bf97a440a496fe617c60040989857b40
+#7 extracting sha256:901b8cfcfda7112bdd66707d3d655b06bf97a440a496fe617c60040989857b40 done
+#7 extracting sha256:601cdc61d1bdc3524edd6b5edfba5c217e069820e0e6afb7154a9153a17c4832
+#7 ...
+
+#10 [stage-1 3/7] RUN groupadd --system --gid 1001 spring  && useradd spring --system --uid 1001 --gid 1001 --no-create-home --shell /usr/sbin/nologin
+#10 0.923 useradd warning: spring's uid 1001 is greater than SYS_UID_MAX 999
+#10 DONE 1.1s
+
+#7 [build 1/6] FROM docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#7 extracting sha256:601cdc61d1bdc3524edd6b5edfba5c217e069820e0e6afb7154a9153a17c4832 2.7s done
+#7 extracting sha256:ddd1e2321ce3277a17620496622c1e6c4fd9511cafdb2742868562b5b2695a4b
+#7 extracting sha256:ddd1e2321ce3277a17620496622c1e6c4fd9511cafdb2742868562b5b2695a4b 0.3s done
+#7 extracting sha256:1df2045d4f04a8ac6c6c4481385c27b70549d96c0e67a44c1cb2f82ffb0bdb21 done
+#7 extracting sha256:3b6b246d19cf73da2bd1149a1dce08d41a56c988aa5b36f3d2727aef1a79d21b done
+#7 DONE 27.9s
+
+#11 [build 2/6] WORKDIR /build
+#11 DONE 0.2s
+
+#12 [build 3/6] COPY pom.xml .
+#12 DONE 0.1s
+
+#13 [build 4/6] RUN mvn -B -q dependency:go-offline
+#13 4.718 WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+#13 4.718 WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/usr/share/maven/lib/guice-5.1.0-classes.jar)
+#13 4.718 WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+#13 4.718 WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+#13 DONE 58.2s
+
+#14 [build 5/6] COPY src src
+#14 DONE 0.2s
+
+#15 [build 6/6] RUN mvn -B -q package  && java -Djarmode=tools -jar target/app.jar extract --layers --launcher --destination /extracted
+#15 5.073 WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+#15 5.073 WARNING: sun.misc.Unsafe::staticFieldBase has been called by com.google.inject.internal.aop.HiddenClassDefiner (file:/usr/share/maven/lib/guice-5.1.0-classes.jar)
+#15 5.073 WARNING: Please consider reporting this to the maintainers of class com.google.inject.internal.aop.HiddenClassDefiner
+#15 5.073 WARNING: sun.misc.Unsafe::staticFieldBase will be removed in a future release
+#15 DONE 38.3s
+
+#16 [stage-1 4/7] COPY --from=build /extracted/dependencies/ ./
+#16 DONE 0.3s
+
+#17 [stage-1 5/7] COPY --from=build /extracted/spring-boot-loader/ ./
+#17 DONE 0.2s
+
+#18 [stage-1 6/7] COPY --from=build /extracted/snapshot-dependencies/ ./
+#18 DONE 0.1s
+
+#19 [stage-1 7/7] COPY --from=build /extracted/application/ ./
+#19 DONE 0.1s
+
+#20 exporting to image
+#20 exporting layers
+#20 exporting layers 0.6s done
+#20 writing image sha256:0a2bcdb25b6b8a7f136ab50dc645e912a145f8819811a262f57e8970b6c91af1 0.0s done
+#20 naming to docker.io/one-cpu/spring:local 0.0s done
+#20 DONE 0.7s
+
+#21 resolving provenance for metadata file
+#21 DONE 0.0s
+ Image one-cpu/spring:local Built 
+ Container bench-postgres-1 Running 
+ Container bench-postgres-exporter-1 Creating 
+ Container bench-app-1 Creating 
+ Container bench-cadvisor-1 Creating 
+ Container bench-cadvisor-1 Created 
+ Container bench-postgres-exporter-1 Created 
+ Container bench-app-1 Created 
+ Container bench-nginx-1 Creating 
+ Container bench-nginx-1 Created 
+ Container bench-nginx-exporter-1 Creating 
+ Container bench-nginx-exporter-1 Created 
+ Container bench-postgres-exporter-1 Starting 
+ Container bench-cadvisor-1 Starting 
+ Container bench-app-1 Starting 
+ Container bench-postgres-exporter-1 Started 
+ Container bench-cadvisor-1 Started 
+ Container bench-app-1 Started 
+ Container bench-nginx-1 Starting 
+ Container bench-nginx-1 Started 
+ Container bench-nginx-exporter-1 Starting 
+ Container bench-nginx-exporter-1 Started 
+==> Waiting for http://10.110.0.2:8080/health
+==> Ready: spring, phase none
+==> Contract test
+==> Idle baseline (30 s)
+==> calibration_seconds=24.08   (runs: 23.65 24.08 27.42)
+==> WARNING: calibration 24.08 s is 339% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care
+==> Warm-up: 20 sessions/s for 120 s
+==>   28 req/s, p95 30 ms, p99 47 ms, errors 0.00%
+==> ramp-coarse: 19 steps of 60 s, rates 10, 15, 22, 34, 51, 76, 114, 171, 256, 384, 577, 865, 1297, 1946, 2919, 4379, 6568, 9853, 14779 sessions/s
+==>   step 1/19 @ 10 sessions/s: 14 req/s, p95 22 ms, p99 41 ms, errors 0.00%, server CPU 16% -> PASS
+==>   step 2/19 @ 15 sessions/s: 21 req/s, p95 23 ms, p99 35 ms, errors 0.00%, server CPU 24% -> PASS
+==>   step 3/19 @ 22 sessions/s: 31 req/s, p95 28 ms, p99 50 ms, errors 0.00%, server CPU 38% -> PASS
+==>   step 4/19 @ 34 sessions/s: 47 req/s, p95 24 ms, p99 52 ms, errors 0.00%, server CPU 37% -> PASS
+==>   step 5/19 @ 51 sessions/s: 70 req/s, p95 31 ms, p99 126 ms, errors 0.00%, server CPU 56% -> PASS
+==>   step 6/19 @ 76 sessions/s: 107 req/s, p95 63 ms, p99 315 ms, errors 0.00%, server CPU 61% -> PASS
+==>   step 7/19 @ 114 sessions/s: 160 req/s, p95 659 ms, p99 1109 ms, errors 0.00%, server CPU 82% -> FAIL (p95 659 ms, p99 1109 ms)
+==> Cool-down 120 s before the fine ramp
+==> ramp-fine: 4 steps of 60 s, rates 84, 91, 99, 106 sessions/s
+==>   step 1/4 @ 84 sessions/s: 117 req/s, p95 25 ms, p99 53 ms, errors 0.00%, server CPU 60% -> PASS
+==>   step 2/4 @ 91 sessions/s: 126 req/s, p95 58 ms, p99 448 ms, errors 0.00%, server CPU 59% -> PASS
+==>   step 3/4 @ 99 sessions/s: 139 req/s, p95 147 ms, p99 810 ms, errors 0.00%, server CPU 69% -> PASS
+==>   step 4/4 @ 106 sessions/s: 148 req/s, p95 62 ms, p99 566 ms, errors 0.00%, server CPU 70% -> PASS
+==> Cool-down 120 s, then confirm 106 sessions/s for 300 s after a 45 s ramp-up
+==>   Nginx counted 47763 requests, k6 47762 (+0.00%)
+==>   148 req/s, p95 74 ms, p99 968 ms, errors 0.00% -> CONFIRMED
+==> Cool-down 120 s, then overload: 45 s ramp-up, 2 min at 1.5x, 2 min back at 106 sessions/s
+==>   Nginx counted 47779 requests, k6 47779 (+0.00%)
+==>   at 1.5x: 222 req/s, p95 3308 ms, p99 4103 ms, errors 0.00%
+==>   back at 1x: 148 req/s, p95 82 ms, p99 810 ms, errors 0.00% -> recovered
+==> Data check: 11433 posts and 33973 likes stored for 11404 and 33870 acknowledged; like counts consistent
+==> RESULT spring / none: 148 req/s sustained (106 sessions/s, about 430 concurrent users), p95 74 ms, p99 968 ms
+==> WARNING: calibration 24.08 s is 339% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care
+==> Saved results/spring/none/20261104-212604. Let the Mac cool down 5 minutes before the next run.

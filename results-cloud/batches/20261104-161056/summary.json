@@ -1,0 +1,3121 @@
+{
+  "plan": {
+    "repeat": 3,
+    "cooldown": 600,
+    "configs": [
+      {
+        "label": "node-untuned",
+        "ref": "node-untuned",
+        "stack": "node",
+        "phase": "none",
+        "extra": [],
+        "commit": "43614a0612242eef780d6be3106469a179eef997"
+      },
+      {
+        "label": "node-tuned",
+        "ref": "node-tuned",
+        "stack": "node",
+        "phase": "none",
+        "extra": [],
+        "commit": "814f326280d3bfb828dc3c3e30a36781cc4d03e3"
+      },
+      {
+        "label": "node-tuned-app",
+        "ref": "node-tuned",
+        "stack": "node",
+        "phase": "app",
+        "extra": [
+          "--max-vus",
+          "15000"
+        ],
+        "commit": "814f326280d3bfb828dc3c3e30a36781cc4d03e3"
+      },
+      {
+        "label": "node-tuned-nginx",
+        "ref": "node-tuned",
+        "stack": "node",
+        "phase": "nginx",
+        "extra": [
+          "--max-vus",
+          "15000"
+        ],
+        "commit": "814f326280d3bfb828dc3c3e30a36781cc4d03e3"
+      },
+      {
+        "label": "rails-tuned",
+        "ref": "rails-tuned",
+        "stack": "rails",
+        "phase": "none",
+        "extra": [],
+        "commit": "9aa5bfb8c0eb63da7e6baffe24e23c451eb0c98a"
+      },
+      {
+        "label": "rails-tuned-app",
+        "ref": "rails-tuned",
+        "stack": "rails",
+        "phase": "app",
+        "extra": [
+          "--max-vus",
+          "15000"
+        ],
+        "commit": "9aa5bfb8c0eb63da7e6baffe24e23c451eb0c98a"
+      },
+      {
+        "label": "rails-tuned-nginx",
+        "ref": "rails-tuned",
+        "stack": "rails",
+        "phase": "nginx",
+        "extra": [
+          "--max-vus",
+          "15000"
+        ],
+        "commit": "9aa5bfb8c0eb63da7e6baffe24e23c451eb0c98a"
+      },
+      {
+        "label": "spring-untuned",
+        "ref": "spring-untuned",
+        "stack": "spring",
+        "phase": "none",
+        "extra": [],
+        "commit": "b58c287e3f31470c64ff993ab058f33107b67849"
+      },
+      {
+        "label": "spring-tuned",
+        "ref": "spring-tuned",
+        "stack": "spring",
+        "phase": "none",
+        "extra": [],
+        "commit": "17b0155dd557a600f247a22ecad74a29357e1e7f"
+      },
+      {
+        "label": "spring-tuned-app",
+        "ref": "spring-tuned",
+        "stack": "spring",
+        "phase": "app",
+        "extra": [
+          "--max-vus",
+          "15000"
+        ],
+        "commit": "17b0155dd557a600f247a22ecad74a29357e1e7f"
+      },
+      {
+        "label": "spring-tuned-nginx",
+        "ref": "spring-tuned",
+        "stack": "spring",
+        "phase": "nginx",
+        "extra": [
+          "--max-vus",
+          "15000"
+        ],
+        "commit": "17b0155dd557a600f247a22ecad74a29357e1e7f"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "label": "node-untuned",
+      "ref": "node-untuned",
+      "commit": "43614a0612",
+      "exit_code": 0,
+      "minutes": 34.1,
+      "results": "results/node/none/20261104-161057",
+      "status": "complete",
+      "rps": 78,
+      "rate": 56,
+      "p95_ms": 29,
+      "p99_ms": 60,
+      "calibration_s": 21.56,
+      "warnings": [
+        "calibration 21.56 s is 293% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "12%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 182 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "21.56 s (+292.7% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "25,242 vs 25,242 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "25,255 vs 25,254 (+0.01%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "5,926 posts stored for 5,918 acknowledged, 17,869 likes for 17,829",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 43614a0612 (node-untuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 34.8,
+      "results": "results/node/none/20261104-165502",
+      "status": "complete",
+      "rps": 99,
+      "rate": 71,
+      "p95_ms": 46,
+      "p99_ms": 221,
+      "calibration_s": 19.77,
+      "warnings": [
+        "calibration 19.77 s is 260% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "16%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 218 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "19.77 s (+260.1% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "31,987 vs 31,986 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "32,164 vs 32,163 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "7,746 posts stored for 7,741 acknowledged, 22,993 likes for 22,961",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned-app",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 36.6,
+      "results": "results/node/app/20261104-173949",
+      "status": "complete",
+      "rps": 466,
+      "rate": 333,
+      "p95_ms": 101,
+      "p99_ms": 269,
+      "calibration_s": 21.62,
+      "warnings": [
+        "calibration 21.62 s is 294% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "25%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "1.0 cores, 882 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "21.62 s (+293.8% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "150,344 vs 150,344 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "142,402 vs 142,401 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "35,853 posts stored for 35,816 acknowledged, 106,785 likes for 106,634",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned-nginx",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 34.6,
+      "results": "results/node/nginx/20261104-182623",
+      "status": "complete",
+      "rps": 394,
+      "rate": 282,
+      "p95_ms": 105,
+      "p99_ms": 319,
+      "calibration_s": 21.47,
+      "warnings": [
+        "calibration 21.47 s is 291% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "26%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "1.0 cores, 753 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "21.47 s (+291.1% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "127,102 vs 127,102 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "126,388 vs 126,387 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "27,214 posts stored for 27,113 acknowledged, 80,403 likes for 80,120",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "rails-tuned",
+      "ref": "rails-tuned",
+      "commit": "9aa5bfb8c0",
+      "exit_code": 0,
+      "minutes": 38.0,
+      "results": "results/rails/none/20261104-191057",
+      "status": "complete",
+      "rps": 99,
+      "rate": 71,
+      "p95_ms": 89,
+      "p99_ms": 165,
+      "calibration_s": 20.51,
+      "warnings": [
+        "calibration 20.51 s is 274% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "12%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 218 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "20.51 s (+273.6% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "32,010 vs 32,010 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "29,013 vs 29,012 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "7,419 posts stored for 7,417 acknowledged, 22,279 likes for 22,278",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 9aa5bfb8c0 (rails-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "rails-tuned-app",
+      "ref": "rails-tuned",
+      "commit": "9aa5bfb8c0",
+      "exit_code": 0,
+      "minutes": 32.5,
+      "results": "results/rails/app/20261104-195857",
+      "status": "complete",
+      "rps": 99,
+      "rate": 71,
+      "p95_ms": 19,
+      "p99_ms": 37,
+      "calibration_s": 22.56,
+      "warnings": [
+        "calibration 22.56 s is 311% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "12%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 221 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "22.56 s (+310.9% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "32,058 vs 32,057 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "32,121 vs 32,120 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "7,688 posts stored for 7,687 acknowledged, 22,968 likes for 22,967",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 9aa5bfb8c0 (rails-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "rails-tuned-nginx",
+      "ref": "rails-tuned",
+      "commit": "9aa5bfb8c0",
+      "exit_code": 0,
+      "minutes": 34.6,
+      "results": "results/rails/nginx/20261104-204130",
+      "status": "complete",
+      "rps": 224,
+      "rate": 160,
+      "p95_ms": 29,
+      "p99_ms": 61,
+      "calibration_s": 21.68,
+      "warnings": [
+        "calibration 21.68 s is 295% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "17%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.6 cores, 449 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "21.68 s (+294.9% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "72,316 vs 72,316 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "66,285 vs 66,284 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "16,727 posts stored for 16,724 acknowledged, 50,381 likes for 50,365",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 9aa5bfb8c0 (rails-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-untuned",
+      "ref": "spring-untuned",
+      "commit": "b58c287e3f",
+      "exit_code": 0,
+      "minutes": 36.3,
+      "results": "results/spring/none/20261104-212604",
+      "status": "complete",
+      "rps": 148,
+      "rate": 106,
+      "p95_ms": 74,
+      "p99_ms": 968,
+      "calibration_s": 24.08,
+      "warnings": [
+        "calibration 24.08 s is 339% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "11%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 310 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "24.08 s (+338.6% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "47,763 vs 47,762 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "47,779 vs 47,779 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "11,433 posts stored for 11,404 acknowledged, 33,973 likes for 33,870",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack b58c287e3f (spring-untuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 31.7,
+      "results": "results/spring/none/20261104-221221",
+      "status": "complete",
+      "rps": 44,
+      "rate": 31,
+      "p95_ms": 15,
+      "p99_ms": 29,
+      "calibration_s": 22.85,
+      "warnings": [
+        "calibration 22.85 s is 316% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "10%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.2 cores, 119 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "22.85 s (+316.2% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "14,006 vs 14,005 (+0.01%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "14,103 vs 14,102 (+0.01%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "3,468 posts stored for 3,468 acknowledged, 10,452 likes for 10,452",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned-app",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 36.1,
+      "results": "results/spring/app/20261104-225403",
+      "status": "complete",
+      "rps": 335,
+      "rate": 239,
+      "p95_ms": 15,
+      "p99_ms": 29,
+      "calibration_s": 21.86,
+      "warnings": [
+        "calibration 21.86 s is 298% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "22%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.8 cores, 643 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "21.86 s (+298.2% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "107,790 vs 107,790 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "108,070 vs 108,069 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "25,605 posts stored for 25,581 acknowledged, 76,589 likes for 76,524",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned-nginx",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 36.1,
+      "results": "results/spring/nginx/20261104-234006",
+      "status": "complete",
+      "rps": 590,
+      "rate": 422,
+      "p95_ms": 53,
+      "p99_ms": 756,
+      "calibration_s": 19.24,
+      "warnings": [
+        "calibration 19.24 s is 250% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "29%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "1.2 cores, 1112 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "19.24 s (+250.5% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "190,339 vs 190,339 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "190,634 vs 190,633 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "43,795 posts stored for 43,567 acknowledged, 130,747 likes for 129,828",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-untuned",
+      "ref": "node-untuned",
+      "commit": "43614a0612",
+      "exit_code": 0,
+      "minutes": 33.3,
+      "results": "results/node/none/20261105-002610",
+      "status": "complete",
+      "rps": 148,
+      "rate": 106,
+      "p95_ms": 244,
+      "p99_ms": 400,
+      "calibration_s": 19.71,
+      "warnings": [
+        "calibration 19.71 s is 259% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "17%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 309 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "19.71 s (+259.0% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "47,818 vs 47,818 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "45,022 vs 45,022 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "11,256 posts stored for 11,208 acknowledged, 28,333 likes for 28,334",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 43614a0612 (node-untuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 39.5,
+      "results": "results/node/none/20261105-010926",
+      "status": "complete",
+      "rps": 106,
+      "rate": 76,
+      "p95_ms": 52,
+      "p99_ms": 276,
+      "calibration_s": 21.69,
+      "warnings": [
+        "calibration 21.69 s is 295% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "11%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 232 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "21.69 s (+295.1% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "34,283 vs 34,282 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "34,238 vs 34,237 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "12,093 posts stored for 12,069 acknowledged, 35,644 likes for 35,597",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned-app",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 34.5,
+      "results": "results/node/app/20261105-015858",
+      "status": "complete",
+      "rps": 224,
+      "rate": 160,
+      "p95_ms": 19,
+      "p99_ms": 42,
+      "calibration_s": 21.4,
+      "warnings": [
+        "calibration 21.40 s is 290% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "16%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.6 cores, 449 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "21.40 s (+289.8% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "72,065 vs 72,064 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "72,076 vs 72,075 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "17,083 posts stored for 17,071 acknowledged, 51,240 likes for 51,202",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned-nginx",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 33.5,
+      "results": "results/node/nginx/20261105-024329",
+      "status": "complete",
+      "rps": 358,
+      "rate": 256,
+      "p95_ms": 53,
+      "p99_ms": 180,
+      "calibration_s": 20.7,
+      "warnings": [
+        "calibration 20.70 s is 277% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "23%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.8 cores, 692 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "20.70 s (+277.0% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "115,551 vs 115,551 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "114,759 vs 114,758 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "24,638 posts stored for 24,555 acknowledged, 72,729 likes for 72,511",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "rails-tuned",
+      "ref": "rails-tuned",
+      "commit": "9aa5bfb8c0",
+      "exit_code": 0,
+      "minutes": 31.4,
+      "results": "results/rails/none/20261105-032657",
+      "status": "complete",
+      "rps": 86,
+      "rate": 61,
+      "p95_ms": 40,
+      "p99_ms": 77,
+      "calibration_s": 20.87,
+      "warnings": [
+        "calibration 20.87 s is 280% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "17%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 194 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "20.87 s (+280.1% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "27,627 vs 27,626 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "27,590 vs 27,589 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "6,525 posts stored for 6,525 acknowledged, 20,061 likes for 20,063",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 9aa5bfb8c0 (rails-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "rails-tuned-app",
+      "ref": "rails-tuned",
+      "commit": "9aa5bfb8c0",
+      "exit_code": 0,
+      "minutes": 41.6,
+      "results": "results/rails/app/20261105-040824",
+      "status": "complete",
+      "rps": 239,
+      "rate": 171,
+      "p95_ms": 72,
+      "p99_ms": 139,
+      "calibration_s": 20.72,
+      "warnings": [
+        "calibration 20.72 s is 277% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "17%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.6 cores, 476 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "20.72 s (+277.4% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "77,217 vs 77,216 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "71,544 vs 71,543 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "23,478 posts stored for 23,469 acknowledged, 70,183 likes for 70,161",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 9aa5bfb8c0 (rails-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "rails-tuned-nginx",
+      "ref": "rails-tuned",
+      "commit": "9aa5bfb8c0",
+      "exit_code": 0,
+      "minutes": 33.7,
+      "results": "results/rails/nginx/20261105-050003",
+      "status": "complete",
+      "rps": 263,
+      "rate": 188,
+      "p95_ms": 26,
+      "p99_ms": 61,
+      "calibration_s": 21.39,
+      "warnings": [
+        "calibration 21.39 s is 290% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "19%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.6 cores, 512 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "21.39 s (+289.6% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "84,692 vs 84,692 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "73,234 vs 73,233 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "17,950 posts stored for 17,950 acknowledged, 55,230 likes for 55,233",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 9aa5bfb8c0 (rails-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-untuned",
+      "ref": "spring-untuned",
+      "commit": "b58c287e3f",
+      "exit_code": 0,
+      "minutes": 33.5,
+      "results": "results/spring/none/20261105-054344",
+      "status": "complete",
+      "rps": 128,
+      "rate": 91,
+      "p95_ms": 48,
+      "p99_ms": 86,
+      "calibration_s": 24.52,
+      "warnings": [
+        "calibration 24.52 s is 347% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "15%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 272 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "24.52 s (+346.6% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "41,170 vs 41,169 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "41,303 vs 41,302 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "9,895 posts stored for 9,810 acknowledged, 29,869 likes for 29,643",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack b58c287e3f (spring-untuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 33.5,
+      "results": "results/spring/none/20261105-062714",
+      "status": "complete",
+      "rps": 100,
+      "rate": 71,
+      "p95_ms": 35,
+      "p99_ms": 61,
+      "calibration_s": 24.27,
+      "warnings": [
+        "calibration 24.27 s is 342% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "13%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 220 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "24.27 s (+342.1% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "32,189 vs 32,189 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "32,081 vs 32,080 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "7,761 posts stored for 7,750 acknowledged, 23,279 likes for 23,242",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned-app",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 36.1,
+      "results": "results/spring/app/20261105-071044",
+      "status": "complete",
+      "rps": 592,
+      "rate": 422,
+      "p95_ms": 87,
+      "p99_ms": 187,
+      "calibration_s": 20.54,
+      "warnings": [
+        "calibration 20.54 s is 274% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "30%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "1.2 cores, 1102 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "20.54 s (+274.1% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "190,697 vs 190,696 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "185,553 vs 185,554 (-0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "43,144 posts stored for 42,916 acknowledged, 129,646 likes for 128,852",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned-nginx",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 37.3,
+      "results": "results/spring/nginx/20261105-075651",
+      "status": "complete",
+      "rps": 645,
+      "rate": 461,
+      "p95_ms": 79,
+      "p99_ms": 299,
+      "calibration_s": 21.68,
+      "warnings": [
+        "calibration 21.68 s is 295% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "27%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "1.0 cores, 1206 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "21.68 s (+294.9% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "208,102 vs 208,101 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "204,559 vs 204,560 (-0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "46,188 posts stored for 45,765 acknowledged, 138,162 likes for 136,815",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-untuned",
+      "ref": "node-untuned",
+      "commit": "43614a0612",
+      "exit_code": 0,
+      "minutes": 31.5,
+      "results": "results/node/none/20261105-084406",
+      "status": "complete",
+      "rps": 117,
+      "rate": 84,
+      "p95_ms": 89,
+      "p99_ms": 492,
+      "calibration_s": 21.82,
+      "warnings": [
+        "calibration 21.82 s is 297% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "12%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 254 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "21.82 s (+297.4% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "37,848 vs 37,848 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "37,674 vs 37,673 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "8,771 posts stored for 8,712 acknowledged, 22,698 likes for 22,657",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 43614a0612 (node-untuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 32.3,
+      "results": "results/node/none/20261105-092538",
+      "status": "complete",
+      "rps": 100,
+      "rate": 71,
+      "p95_ms": 51,
+      "p99_ms": 132,
+      "calibration_s": 20.61,
+      "warnings": [
+        "calibration 20.61 s is 275% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "13%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 219 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "20.61 s (+275.4% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "32,141 vs 32,140 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "32,076 vs 32,075 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "7,595 posts stored for 7,584 acknowledged, 23,083 likes for 23,054",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned-app",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 32.7,
+      "results": "results/node/app/20261105-100754",
+      "status": "complete",
+      "rps": 175,
+      "rate": 125,
+      "p95_ms": 38,
+      "p99_ms": 82,
+      "calibration_s": 23.2,
+      "warnings": [
+        "calibration 23.20 s is 323% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "17%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.6 cores, 359 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "23.20 s (+322.6% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "56,409 vs 56,409 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "56,456 vs 56,455 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "13,093 posts stored for 13,064 acknowledged, 39,581 likes for 39,435",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "node-tuned-nginx",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 0,
+      "minutes": 34.9,
+      "results": "results/node/nginx/20261105-105038",
+      "status": "complete",
+      "rps": 287,
+      "rate": 205,
+      "p95_ms": 65,
+      "p99_ms": 187,
+      "calibration_s": 24.96,
+      "warnings": [
+        "calibration 24.96 s is 355% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "23%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.8 cores, 563 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "24.96 s (+354.6% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "92,559 vs 92,558 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "92,312 vs 92,312 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "21,824 posts stored for 21,786 acknowledged, 64,855 likes for 64,681",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "rails-tuned",
+      "ref": "rails-tuned",
+      "commit": "9aa5bfb8c0",
+      "exit_code": 0,
+      "minutes": 32.4,
+      "results": "results/rails/none/20261105-113532",
+      "status": "complete",
+      "rps": 92,
+      "rate": 66,
+      "p95_ms": 142,
+      "p99_ms": 417,
+      "calibration_s": 20.83,
+      "warnings": [
+        "calibration 20.83 s is 279% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "13%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 208 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "20.83 s (+279.4% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "29,691 vs 29,690 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "28,283 vs 28,282 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "7,171 posts stored for 7,170 acknowledged, 21,618 likes for 21,617",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 9aa5bfb8c0 (rails-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "rails-tuned-app",
+      "ref": "rails-tuned",
+      "commit": "9aa5bfb8c0",
+      "exit_code": 0,
+      "minutes": 32.7,
+      "results": "results/rails/app/20261105-121754",
+      "status": "complete",
+      "rps": 99,
+      "rate": 71,
+      "p95_ms": 25,
+      "p99_ms": 46,
+      "calibration_s": 22.71,
+      "warnings": [
+        "calibration 22.71 s is 314% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "12%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 220 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "22.71 s (+313.7% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "32,064 vs 32,064 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "31,953 vs 31,952 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "7,596 posts stored for 7,594 acknowledged, 22,981 likes for 22,982",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 9aa5bfb8c0 (rails-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "rails-tuned-nginx",
+      "ref": "rails-tuned",
+      "commit": "9aa5bfb8c0",
+      "exit_code": 0,
+      "minutes": 42.0,
+      "results": "results/rails/nginx/20261105-130034",
+      "status": "complete",
+      "rps": 239,
+      "rate": 171,
+      "p95_ms": 29,
+      "p99_ms": 65,
+      "calibration_s": 23.11,
+      "warnings": [
+        "calibration 23.11 s is 321% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "21%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.8 cores, 475 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "23.11 s (+320.9% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "77,011 vs 77,010 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "66,854 vs 66,641 (+0.32%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "22,699 posts stored for 22,685 acknowledged, 68,460 likes for 68,408",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 9aa5bfb8c0 (rails-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-untuned",
+      "ref": "spring-untuned",
+      "commit": "b58c287e3f",
+      "exit_code": 0,
+      "minutes": 33.6,
+      "results": "results/spring/none/20261105-135234",
+      "status": "complete",
+      "rps": 128,
+      "rate": 91,
+      "p95_ms": 60,
+      "p99_ms": 155,
+      "calibration_s": 24.7,
+      "warnings": [
+        "calibration 24.70 s is 350% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "20%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 271 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "24.70 s (+349.9% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "41,267 vs 41,267 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "40,990 vs 40,989 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "9,885 posts stored for 9,811 acknowledged, 29,708 likes for 29,479",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack b58c287e3f (spring-untuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 42.5,
+      "results": "results/spring/none/20261105-143608",
+      "status": "complete",
+      "rps": 138,
+      "rate": 99,
+      "p95_ms": 104,
+      "p99_ms": 234,
+      "calibration_s": 24.69,
+      "warnings": [
+        "calibration 24.69 s is 350% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "15%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.4 cores, 294 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "24.69 s (+349.7% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "44,675 vs 44,674 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "43,672 vs 43,672 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "13,896 posts stored for 13,862 acknowledged, 40,743 likes for 40,653",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned-app",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 45.7,
+      "results": "results/spring/app/20261105-152836",
+      "status": "complete",
+      "rps": 430,
+      "rate": 307,
+      "p95_ms": 50,
+      "p99_ms": 95,
+      "calibration_s": 24.61,
+      "warnings": [
+        "calibration 24.61 s is 348% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "28%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.8 cores, 815 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "24.61 s (+348.3% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "138,780 vs 138,779 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "138,753 vs 138,752 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "45,391 posts stored for 45,346 acknowledged, 136,884 likes for 136,721",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned-nginx",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 0,
+      "minutes": 35.6,
+      "results": "results/spring/nginx/20261105-162415",
+      "status": "complete",
+      "rps": 394,
+      "rate": 282,
+      "p95_ms": 46,
+      "p99_ms": 131,
+      "calibration_s": 24.04,
+      "warnings": [
+        "calibration 24.04 s is 338% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "31%",
+          "limit": "< 70%",
+          "ok": true
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "1.0 cores, 752 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Sessions k6 couldn't start (dropped)",
+          "value": "0 (0.00%)",
+          "limit": "< 1%",
+          "ok": true
+        },
+        {
+          "check": "Connections k6 couldn't open",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "k6 ran out of virtual users",
+          "value": "0",
+          "limit": "0",
+          "ok": true
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "24.04 s (+337.9% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Nginx vs k6 request count (confirm)",
+          "value": "127,083 vs 127,083 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Nginx vs k6 request count (overload)",
+          "value": "127,233 vs 127,232 (+0.00%)",
+          "limit": "within 2%",
+          "ok": true
+        },
+        {
+          "check": "Writes stored (data check)",
+          "value": "29,479 posts stored for 29,354 acknowledged, 88,588 likes for 88,132",
+          "limit": "all acknowledged writes stored, like counts consistent",
+          "ok": true
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 9885a54f9d, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    }
+  ],
+  "started": "2026-11-04T16:10:56+00:00",
+  "finished": "2026-11-05T16:59:53+00:00"
+}
