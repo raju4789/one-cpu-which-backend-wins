@@ -1,0 +1,27 @@
+# The full cloud batch: every stack and every setup in one batch, on the same
+# two droplets, interleaved round after round, so a slow hour or a noisy
+# neighbour on the shared vCPU hits every configuration equally. Each run's
+# CPU steal is saved next to its results (cloud/bin/steal-report).
+# Run with: cloud/bin/start-batch harness/batches/cloud-full.txt
+# About a day: 11 configurations x 3 = 33 runs. Load generator: s-4vcpu-8gb.
+#
+# Same configurations as the Mac's final batches. Rails untuned and tuned are
+# the same request handling, so only rails-tuned.
+# Virtual users: the droplet's limits are far below the Mac's (no-cache runs
+# failed at 50 to 150 sessions/s in the smoke tests), so the cache phases get
+# 15,000, enough for about 2,000 sessions/s; the runner stops a run as invalid,
+# not failed, if k6 ever runs short.
+repeat 3
+cooldown 600
+# label              ref             stack   phase
+node-untuned         node-untuned    node    none
+node-tuned           node-tuned      node    none
+node-tuned-app       node-tuned      node    app     --max-vus 15000
+node-tuned-nginx     node-tuned      node    nginx   --max-vus 15000
+rails-tuned          rails-tuned     rails   none
+rails-tuned-app      rails-tuned     rails   app     --max-vus 15000
+rails-tuned-nginx    rails-tuned     rails   nginx   --max-vus 15000
+spring-untuned       spring-untuned  spring  none
+spring-tuned         spring-tuned    spring  none
+spring-tuned-app     spring-tuned    spring  app     --max-vus 15000
+spring-tuned-nginx   spring-tuned    spring  nginx   --max-vus 15000

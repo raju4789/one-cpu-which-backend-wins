@@ -1,0 +1,491 @@
+==> Run node-none-20261104-161057, results in results/node/none/20261104-161057
+==> Stopping anything already running
+==> Starting Postgres
+ Network bench_default Creating 
+ Network bench_default Creating 
+ Network bench_default Created 
+ Network bench_default Created 
+ Container bench-postgres-1 Creating 
+ Container bench-postgres-1 Created 
+ Container bench-postgres-1 Starting 
+ Container bench-postgres-1 Started 
+==> Waiting for the seed (the first run on a new VM takes a few minutes)
+==> Resetting database from app_template
+NOTICE:  database "app" does not exist, skipping
+==> Starting node (phase: none, FEED_CACHE=off, nginx: proxy)
+ Image gcr.io/cadvisor/cadvisor:v0.49.1@sha256:3cde6faf0791ebf7b41d6f8ae7145466fed712ea6f252c935294d2608b1af388 Pulling 
+ Image quay.io/prometheuscommunity/postgres-exporter:v0.17.1@sha256:38606faa38c54787525fb0ff2fd6b41b4cfb75d455c1df294927c5f611699b17 Pulling 
+ Image nginx/nginx-prometheus-exporter:1.4.2@sha256:6edfb73afd11f2d83ea4e8007f5068c3ffaa38078a6b0ad1339e5bd2f637aacd Pulling 
+ Image nginx:1.28.0-alpine@sha256:30f1c0d78e0ad60901648be663a710bdadf19e4c10ac6782c235200619158284 Pulling 
+ 9fa9226be034 Pulling fs layer 0B
+ 1617e25568b2 Pulling fs layer 0B
+ 3bcc36aa9e1f Pulling fs layer 0B
+ 3bcc36aa9e1f Downloading 108.2kB
+ 9fa9226be034 Downloading 15.69kB
+ 9fa9226be034 Downloading 783kB
+ 9fa9226be034 Verifying Checksum 0B
+ 9fa9226be034 Download complete 0B
+ 9fa9226be034 Extracting 32.77kB
+ 1617e25568b2 Downloading 15.69kB
+ 1617e25568b2 Downloading 480.9kB
+ 1617e25568b2 Verifying Checksum 0B
+ 1617e25568b2 Download complete 0B
+ 3bcc36aa9e1f Downloading 2.786MB
+ 9fa9226be034 Extracting 360.4kB
+ 3bcc36aa9e1f Downloading 7.726MB
+ 3bcc36aa9e1f Verifying Checksum 0B
+ 3bcc36aa9e1f Download complete 0B
+ 9fa9226be034 Extracting 753.7kB
+ 9fa9226be034 Extracting 783kB
+ 9fa9226be034 Pull complete 0B
+ 1617e25568b2 Extracting 32.77kB
+ 382c6f6663b7 Pulling fs layer 0B
+ 7aa33b47b4b8 Pulling fs layer 0B
+ f637881d1138 Pulling fs layer 0B
+ b8554c5f1ad0 Pulling fs layer 0B
+ 8e049f0fd151 Pulling fs layer 0B
+ 71a39d0d04b2 Pulling fs layer 0B
+ e6918dcfd20d Pulling fs layer 0B
+ c4fca37af7b3 Pulling fs layer 0B
+ bc1d7488b05e Pulling fs layer 0B
+ 3e300a7cb18c Pulling fs layer 0B
+ b8554c5f1ad0 Waiting 0B
+ 8e049f0fd151 Waiting 0B
+ 71a39d0d04b2 Waiting 0B
+ e6918dcfd20d Waiting 0B
+ c4fca37af7b3 Waiting 0B
+ bc1d7488b05e Waiting 0B
+ 3e300a7cb18c Waiting 0B
+ 1617e25568b2 Extracting 327.7kB
+ 1617e25568b2 Extracting 393.2kB
+ 619be1103602 Pulling fs layer 0B
+ 3b8469b194b8 Pulling fs layer 0B
+ 6361eeb1639c Pulling fs layer 0B
+ 4f4fb700ef54 Pulling fs layer 0B
+ 902eccca70f3 Pulling fs layer 0B
+ 619be1103602 Waiting 0B
+ 3b8469b194b8 Waiting 0B
+ 6361eeb1639c Waiting 0B
+ 4f4fb700ef54 Waiting 0B
+ 902eccca70f3 Waiting 0B
+ 1617e25568b2 Extracting 458.8kB
+ 1617e25568b2 Extracting 480.9kB
+ f637881d1138 Downloading 48.48kB
+ 382c6f6663b7 Downloading 16.38kB
+ 382c6f6663b7 Downloading 128.3kB
+ f637881d1138 Downloading 3.587MB
+ 7aa33b47b4b8 Downloading 65.54kB
+ f637881d1138 Verifying Checksum 0B
+ f637881d1138 Download complete 0B
+ 382c6f6663b7 Verifying Checksum 0B
+ 382c6f6663b7 Download complete 0B
+ f637881d1138 Extracting 65.54kB
+ 382c6f6663b7 Extracting 32.77kB
+ 382c6f6663b7 Extracting 128.3kB
+ 7aa33b47b4b8 Downloading 3.238MB
+ 1617e25568b2 Pull complete 0B
+ 3bcc36aa9e1f Extracting 131.1kB
+ f637881d1138 Extracting 262.1kB
+ 7aa33b47b4b8 Verifying Checksum 0B
+ 7aa33b47b4b8 Download complete 0B
+ 8e049f0fd151 Downloading 627B
+ b8554c5f1ad0 Downloading 32.1kB
+ 8e049f0fd151 Verifying Checksum 0B
+ 8e049f0fd151 Download complete 0B
+ b8554c5f1ad0 Downloading 1.791MB
+ 382c6f6663b7 Pull complete 0B
+ b8554c5f1ad0 Verifying Checksum 0B
+ b8554c5f1ad0 Download complete 0B
+ f637881d1138 Extracting 524.3kB
+ 3bcc36aa9e1f Extracting 262.1kB
+ 7aa33b47b4b8 Extracting 65.54kB
+ 71a39d0d04b2 Downloading 955B
+ e6918dcfd20d Downloading 404B
+ 71a39d0d04b2 Verifying Checksum 0B
+ 71a39d0d04b2 Download complete 0B
+ e6918dcfd20d Verifying Checksum 0B
+ e6918dcfd20d Download complete 0B
+ f637881d1138 Extracting 720.9kB
+ 3bcc36aa9e1f Extracting 655.4kB
+ c4fca37af7b3 Downloading 1.209kB
+ c4fca37af7b3 Verifying Checksum 0B
+ c4fca37af7b3 Download complete 0B
+ 7aa33b47b4b8 Extracting 393.2kB
+ 3e300a7cb18c Downloading 163.2kB
+ f637881d1138 Extracting 1.049MB
+ 3bcc36aa9e1f Extracting 1.18MB
+ 3e300a7cb18c Downloading 7.864MB
+ bc1d7488b05e Downloading 1.398kB
+ 7aa33b47b4b8 Extracting 655.4kB
+ bc1d7488b05e Verifying Checksum 0B
+ bc1d7488b05e Download complete 0B
+ f637881d1138 Extracting 1.311MB
+ 3e300a7cb18c Downloading 15.24MB
+ 3e300a7cb18c Verifying Checksum 0B
+ 3e300a7cb18c Download complete 0B
+ 3bcc36aa9e1f Extracting 1.442MB
+ 7aa33b47b4b8 Extracting 983kB
+ f637881d1138 Extracting 1.704MB
+ 3bcc36aa9e1f Extracting 2.228MB
+ 7aa33b47b4b8 Extracting 1.769MB
+ f637881d1138 Extracting 2.359MB
+ 3bcc36aa9e1f Extracting 2.884MB
+ 7aa33b47b4b8 Extracting 2.556MB
+ f637881d1138 Extracting 3.277MB
+ f637881d1138 Extracting 3.643MB
+ f637881d1138 Extracting 3.643MB
+ 3bcc36aa9e1f Extracting 3.539MB
+ 7aa33b47b4b8 Extracting 3.08MB
+ f637881d1138 Pull complete 0B
+ b8554c5f1ad0 Extracting 32.77kB
+ 3bcc36aa9e1f Extracting 4.194MB
+ 7aa33b47b4b8 Extracting 3.736MB
+ b8554c5f1ad0 Extracting 557.1kB
+ 3bcc36aa9e1f Extracting 4.981MB
+ 7aa33b47b4b8 Extracting 4.653MB
+ 7aa33b47b4b8 Extracting 4.98MB
+ 7aa33b47b4b8 Extracting 4.98MB
+ b8554c5f1ad0 Extracting 1.376MB
+ 3bcc36aa9e1f Extracting 6.423MB
+ 619be1103602 Downloading 34.76kB
+ 7aa33b47b4b8 Pull complete 0B
+ 619be1103602 Downloading 68.9kB
+ b8554c5f1ad0 Extracting 1.791MB
+ 3bcc36aa9e1f Extracting 7.078MB
+ 619be1103602 Downloading 103kB
+ 3bcc36aa9e1f Extracting 7.34MB
+ 3b8469b194b8 Downloading 64.76kB
+ b8554c5f1ad0 Pull complete 0B
+ 619be1103602 Downloading 307.9kB
+ Image nginx/nginx-prometheus-exporter:1.4.2@sha256:6edfb73afd11f2d83ea4e8007f5068c3ffaa38078a6b0ad1339e5bd2f637aacd Pulled 
+ 8e049f0fd151 Extracting 627B
+ 8e049f0fd151 Extracting 627B
+ 8e049f0fd151 Pull complete 0B
+ 3bcc36aa9e1f Extracting 9.699MB
+ 3bcc36aa9e1f Extracting 9.947MB
+ 71a39d0d04b2 Extracting 955B
+ 619be1103602 Downloading 650.6kB
+ 71a39d0d04b2 Extracting 955B
+ 3b8469b194b8 Downloading 193.2kB
+ 71a39d0d04b2 Pull complete 0B
+ 3bcc36aa9e1f Pull complete 0B
+ e6918dcfd20d Extracting 404B
+ e6918dcfd20d Extracting 404B
+ 619be1103602 Downloading 1.539MB
+ 3b8469b194b8 Downloading 385.7kB
+ Image quay.io/prometheuscommunity/postgres-exporter:v0.17.1@sha256:38606faa38c54787525fb0ff2fd6b41b4cfb75d455c1df294927c5f611699b17 Pulled 
+ e6918dcfd20d Pull complete 0B
+ c4fca37af7b3 Extracting 1.209kB
+ c4fca37af7b3 Extracting 1.209kB
+ 6361eeb1639c Downloading 21.14kB
+ 619be1103602 Downloading 3.31MB
+ 619be1103602 Downloading 3.403MB
+ 619be1103602 Verifying Checksum 0B
+ 619be1103602 Download complete 0B
+ 619be1103602 Extracting 65.54kB
+ c4fca37af7b3 Pull complete 0B
+ bc1d7488b05e Extracting 1.398kB
+ bc1d7488b05e Extracting 1.398kB
+ 3b8469b194b8 Downloading 834.8kB
+ bc1d7488b05e Pull complete 0B
+ 6361eeb1639c Downloading 64.76kB
+ 3b8469b194b8 Downloading 1.621MB
+ 619be1103602 Extracting 720.9kB
+ 3b8469b194b8 Downloading 4.504MB
+ 619be1103602 Extracting 852kB
+ 6361eeb1639c Downloading 174.1kB
+ 3e300a7cb18c Extracting 163.8kB
+ 3b8469b194b8 Verifying Checksum 0B
+ 3b8469b194b8 Download complete 0B
+ 619be1103602 Extracting 1.638MB
+ 6361eeb1639c Downloading 436.2kB
+ 3e300a7cb18c Extracting 983kB
+ 619be1103602 Extracting 2.949MB
+ 6361eeb1639c Downloading 895kB
+ 3e300a7cb18c Extracting 2.294MB
+ 619be1103602 Extracting 3.403MB
+ 6361eeb1639c Downloading 1.539MB
+ 6361eeb1639c Downloading 2.062MB
+ 6361eeb1639c Verifying Checksum 0B
+ 6361eeb1639c Download complete 0B
+ 619be1103602 Pull complete 0B
+ 3e300a7cb18c Extracting 2.785MB
+ 3b8469b194b8 Extracting 65.54kB
+ 4f4fb700ef54 Downloading 32B
+ 4f4fb700ef54 Verifying Checksum 0B
+ 4f4fb700ef54 Download complete 0B
+ 3e300a7cb18c Extracting 3.932MB
+ 3b8469b194b8 Extracting 655.4kB
+ 3e300a7cb18c Extracting 5.079MB
+ 3b8469b194b8 Extracting 1.835MB
+ 3b8469b194b8 Extracting 2.884MB
+ 3e300a7cb18c Extracting 6.226MB
+ 902eccca70f3 Downloading 212.2kB
+ 3b8469b194b8 Extracting 3.801MB
+ 3e300a7cb18c Extracting 6.881MB
+ 902eccca70f3 Downloading 425.2kB
+ 3b8469b194b8 Extracting 5.046MB
+ 3e300a7cb18c Extracting 8.028MB
+ 902eccca70f3 Downloading 851.2kB
+ 3b8469b194b8 Extracting 5.505MB
+ 3e300a7cb18c Extracting 8.684MB
+ 3b8469b194b8 Extracting 6.37MB
+ 902eccca70f3 Downloading 1.916MB
+ 3e300a7cb18c Extracting 9.83MB
+ 3b8469b194b8 Pull complete 0B
+ 6361eeb1639c Extracting 32.77kB
+ 902eccca70f3 Downloading 3.621MB
+ 3e300a7cb18c Extracting 10.49MB
+ 6361eeb1639c Extracting 491.5kB
+ 902eccca70f3 Downloading 8.517MB
+ 3e300a7cb18c Extracting 10.81MB
+ 6361eeb1639c Extracting 753.7kB
+ 902eccca70f3 Downloading 13.43MB
+ 6361eeb1639c Extracting 1.212MB
+ 902eccca70f3 Downloading 18.13MB
+ 3e300a7cb18c Extracting 11.8MB
+ 902eccca70f3 Verifying Checksum 0B
+ 902eccca70f3 Download complete 0B
+ 6361eeb1639c Extracting 1.933MB
+ 6361eeb1639c Extracting 2.062MB
+ 3e300a7cb18c Extracting 12.45MB
+ 6361eeb1639c Pull complete 0B
+ 4f4fb700ef54 Extracting 32B
+ 4f4fb700ef54 Extracting 32B
+ 3e300a7cb18c Extracting 13.93MB
+ 4f4fb700ef54 Pull complete 0B
+ 902eccca70f3 Extracting 229.4kB
+ 3e300a7cb18c Extracting 15.4MB
+ 3e300a7cb18c Extracting 15.55MB
+ 902eccca70f3 Extracting 688.1kB
+ 3e300a7cb18c Pull complete 0B
+ Image nginx:1.28.0-alpine@sha256:30f1c0d78e0ad60901648be663a710bdadf19e4c10ac6782c235200619158284 Pulled 
+ 902eccca70f3 Extracting 2.294MB
+ 902eccca70f3 Extracting 4.129MB
+ 902eccca70f3 Extracting 6.193MB
+ 902eccca70f3 Extracting 7.799MB
+ 902eccca70f3 Extracting 10.32MB
+ 902eccca70f3 Extracting 12.39MB
+ 902eccca70f3 Extracting 18.12MB
+ 902eccca70f3 Extracting 20.96MB
+ 902eccca70f3 Pull complete 0B
+ Image gcr.io/cadvisor/cadvisor:v0.49.1@sha256:3cde6faf0791ebf7b41d6f8ae7145466fed712ea6f252c935294d2608b1af388 Pulled 
+ Image one-cpu/node:local Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 547B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 1.67kB 0.0s done
+#2 DONE 0.6s
+
+#3 [internal] load metadata for docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+#3 DONE 1.2s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 91B done
+#4 DONE 0.1s
+
+#5 [internal] load build context
+#5 transferring context: 220.81kB 0.0s done
+#5 DONE 0.1s
+
+#6 [build  1/10] FROM docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+#6 resolve docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 0.1s done
+#6 sha256:1200d815de24f8dcca745fbf7651d166034a35adbcad8860a8538ffff44f1420 1.72kB / 1.72kB done
+#6 sha256:fecf2188af16d8979528abb79909513c78971103c52f677d69584e93c3a0ffcf 6.68kB / 6.68kB done
+#6 sha256:7b229517ed222597277036d94892173207d01a731ab3a88eeb1de2e963a2c788 3.85MB / 3.85MB 0.2s done
+#6 sha256:15577f11e05afbda845cbd2903e55f0a3da41dc2a576435999474e7a2654651b 0B / 57.37MB 0.2s
+#6 sha256:f0a5c9e3ce7dcc7fca3a816f70b3d42bc5324066b627223af466eff9030e171f 0B / 1.26MB 0.2s
+#6 sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53 3.87kB / 3.87kB done
+#6 sha256:15577f11e05afbda845cbd2903e55f0a3da41dc2a576435999474e7a2654651b 4.27MB / 57.37MB 0.3s
+#6 extracting sha256:7b229517ed222597277036d94892173207d01a731ab3a88eeb1de2e963a2c788
+#6 sha256:109c2f814f468711ac666fb9494ce76528e972ee8636468ad822267a0af959e5 0B / 443B 0.3s
+#6 sha256:15577f11e05afbda845cbd2903e55f0a3da41dc2a576435999474e7a2654651b 13.63MB / 57.37MB 0.4s
+#6 sha256:15577f11e05afbda845cbd2903e55f0a3da41dc2a576435999474e7a2654651b 20.97MB / 57.37MB 0.5s
+#6 sha256:15577f11e05afbda845cbd2903e55f0a3da41dc2a576435999474e7a2654651b 38.80MB / 57.37MB 0.7s
+#6 sha256:f0a5c9e3ce7dcc7fca3a816f70b3d42bc5324066b627223af466eff9030e171f 1.26MB / 1.26MB 0.6s done
+#6 sha256:109c2f814f468711ac666fb9494ce76528e972ee8636468ad822267a0af959e5 443B / 443B 0.6s done
+#6 sha256:15577f11e05afbda845cbd2903e55f0a3da41dc2a576435999474e7a2654651b 51.57MB / 57.37MB 0.8s
+#6 sha256:15577f11e05afbda845cbd2903e55f0a3da41dc2a576435999474e7a2654651b 57.37MB / 57.37MB 0.9s done
+#6 extracting sha256:7b229517ed222597277036d94892173207d01a731ab3a88eeb1de2e963a2c788 0.7s done
+#6 extracting sha256:15577f11e05afbda845cbd2903e55f0a3da41dc2a576435999474e7a2654651b 0.1s
+#6 extracting sha256:15577f11e05afbda845cbd2903e55f0a3da41dc2a576435999474e7a2654651b 4.1s done
+#6 extracting sha256:f0a5c9e3ce7dcc7fca3a816f70b3d42bc5324066b627223af466eff9030e171f
+#6 extracting sha256:f0a5c9e3ce7dcc7fca3a816f70b3d42bc5324066b627223af466eff9030e171f 0.1s done
+#6 extracting sha256:109c2f814f468711ac666fb9494ce76528e972ee8636468ad822267a0af959e5 done
+#6 DONE 5.8s
+
+#7 [stage-1 2/5] WORKDIR /app
+#7 DONE 0.3s
+
+#8 [build  2/10] RUN apk add --no-cache openssl
+#8 1.437 (1/1) Installing openssl (3.5.9-r0)
+#8 1.451 Executing busybox-1.37.0-r31.trigger
+#8 1.464 OK: 11.7 MiB in 20 packages
+#8 DONE 1.6s
+
+#9 [build  3/10] WORKDIR /app
+#9 DONE 0.1s
+
+#10 [build  4/10] COPY package.json package-lock.json ./
+#10 DONE 0.1s
+
+#11 [build  5/10] RUN npm ci --no-audit --no-fund
+#11 13.09 npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+#11 16.02 npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+#11 31.62 
+#11 31.62 added 374 packages in 31s
+#11 31.62 npm warn install-scripts 3 packages have install scripts not yet covered by allowScripts:
+#11 31.62 npm warn install-scripts   @prisma/engines@7.10.1 (postinstall: node scripts/postinstall.js)
+#11 31.62 npm warn install-scripts   prisma@7.10.1 (preinstall: node scripts/preinstall-entry.js)
+#11 31.62 npm warn install-scripts   protobufjs@7.6.6 (postinstall: node scripts/postinstall)
+#11 31.62 npm warn install-scripts
+#11 31.62 npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+#11 31.63 npm notice
+#11 31.63 npm notice New major version of npm available! 11.19.1 -> 12.2.1
+#11 31.63 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.1
+#11 31.63 npm notice To update run: npm install -g npm@12.2.1
+#11 31.63 npm notice
+#11 DONE 32.4s
+
+#12 [build  6/10] COPY tsconfig.json prisma.config.ts ./
+#12 DONE 0.2s
+
+#13 [build  7/10] COPY prisma ./prisma
+#13 DONE 0.1s
+
+#14 [build  8/10] COPY src ./src
+#14 DONE 0.1s
+
+#15 [build  9/10] COPY test ./test
+#15 DONE 0.2s
+
+#16 [build 10/10] RUN DATABASE_URL=postgres://build/none npm run build  && npm test  && npm prune --omit=dev --no-audit --no-fund  && chmod -R a+rX package.json dist node_modules
+#16 0.788 
+#16 0.788 > one-cpu-node@1.0.0 build
+#16 0.788 > prisma generate && tsc -p tsconfig.json
+#16 0.788 
+#16 3.724 Loaded Prisma config from prisma.config.ts.
+#16 3.724 
+#16 4.856 Prisma schema loaded from prisma/schema.prisma.
+#16 5.257 
+#16 5.257 ✔ Generated Prisma Client (7.10.1) to ./src/generated/prisma in 223ms
+#16 5.257 
+#16 18.82 
+#16 18.82 > one-cpu-node@1.0.0 test
+#16 18.82 > node --test test/*.test.mjs
+#16 18.82 
+#16 20.11 ✔ GET /health (219.409481ms)
+#16 20.11 ✔ GET /feed returns the service's JSON as is (5.624827ms)
+#16 20.19 ✔ POST /posts returns 201 with the contract's shape (69.166086ms)
+#16 20.20 ✔ POST /posts with missing X-User-Id is a 400 with an error body (28.011969ms)
+#16 20.21 ✔ POST /posts with non-numeric X-User-Id is a 400 with an error body (6.963223ms)
+#16 20.22 ✔ POST /posts with X-User-Id beyond 2^53 is a 400 with an error body (7.200744ms)
+#16 20.22 ✔ POST /posts with empty body is a 400 with an error body (7.174849ms)
+#16 20.23 ✔ POST /posts with body over 280 characters is a 400 with an error body (4.421119ms)
+#16 20.24 ✔ POST /posts with malformed JSON is a 400 with an error body (8.610065ms)
+#16 20.25 ✔ POST /posts/:id/like returns 204, or the service's 404 (9.890571ms)
+#16 20.26 ✔ unknown routes are a 404 with an error body (3.435986ms)
+#16 20.26 ✔ bodies over the size limit are rejected (3.267415ms)
+#16 20.51 ✔ unknown user is a 400 (4.132981ms)
+#16 20.51 ✔ missing post is a 404 (0.792216ms)
+#16 20.51 ✔ anything else is left alone (becomes a 500) (0.627861ms)
+#16 20.68 ✔ concurrent requests during a reload share one load (single flight) (24.418185ms)
+#16 20.74 ✔ an expired entry is reloaded (43.548925ms)
+#16 20.74 ✔ a failed load is not cached (3.033685ms)
+#16 20.74 ✔ hits and misses are reported (4.328767ms)
+#16 20.77 ℹ tests 19
+#16 20.77 ℹ suites 0
+#16 20.77 ℹ pass 19
+#16 20.77 ℹ fail 0
+#16 20.77 ℹ cancelled 0
+#16 20.77 ℹ skipped 0
+#16 20.77 ℹ todo 0
+#16 20.77 ℹ duration_ms 1838.32197
+#16 23.09 
+#16 23.09 up to date in 2s
+#16 23.09 npm warn install-scripts 3 packages have install scripts not yet covered by allowScripts:
+#16 23.09 npm warn install-scripts   @prisma/engines@7.10.1 (postinstall: node scripts/postinstall.js)
+#16 23.09 npm warn install-scripts   prisma@7.10.1 (preinstall: node scripts/preinstall-entry.js)
+#16 23.09 npm warn install-scripts   protobufjs@7.6.6 (postinstall: node scripts/postinstall)
+#16 23.09 npm warn install-scripts
+#16 23.09 npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+#16 DONE 139.7s
+
+#17 [stage-1 3/5] COPY --from=build /app/package.json ./
+#17 DONE 0.3s
+
+#18 [stage-1 4/5] COPY --from=build /app/node_modules ./node_modules
+#18 DONE 10.9s
+
+#19 [stage-1 5/5] COPY --from=build /app/dist ./dist
+#19 DONE 0.2s
+
+#20 exporting to image
+#20 exporting layers
+#20 exporting layers 6.3s done
+#20 writing image sha256:0e4f8e0502eb351724daebf558adcfd6fee9b7cf5f3c74742dcece5552997343
+#20 writing image sha256:0e4f8e0502eb351724daebf558adcfd6fee9b7cf5f3c74742dcece5552997343 done
+#20 naming to docker.io/one-cpu/node:local 0.0s done
+#20 DONE 6.4s
+
+#21 resolving provenance for metadata file
+#21 DONE 0.1s
+ Image one-cpu/node:local Built 
+ Container bench-postgres-1 Running 
+ Container bench-postgres-exporter-1 Creating 
+ Volume bench_nginx-logs Creating 
+ Volume bench_nginx-logs Creating 
+ Container bench-cadvisor-1 Creating 
+ Container bench-app-1 Creating 
+ Volume bench_nginx-logs Created 
+ Volume bench_nginx-logs Created 
+ Container bench-cadvisor-1 Created 
+ Container bench-postgres-exporter-1 Created 
+ Container bench-app-1 Created 
+ Container bench-nginx-1 Creating 
+ Container bench-nginx-1 Created 
+ Container bench-nginx-exporter-1 Creating 
+ Container bench-nginx-exporter-1 Created 
+ Container bench-cadvisor-1 Starting 
+ Container bench-app-1 Starting 
+ Container bench-postgres-exporter-1 Starting 
+ Container bench-cadvisor-1 Started 
+ Container bench-app-1 Started 
+ Container bench-nginx-1 Starting 
+ Container bench-postgres-exporter-1 Started 
+ Container bench-nginx-1 Started 
+ Container bench-nginx-exporter-1 Starting 
+ Container bench-nginx-exporter-1 Started 
+==> Waiting for http://10.110.0.2:8080/health
+==> Ready: node, phase none
+==> Contract test
+==> Idle baseline (30 s)
+==> calibration_seconds=21.56   (runs: 19.88 21.56 22.59)
+==> WARNING: calibration 21.56 s is 293% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care
+==> Warm-up: 20 sessions/s for 120 s
+==>   28 req/s, p95 20 ms, p99 43 ms, errors 0.00%
+==> ramp-coarse: 19 steps of 60 s, rates 10, 15, 22, 34, 51, 76, 114, 171, 256, 384, 577, 865, 1297, 1946, 2919, 4379, 6568, 9853, 14779 sessions/s
+==>   step 1/19 @ 10 sessions/s: 14 req/s, p95 21 ms, p99 43 ms, errors 0.00%, server CPU 12% -> PASS
+==>   step 2/19 @ 15 sessions/s: 21 req/s, p95 24 ms, p99 48 ms, errors 0.00%, server CPU 25% -> PASS
+==>   step 3/19 @ 22 sessions/s: 31 req/s, p95 20 ms, p99 34 ms, errors 0.00%, server CPU 24% -> PASS
+==>   step 4/19 @ 34 sessions/s: 47 req/s, p95 22 ms, p99 40 ms, errors 0.00%, server CPU 34% -> PASS
+==>   step 5/19 @ 51 sessions/s: 70 req/s, p95 26 ms, p99 52 ms, errors 0.00%, server CPU 40% -> PASS
+==>   step 6/19 @ 76 sessions/s: 106 req/s, p95 1308 ms, p99 1675 ms, errors 0.00%, server CPU 73% -> FAIL (p95 1308 ms, p99 1675 ms)
+==> Cool-down 120 s before the fine ramp
+==> ramp-fine: 4 steps of 60 s, rates 56, 61, 66, 71 sessions/s
+==>   step 1/4 @ 56 sessions/s: 78 req/s, p95 28 ms, p99 56 ms, errors 0.00%, server CPU 49% -> PASS
+==>   step 2/4 @ 61 sessions/s: 86 req/s, p95 884 ms, p99 1268 ms, errors 0.00%, server CPU 58% -> FAIL (p95 884 ms, p99 1268 ms)
+==> Cool-down 120 s, then confirm 56 sessions/s for 300 s after a 45 s ramp-up
+==>   Nginx counted 25242 requests, k6 25242 (+0.00%)
+==>   78 req/s, p95 29 ms, p99 60 ms, errors 0.00% -> CONFIRMED
+==> Cool-down 120 s, then overload: 45 s ramp-up, 2 min at 1.5x, 2 min back at 56 sessions/s
+==>   Nginx counted 25255 requests, k6 25254 (+0.01%)
+==>   at 1.5x: 117 req/s, p95 51 ms, p99 107 ms, errors 0.00%
+==>   back at 1x: 79 req/s, p95 28 ms, p99 63 ms, errors 0.00% -> recovered
+==> Data check: 5926 posts and 17869 likes stored for 5918 and 17829 acknowledged; like counts consistent
+==> RESULT node / none: 78 req/s sustained (56 sessions/s, about 225 concurrent users), p95 29 ms, p99 60 ms
+==> WARNING: calibration 21.56 s is 293% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care
+==> Saved results/node/none/20261104-161057. Let the Mac cool down 5 minutes before the next run.

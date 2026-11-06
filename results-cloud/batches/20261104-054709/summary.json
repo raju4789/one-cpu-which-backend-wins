@@ -1,0 +1,214 @@
+{
+  "plan": {
+    "repeat": 1,
+    "cooldown": 120,
+    "configs": [
+      {
+        "label": "node-tuned",
+        "ref": "node-tuned",
+        "stack": "node",
+        "phase": "none",
+        "extra": [
+          "--quick",
+          "--quick-from",
+          "150"
+        ],
+        "commit": "814f326280d3bfb828dc3c3e30a36781cc4d03e3"
+      },
+      {
+        "label": "rails-tuned",
+        "ref": "rails-tuned",
+        "stack": "rails",
+        "phase": "none",
+        "extra": [
+          "--quick",
+          "--quick-from",
+          "150"
+        ],
+        "commit": "9aa5bfb8c0eb63da7e6baffe24e23c451eb0c98a"
+      },
+      {
+        "label": "spring-tuned",
+        "ref": "spring-tuned",
+        "stack": "spring",
+        "phase": "none",
+        "extra": [
+          "--quick",
+          "--quick-from",
+          "150"
+        ],
+        "commit": "17b0155dd557a600f247a22ecad74a29357e1e7f"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "label": "node-tuned",
+      "ref": "node-tuned",
+      "commit": "814f326280",
+      "exit_code": 1,
+      "minutes": 12.3,
+      "results": "results/node/none/20261104-054709-quick",
+      "status": "aborted",
+      "rps": null,
+      "rate": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "calibration_s": 18.87,
+      "warnings": [
+        "calibration 18.87 s is 244% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care",
+        "aborted: k6 ran out of virtual users (--max-vus 10000), so it could not start every session: the load generator was the limit. Rerun with --max-vus 20000"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "-",
+          "limit": "< 70%",
+          "ok": null
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "-",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "18.87 s (+243.7% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 791cde771b, stack 814f326280 (node-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "rails-tuned",
+      "ref": "rails-tuned",
+      "commit": "9aa5bfb8c0",
+      "exit_code": 1,
+      "minutes": 11.6,
+      "results": "results/rails/none/20261104-060129-quick",
+      "status": "complete",
+      "rps": null,
+      "rate": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "calibration_s": 22.04,
+      "warnings": [
+        "calibration 22.04 s is 301% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "-",
+          "limit": "< 70%",
+          "ok": null
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.8 cores, 550 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "22.04 s (+301.5% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 791cde771b, stack 9aa5bfb8c0 (rails-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "label": "spring-tuned",
+      "ref": "spring-tuned",
+      "commit": "17b0155dd5",
+      "exit_code": 1,
+      "minutes": 8.1,
+      "results": "results/spring/none/20261104-061507-quick",
+      "status": "complete",
+      "rps": null,
+      "rate": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "calibration_s": 20.41,
+      "warnings": [
+        "calibration 20.41 s is 272% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care"
+      ],
+      "checks": [
+        {
+          "check": "Mac CPU, peak (k6 runs there)",
+          "value": "-",
+          "limit": "< 70%",
+          "ok": null
+        },
+        {
+          "check": "Mac memory compressed during the run",
+          "value": "-",
+          "limit": "< 2 GB",
+          "ok": null
+        },
+        {
+          "check": "k6 process, peak",
+          "value": "0.8 cores, 561 MB",
+          "limit": "for reference",
+          "ok": null
+        },
+        {
+          "check": "Mac asleep during the run",
+          "value": "0 s",
+          "limit": "0 s",
+          "ok": true
+        },
+        {
+          "check": "Core speed (calibration)",
+          "value": "20.41 s (+271.8% vs 5.49 s)",
+          "limit": "< +3%",
+          "ok": false
+        },
+        {
+          "check": "Code fingerprint",
+          "value": "harness 791cde771b, stack 17b0155dd5 (spring-tuned)",
+          "limit": "everything committed",
+          "ok": true
+        }
+      ]
+    }
+  ],
+  "started": "2026-11-04T05:47:09+00:00",
+  "finished": "2026-11-04T06:23:12+00:00"
+}

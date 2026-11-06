@@ -1,0 +1,149 @@
+==> Run spring-app-20261105-152836, results in results/spring/app/20261105-152836
+==> Stopping anything already running
+==> Starting Postgres
+ Network bench_default Creating 
+ Network bench_default Creating 
+ Network bench_default Created 
+ Network bench_default Created 
+ Container bench-postgres-1 Creating 
+ Container bench-postgres-1 Created 
+ Container bench-postgres-1 Starting 
+ Container bench-postgres-1 Started 
+==> Waiting for the seed (the first run on a new VM takes a few minutes)
+==> Resetting database from app_template
+==> Starting spring (phase: app, FEED_CACHE=app, nginx: proxy)
+ Image one-cpu/spring:local Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 561B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 2.11kB 0.0s done
+#2 DONE 0.5s
+
+#3 [internal] load metadata for docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#3 ...
+
+#4 [internal] load metadata for docker.io/library/eclipse-temurin:25-jre@sha256:ecdc0adb37bde1a281c4d245a3cd535004b1fc8322d560f5b09463b248c81df0
+#4 DONE 0.7s
+
+#3 [internal] load metadata for docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#3 DONE 0.7s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 61B 0.0s done
+#5 DONE 0.0s
+
+#6 [build 1/6] FROM docker.io/library/maven:3.9.11-eclipse-temurin-25@sha256:407c4423cec0cf2981055bc2c6c0dc211d9605b6669279b95997f2d1c7e91e2c
+#6 DONE 0.0s
+
+#7 [stage-1 1/7] FROM docker.io/library/eclipse-temurin:25-jre@sha256:ecdc0adb37bde1a281c4d245a3cd535004b1fc8322d560f5b09463b248c81df0
+#7 DONE 0.0s
+
+#8 [internal] load build context
+#8 transferring context: 1.56kB 0.0s done
+#8 DONE 0.0s
+
+#9 [build 4/6] RUN mvn -B -q dependency:go-offline
+#9 CACHED
+
+#10 [build 3/6] COPY pom.xml .
+#10 CACHED
+
+#11 [stage-1 4/7] COPY --from=build /extracted/dependencies/ ./
+#11 CACHED
+
+#12 [stage-1 3/7] RUN groupadd --system --gid 1001 spring  && useradd spring --system --uid 1001 --gid 1001 --no-create-home --shell /usr/sbin/nologin
+#12 CACHED
+
+#13 [build 5/6] COPY src src
+#13 CACHED
+
+#14 [stage-1 2/7] WORKDIR /app
+#14 CACHED
+
+#15 [stage-1 6/7] COPY --from=build /extracted/snapshot-dependencies/ ./
+#15 CACHED
+
+#16 [stage-1 5/7] COPY --from=build /extracted/spring-boot-loader/ ./
+#16 CACHED
+
+#17 [build 2/6] WORKDIR /build
+#17 CACHED
+
+#18 [build 6/6] RUN mvn -B -q package  && java -Djarmode=tools -jar target/app.jar extract --layers --launcher --destination /extracted
+#18 CACHED
+
+#19 [stage-1 7/7] COPY --from=build /extracted/application/ ./
+#19 CACHED
+
+#20 exporting to image
+#20 exporting layers done
+#20 writing image sha256:917f604f3cad2375489e9a81a8536048a8bf2cb5206f322905f75f9e76df0584 done
+#20 naming to docker.io/one-cpu/spring:local done
+#20 DONE 0.0s
+
+#21 resolving provenance for metadata file
+#21 DONE 0.0s
+ Image one-cpu/spring:local Built 
+ Container bench-postgres-1 Running 
+ Container bench-postgres-exporter-1 Creating 
+ Container bench-app-1 Creating 
+ Container bench-cadvisor-1 Creating 
+ Container bench-app-1 Created 
+ Container bench-nginx-1 Creating 
+ Container bench-postgres-exporter-1 Created 
+ Container bench-nginx-1 Created 
+ Container bench-nginx-exporter-1 Creating 
+ Container bench-nginx-exporter-1 Created 
+ Container bench-cadvisor-1 Created 
+ Container bench-postgres-exporter-1 Starting 
+ Container bench-cadvisor-1 Starting 
+ Container bench-app-1 Starting 
+ Container bench-postgres-exporter-1 Started 
+ Container bench-cadvisor-1 Started 
+ Container bench-app-1 Started 
+ Container bench-nginx-1 Starting 
+ Container bench-nginx-1 Started 
+ Container bench-nginx-exporter-1 Starting 
+ Container bench-nginx-exporter-1 Started 
+==> Waiting for http://10.110.0.2:8080/health
+==> Ready: spring, phase app
+==> Contract test
+==> Idle baseline (30 s)
+==> calibration_seconds=24.61   (runs: 23.44 24.61 26.84)
+==> WARNING: calibration 24.61 s is 348% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care
+==> Warm-up: 20 sessions/s for 120 s
+==>   28 req/s, p95 29 ms, p99 48 ms, errors 0.00%
+==> ramp-coarse: 19 steps of 60 s, rates 10, 15, 22, 34, 51, 76, 114, 171, 256, 384, 577, 865, 1297, 1946, 2919, 4379, 6568, 9853, 14779 sessions/s
+==>   step 1/19 @ 10 sessions/s: 14 req/s, p95 19 ms, p99 44 ms, errors 0.00%, server CPU 12% -> PASS
+==>   step 2/19 @ 15 sessions/s: 21 req/s, p95 24 ms, p99 42 ms, errors 0.00%, server CPU 21% -> PASS
+==>   step 3/19 @ 22 sessions/s: 31 req/s, p95 22 ms, p99 42 ms, errors 0.00%, server CPU 25% -> PASS
+==>   step 4/19 @ 34 sessions/s: 47 req/s, p95 23 ms, p99 45 ms, errors 0.00%, server CPU 27% -> PASS
+==>   step 5/19 @ 51 sessions/s: 71 req/s, p95 26 ms, p99 84 ms, errors 0.00%, server CPU 37% -> PASS
+==>   step 6/19 @ 76 sessions/s: 106 req/s, p95 36 ms, p99 80 ms, errors 0.00%, server CPU 42% -> PASS
+==>   step 7/19 @ 114 sessions/s: 160 req/s, p95 41 ms, p99 247 ms, errors 0.00%, server CPU 49% -> PASS
+==>   step 8/19 @ 171 sessions/s: 239 req/s, p95 296 ms, p99 638 ms, errors 0.00%, server CPU 61% -> PASS
+==>   step 9/19 @ 256 sessions/s: 358 req/s, p95 131 ms, p99 785 ms, errors 0.00%, server CPU 74% -> PASS
+==>   step 10/19 @ 384 sessions/s: 539 req/s, p95 438 ms, p99 1240 ms, errors 0.01%, server CPU 87% -> FAIL (p95 438 ms, p99 1240 ms)
+==> Cool-down 120 s before the fine ramp
+==> ramp-fine: 4 steps of 60 s, rates 282, 307, 333, 358 sessions/s
+==>   step 1/4 @ 282 sessions/s: 395 req/s, p95 60 ms, p99 127 ms, errors 0.00%, server CPU 69% -> PASS
+==>   step 2/4 @ 307 sessions/s: 430 req/s, p95 125 ms, p99 436 ms, errors 0.00%, server CPU 69% -> PASS
+==>   step 3/4 @ 333 sessions/s: 469 req/s, p95 163 ms, p99 703 ms, errors 0.00%, server CPU 85% -> PASS
+==>   step 4/4 @ 358 sessions/s: 501 req/s, p95 347 ms, p99 590 ms, errors 0.00%, server CPU 74% -> FAIL (p95 347 ms)
+==> Cool-down 120 s, then confirm 333 sessions/s for 300 s after a 45 s ramp-up
+==>   Nginx counted 150185 requests, k6 150184 (+0.00%)
+==>   466 req/s, p95 1020 ms, p99 2940 ms, errors 0.09% -> FAIL (p95 1020 ms, p99 2940 ms)
+==> Cool-down 120 s, then confirm 307 sessions/s for 300 s after a 45 s ramp-up
+==>   Nginx counted 138780 requests, k6 138779 (+0.00%)
+==>   430 req/s, p95 50 ms, p99 95 ms, errors 0.00% -> CONFIRMED
+==> Cool-down 120 s, then overload: 45 s ramp-up, 2 min at 1.5x, 2 min back at 307 sessions/s
+==>   Nginx counted 138753 requests, k6 138752 (+0.00%)
+==>   at 1.5x: 646 req/s, p95 1489 ms, p99 1896 ms, errors 1.35%
+==>   back at 1x: 430 req/s, p95 1319 ms, p99 1939 ms, errors 0.33% -> did NOT recover
+==> Data check: 45391 posts and 136884 likes stored for 45346 and 136721 acknowledged; like counts consistent
+==> RESULT spring / app: 430 req/s sustained (307 sessions/s, about 1234 concurrent users), p95 50 ms, p99 95 ms
+==> WARNING: calibration 24.61 s is 348% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care
+==> Saved results/spring/app/20261105-152836. Let the Mac cool down 5 minutes before the next run.

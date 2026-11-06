@@ -5,6 +5,11 @@ containers' numbers can't show, before the droplets (and Prometheus) are gone:
 
   steal.json  CPU steal: time the host gave the shared vCPU to other customers.
               The run's average, the worst minute, one value per minute.
+  panels.json Every 5 s, the Grafana dashboard's own queries: p95, p99,
+              requests/s and errors by endpoint, status codes, CPU and memory
+              per container and in total, virtual users, the app's DB pool,
+              plus when each k6 test started and ended. What the post charts
+              are drawn from (Prometheus lives on loadgen and goes with it).
   bench.json  Every 15 s: CPU by mode (user, system, iowait, steal, softirq,
               idle), disk busy share and read/write bytes and operations,
               pressure (time tasks waited for CPU, disk, memory), network bytes,
@@ -51,6 +56,51 @@ def query(q, start, end, step):
     return out
 
 
+K6_WIN = "30s"
+
+
+def k6_panels(run_id, start, end):
+    """The dashboard's own queries (harness/monitoring/grafana/build_dashboard.py), every 5 s."""
+    K = f'run_id="{run_id}"'
+    q = lambda p: f"histogram_quantile({p}, sum(rate(k6_http_req_duration_seconds{{{K}}}[{K6_WIN}])))"
+    reqs = f"sum by (name) (rate(k6_http_reqs_total{{{K}}}[{K6_WIN}]))"
+    errs = (f'(sum by (name) (rate(k6_http_reqs_total{{{K}, expected_response="false"}}[{K6_WIN}])) '
+            f"or 0 * {reqs}) / {reqs}")
+    ctr = 'name=~"bench-(app|nginx|postgres)-1"'
+    panels = {
+        "p95": f"{q(0.95)}", "p99": f"{q(0.99)}",
+        "reqs_by_endpoint": reqs, "errors_by_endpoint": errs,
+        "status_codes": f"sum by (status) (rate(k6_http_reqs_total{{{K}}}[{K6_WIN}]))",
+        "cpu_by_container": f"sum by (name) (rate(container_cpu_usage_seconds_total{{{ctr}}}[{K6_WIN}]))",
+        "cpu_containers_total": f'sum(rate(container_cpu_usage_seconds_total{{id="/"}}[{K6_WIN}]))',
+        "memory_by_container": f"sum by (name) (container_memory_working_set_bytes{{{ctr}}})",
+        "memory_containers_total": 'sum(container_memory_working_set_bytes{id="/"})',
+        "vus": f"sum(k6_vus{{{K}}})",
+        "app_db_pool": 'sum by (state) (app_db_pool_connections)',
+    }
+    out = {}
+    for k, expr in panels.items():
+        url = f"{PROM}/api/v1/query_range?" + urllib.parse.urlencode({"query": expr, "start": start, "end": end, "step": 5})
+        try:
+            res = json.load(urllib.request.urlopen(url, timeout=60)).get("data", {}).get("result", [])
+        except OSError as e:
+            print(f"  query failed ({e}): {k}", file=sys.stderr)
+            res = []
+        out[k] = [[s["metric"].get("name") or s["metric"].get("status") or s["metric"].get("state") or k,
+                   [[int(float(t)), round(float(v), 6)] for t, v in s["values"]]] for s in res]
+    # when each k6 test (warmup, ramp-coarse, confirm-<rate>, overload) started and ended
+    url = f"{PROM}/api/v1/query_range?" + urllib.parse.urlencode(
+        {"query": f"sum by (test) (k6_http_reqs_total{{{K}}})", "start": start, "end": end, "step": 5})
+    tests = {}
+    try:
+        for s in json.load(urllib.request.urlopen(url, timeout=60)).get("data", {}).get("result", []):
+            ts = [int(float(t)) for t, _ in s["values"]]
+            tests[s["metric"].get("test", "?")] = [ts[0], ts[-1]]
+    except OSError:
+        pass
+    return {"queries": panels, "tests": tests, "series": out}
+
+
 def avg(pts):
     return sum(v for _, v in pts) / len(pts) if pts else None
 
@@ -76,12 +126,17 @@ for line in sys.stdin:
              "series": {k: query(q, start, end, 15) for k, q in SERIES.items()}}
     with open(os.path.join(d, "bench.json"), "w") as f:
         json.dump(bench, f)
+    panels = dict(run_id=r.get("run_id"), started=start, finished=end, step_seconds=5, **k6_panels(r.get("run_id"), start, end))
+    with open(os.path.join(d, "panels.json"), "w") as f:
+        json.dump(panels, f)
 
     def peak(name):
         vals = [v for _, pts in bench["series"].get(name, []) for _, v in pts]
         return max(vals) if vals else None
     iowait = next((avg(p) for m, p in bench["series"]["cpu_by_mode"] if m == "iowait"), None)
     fmt = lambda v, s="%": "-" if v is None else (f"{v * 100:.1f}%" if s == "%" else f"{v:.1f}/s")
+    n_series = sum(len(v) for v in panels["series"].values())
+    print(f"panels {d}: {n_series} series, tests {sorted(panels['tests'])}")
     print(f"bench {d}: steal {fmt(out['steal_avg'])} avg, {fmt(out['steal_max_minute'])} worst minute; "
           f"iowait {fmt(iowait)} avg; disk busy {fmt(peak('disk_busy'))} peak; "
           f"retransmits {fmt(peak('tcp_retransmits'), '/')} peak; listen overflows {fmt(peak('listen_overflows'), '/')} peak")

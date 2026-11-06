@@ -1,0 +1,140 @@
+==> Run node-nginx-20261105-024329, results in results/node/nginx/20261105-024329
+==> Stopping anything already running
+==> Starting Postgres
+ Network bench_default Creating 
+ Network bench_default Creating 
+ Network bench_default Created 
+ Network bench_default Created 
+ Container bench-postgres-1 Creating 
+ Container bench-postgres-1 Created 
+ Container bench-postgres-1 Starting 
+ Container bench-postgres-1 Started 
+==> Waiting for the seed (the first run on a new VM takes a few minutes)
+==> Resetting database from app_template
+==> Starting node (phase: nginx, FEED_CACHE=off, nginx: cache)
+ Image one-cpu/node:local Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 555B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 1.67kB 0.0s done
+#2 DONE 0.5s
+
+#3 [internal] load metadata for docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+#3 DONE 0.6s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 91B done
+#4 DONE 0.0s
+
+#5 [build  1/10] FROM docker.io/library/node:24.22.1-alpine@sha256:06d7adf3e0ef61a13f1d28682726366f97a15aa1888c934d3ecec86c33918b53
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 971B 0.0s done
+#6 DONE 0.0s
+
+#7 [build  7/10] COPY prisma ./prisma
+#7 CACHED
+
+#8 [build  3/10] WORKDIR /app
+#8 CACHED
+
+#9 [build 10/10] RUN DATABASE_URL=postgres://build/none npm run build  && npm test  && npm prune --omit=dev --no-audit --no-fund  && chmod -R a+rX package.json dist node_modules
+#9 CACHED
+
+#10 [stage-1 4/5] COPY --from=build /app/node_modules ./node_modules
+#10 CACHED
+
+#11 [build  9/10] COPY test ./test
+#11 CACHED
+
+#12 [build  2/10] RUN apk add --no-cache openssl
+#12 CACHED
+
+#13 [stage-1 2/5] WORKDIR /app
+#13 CACHED
+
+#14 [build  5/10] RUN npm ci --no-audit --no-fund
+#14 CACHED
+
+#15 [build  6/10] COPY tsconfig.json prisma.config.ts ./
+#15 CACHED
+
+#16 [stage-1 3/5] COPY --from=build /app/package.json ./
+#16 CACHED
+
+#17 [build  4/10] COPY package.json package-lock.json ./
+#17 CACHED
+
+#18 [build  8/10] COPY src ./src
+#18 CACHED
+
+#19 [stage-1 5/5] COPY --from=build /app/dist ./dist
+#19 CACHED
+
+#20 exporting to image
+#20 exporting layers done
+#20 writing image sha256:ebd7877abdfd6e6079dddfd1f7432de853e5713d45fd012d05fc8f9847120ed9 done
+#20 naming to docker.io/one-cpu/node:local done
+#20 DONE 0.0s
+
+#21 resolving provenance for metadata file
+#21 DONE 0.0s
+ Image one-cpu/node:local Built 
+ Container bench-postgres-1 Running 
+ Container bench-postgres-exporter-1 Creating 
+ Container bench-app-1 Creating 
+ Container bench-cadvisor-1 Creating 
+ Container bench-app-1 Created 
+ Container bench-nginx-1 Creating 
+ Container bench-cadvisor-1 Created 
+ Container bench-nginx-1 Created 
+ Container bench-nginx-exporter-1 Creating 
+ Container bench-nginx-exporter-1 Created 
+ Container bench-postgres-exporter-1 Created 
+ Container bench-postgres-exporter-1 Starting 
+ Container bench-app-1 Starting 
+ Container bench-cadvisor-1 Starting 
+ Container bench-postgres-exporter-1 Started 
+ Container bench-app-1 Started 
+ Container bench-nginx-1 Starting 
+ Container bench-cadvisor-1 Started 
+ Container bench-nginx-1 Started 
+ Container bench-nginx-exporter-1 Starting 
+ Container bench-nginx-exporter-1 Started 
+==> Waiting for http://10.110.0.2:8080/health
+==> Ready: node, phase nginx
+==> Contract test
+==> Idle baseline (30 s)
+==> calibration_seconds=20.70   (runs: 19.16 20.70 21.76)
+==> WARNING: calibration 20.70 s is 277% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care
+==> Warm-up: 20 sessions/s for 120 s
+==>   28 req/s, p95 15 ms, p99 28 ms, errors 0.00%
+==> ramp-coarse: 19 steps of 60 s, rates 10, 15, 22, 34, 51, 76, 114, 171, 256, 384, 577, 865, 1297, 1946, 2919, 4379, 6568, 9853, 14779 sessions/s
+==>   step 1/19 @ 10 sessions/s: 14 req/s, p95 13 ms, p99 24 ms, errors 0.00%, server CPU 8% -> PASS
+==>   step 2/19 @ 15 sessions/s: 21 req/s, p95 17 ms, p99 46 ms, errors 0.00%, server CPU 13% -> PASS
+==>   step 3/19 @ 22 sessions/s: 31 req/s, p95 16 ms, p99 30 ms, errors 0.00%, server CPU 15% -> PASS
+==>   step 4/19 @ 34 sessions/s: 48 req/s, p95 15 ms, p99 43 ms, errors 0.00%, server CPU 19% -> PASS
+==>   step 5/19 @ 51 sessions/s: 71 req/s, p95 14 ms, p99 27 ms, errors 0.00%, server CPU 22% -> PASS
+==>   step 6/19 @ 76 sessions/s: 105 req/s, p95 19 ms, p99 62 ms, errors 0.00%, server CPU 29% -> PASS
+==>   step 7/19 @ 114 sessions/s: 160 req/s, p95 23 ms, p99 148 ms, errors 0.00%, server CPU 40% -> PASS
+==>   step 8/19 @ 171 sessions/s: 238 req/s, p95 47 ms, p99 237 ms, errors 0.00%, server CPU 56% -> PASS
+==>   step 9/19 @ 256 sessions/s: 361 req/s, p95 153 ms, p99 931 ms, errors 0.38%, server CPU 78% -> PASS
+==>   step 10/19 @ 384 sessions/s: 533 req/s, p95 2525 ms, p99 10299 ms, errors 9.13%, server CPU 94% -> FAIL (p95 2525 ms, p99 10299 ms, errors 9.1%)
+==> Cool-down 120 s before the fine ramp
+==> ramp-fine: 4 steps of 60 s, rates 282, 307, 333, 358 sessions/s
+==>   step 1/4 @ 282 sessions/s: 395 req/s, p95 937 ms, p99 1531 ms, errors 1.13%, server CPU 81% -> FAIL (p95 937 ms, p99 1531 ms, errors 1.1%)
+==> Cool-down 120 s, then confirm 256 sessions/s for 300 s after a 45 s ramp-up
+==>   Nginx counted 115551 requests, k6 115551 (+0.00%)
+==>   358 req/s, p95 53 ms, p99 180 ms, errors 0.00% -> CONFIRMED
+==> Cool-down 120 s, then overload: 45 s ramp-up, 2 min at 1.5x, 2 min back at 256 sessions/s
+==>   Nginx counted 114759 requests, k6 114758 (+0.00%)
+==>   at 1.5x: 532 req/s, p95 1194 ms, p99 4148 ms, errors 5.78%
+==>   back at 1x: 358 req/s, p95 96 ms, p99 528 ms, errors 0.00% -> recovered
+==> Data check: 24638 posts and 72729 likes stored for 24555 and 72511 acknowledged; like counts consistent
+==> RESULT node / nginx: 358 req/s sustained (256 sessions/s, about 1029 concurrent users), p95 53 ms, p99 180 ms
+==> WARNING: calibration 20.70 s is 277% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care
+==> Saved results/node/nginx/20261105-024329. Let the Mac cool down 5 minutes before the next run.

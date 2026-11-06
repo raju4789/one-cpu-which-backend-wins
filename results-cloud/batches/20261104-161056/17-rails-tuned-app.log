@@ -1,0 +1,134 @@
+==> Run rails-app-20261105-040824, results in results/rails/app/20261105-040824
+==> Stopping anything already running
+==> Starting Postgres
+ Network bench_default Creating 
+ Network bench_default Creating 
+ Network bench_default Created 
+ Network bench_default Created 
+ Container bench-postgres-1 Creating 
+ Container bench-postgres-1 Created 
+ Container bench-postgres-1 Starting 
+ Container bench-postgres-1 Started 
+==> Waiting for the seed (the first run on a new VM takes a few minutes)
+==> Resetting database from app_template
+==> Starting rails (phase: app, FEED_CACHE=app, nginx: proxy)
+ Image one-cpu/rails:local Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 556B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 2.80kB done
+#2 DONE 0.5s
+
+#3 [internal] load metadata for docker.io/library/ruby:3.4.12-slim@sha256:dd852d6dd55f5d283839e940aeb0394bb5f5a4f51295a4eee545f732c46d1b41
+#3 DONE 0.7s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 62B done
+#4 DONE 0.0s
+
+#5 [base 1/3] FROM docker.io/library/ruby:3.4.12-slim@sha256:dd852d6dd55f5d283839e940aeb0394bb5f5a4f51295a4eee545f732c46d1b41
+#5 DONE 0.0s
+
+#6 [internal] load build context
+#6 transferring context: 1.84kB done
+#6 DONE 0.0s
+
+#7 [build 4/5] COPY . .
+#7 CACHED
+
+#8 [stage-2 2/3] COPY --from=build /rails /rails
+#8 CACHED
+
+#9 [base 3/3] RUN apt-get update -qq  && apt-get install --no-install-recommends -y libjemalloc2 libpq5  && ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so  && rm -rf /var/lib/apt/lists /var/cache/apt/archives
+#9 CACHED
+
+#10 [build 1/5] RUN apt-get update -qq  && apt-get install --no-install-recommends -y build-essential libpq-dev libyaml-dev pkg-config  && rm -rf /var/lib/apt/lists /var/cache/apt/archives
+#10 CACHED
+
+#11 [build 3/5] RUN bundle install  && rm -rf ~/.bundle/ "/usr/local/bundle"/ruby/*/cache  && bundle exec bootsnap precompile --gemfile
+#11 CACHED
+
+#12 [stage-2 1/3] COPY --from=build /usr/local/bundle /usr/local/bundle
+#12 CACHED
+
+#13 [base 2/3] WORKDIR /rails
+#13 CACHED
+
+#14 [build 2/5] COPY Gemfile Gemfile.lock .ruby-version ./
+#14 CACHED
+
+#15 [build 5/5] RUN bundle exec ruby -Itest -e 'Dir["./test/**/*_test.rb"].sort.each { |f| require f }'  && SECRET_KEY_BASE_DUMMY=1 DATABASE_URL=postgres://build/none bin/rails zeitwerk:check  && bundle exec bootsnap precompile app/  && chmod -R a+rX /rails "/usr/local/bundle"
+#15 CACHED
+
+#16 [stage-2 3/3] RUN groupadd --system --gid 1000 rails  && useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash  && mkdir -p tmp/pids log  && chown -R rails:rails tmp log
+#16 CACHED
+
+#17 exporting to image
+#17 exporting layers done
+#17 writing image sha256:f81376cfa62ba61963a6497c386b79f4cfc1ae08a4c8103d01b11ac19e5a6518 0.0s done
+#17 naming to docker.io/one-cpu/rails:local done
+#17 DONE 0.0s
+
+#18 resolving provenance for metadata file
+#18 DONE 0.0s
+ Image one-cpu/rails:local Built 
+ Container bench-postgres-1 Running 
+ Container bench-postgres-exporter-1 Creating 
+ Container bench-app-1 Creating 
+ Container bench-cadvisor-1 Creating 
+ Container bench-cadvisor-1 Created 
+ Container bench-postgres-exporter-1 Created 
+ Container bench-app-1 Created 
+ Container bench-nginx-1 Creating 
+ Container bench-nginx-1 Created 
+ Container bench-nginx-exporter-1 Creating 
+ Container bench-nginx-exporter-1 Created 
+ Container bench-postgres-exporter-1 Starting 
+ Container bench-cadvisor-1 Starting 
+ Container bench-app-1 Starting 
+ Container bench-postgres-exporter-1 Started 
+ Container bench-cadvisor-1 Started 
+ Container bench-app-1 Started 
+ Container bench-nginx-1 Starting 
+ Container bench-nginx-1 Started 
+ Container bench-nginx-exporter-1 Starting 
+ Container bench-nginx-exporter-1 Started 
+==> Waiting for http://10.110.0.2:8080/health
+==> Ready: rails, phase app
+==> Contract test
+==> Idle baseline (30 s)
+==> calibration_seconds=20.72   (runs: 19.76 20.72 22.22)
+==> WARNING: calibration 20.72 s is 277% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care
+==> Warm-up: 20 sessions/s for 120 s
+==>   28 req/s, p95 13 ms, p99 26 ms, errors 0.00%
+==> ramp-coarse: 19 steps of 60 s, rates 10, 15, 22, 34, 51, 76, 114, 171, 256, 384, 577, 865, 1297, 1946, 2919, 4379, 6568, 9853, 14779 sessions/s
+==>   step 1/19 @ 10 sessions/s: 14 req/s, p95 12 ms, p99 21 ms, errors 0.00%, server CPU 15% -> PASS
+==>   step 2/19 @ 15 sessions/s: 21 req/s, p95 15 ms, p99 24 ms, errors 0.00%, server CPU 14% -> PASS
+==>   step 3/19 @ 22 sessions/s: 31 req/s, p95 14 ms, p99 32 ms, errors 0.00%, server CPU 21% -> PASS
+==>   step 4/19 @ 34 sessions/s: 48 req/s, p95 15 ms, p99 23 ms, errors 0.00%, server CPU 23% -> PASS
+==>   step 5/19 @ 51 sessions/s: 72 req/s, p95 16 ms, p99 27 ms, errors 0.00%, server CPU 32% -> PASS
+==>   step 6/19 @ 76 sessions/s: 107 req/s, p95 17 ms, p99 32 ms, errors 0.00%, server CPU 42% -> PASS
+==>   step 7/19 @ 114 sessions/s: 160 req/s, p95 186 ms, p99 726 ms, errors 0.00%, server CPU 60% -> PASS
+==>   step 8/19 @ 171 sessions/s: 239 req/s, p95 127 ms, p99 507 ms, errors 0.00%, server CPU 79% -> PASS
+==>   step 9/19 @ 256 sessions/s: 250 req/s, p95 4913 ms, p99 5236 ms, errors 0.00%, server CPU 98% -> FAIL (p95 4913 ms, p99 5236 ms)
+==> Cool-down 120 s before the fine ramp
+==> ramp-fine: 4 steps of 60 s, rates 188, 205, 222, 239 sessions/s
+==>   step 1/4 @ 188 sessions/s: 265 req/s, p95 146 ms, p99 288 ms, errors 0.00%, server CPU 79% -> PASS
+==>   step 2/4 @ 205 sessions/s: 287 req/s, p95 557 ms, p99 884 ms, errors 0.00%, server CPU 91% -> FAIL (p95 557 ms)
+==> Cool-down 120 s, then confirm 188 sessions/s for 300 s after a 45 s ramp-up
+==>   Nginx counted 84815 requests, k6 84814 (+0.00%)
+==>   263 req/s, p95 500 ms, p99 648 ms, errors 0.00% -> FAIL (p95 500 ms)
+==> Cool-down 120 s, then confirm 171 sessions/s for 300 s after a 45 s ramp-up
+==>   Nginx counted 77217 requests, k6 77216 (+0.00%)
+==>   239 req/s, p95 72 ms, p99 139 ms, errors 0.00% -> CONFIRMED
+==> Cool-down 120 s, then overload: 45 s ramp-up, 2 min at 1.5x, 2 min back at 171 sessions/s
+==>   Nginx counted 71544 requests, k6 71543 (+0.00%)
+==>   at 1.5x: 311 req/s, p95 3960 ms, p99 6789 ms, errors 0.00%
+==>   back at 1x: 238 req/s, p95 1378 ms, p99 2324 ms, errors 0.00% -> did NOT recover
+==> Data check: 23478 posts and 70183 likes stored for 23469 and 70161 acknowledged; like counts consistent
+==> RESULT rails / app: 239 req/s sustained (171 sessions/s, about 690 concurrent users), p95 72 ms, p99 139 ms
+==> WARNING: calibration 20.72 s is 277% slower than the reference 5.49 s (harness/calibration-reference): the core was slower. Is something else running on the Mac? Compare this run with care
+==> Saved results/rails/app/20261105-040824. Let the Mac cool down 5 minutes before the next run.
